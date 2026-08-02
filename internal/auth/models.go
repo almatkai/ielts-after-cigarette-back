@@ -9,6 +9,8 @@ import (
 
 var (
 	ErrEmailExists        = errors.New("email already exists")
+	ErrPhoneExists        = errors.New("phone already exists")
+	ErrPhoneNotVerified   = errors.New("phone verification is invalid or expired")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidRefresh     = errors.New("invalid refresh token")
 	ErrRefreshReuse       = errors.New("refresh token reuse detected")
@@ -25,6 +27,7 @@ type User struct {
 type UserView struct {
 	ID          uuid.UUID `json:"id"`
 	Email       string    `json:"email"`
+	Phone       string    `json:"phone,omitempty"`
 	DisplayName string    `json:"displayName"`
 	Role        string    `json:"role"`
 	CurrentBand *float64  `json:"currentBand"`
@@ -54,13 +57,15 @@ type AuthResult struct {
 }
 
 type RegisterInput struct {
-	Name            string
-	Email           string
-	Password        string
-	ConfirmPassword string
-	AcceptedTerms   bool
-	UserAgent       string
-	IPAddress       string
+	Name              string
+	Email             string
+	Password          string
+	ConfirmPassword   string
+	AcceptedTerms     bool
+	Phone             string
+	VerificationToken string
+	UserAgent         string
+	IPAddress         string
 }
 
 type LoginInput struct {

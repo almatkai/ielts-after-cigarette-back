@@ -30,11 +30,13 @@ func NewHandler(service *Service, logger *slog.Logger, maxBytes int64, cookie Co
 }
 
 type registerRequest struct {
-	Name            string `json:"name"`
-	Email           string `json:"email"`
-	Password        string `json:"password"`
-	ConfirmPassword string `json:"confirmPassword,omitempty"`
-	AcceptedTerms   bool   `json:"acceptedTerms"`
+	Name              string `json:"name"`
+	Email             string `json:"email"`
+	Password          string `json:"password"`
+	ConfirmPassword   string `json:"confirmPassword,omitempty"`
+	AcceptedTerms     bool   `json:"acceptedTerms"`
+	Phone             string `json:"phone"`
+	VerificationToken string `json:"verificationToken"`
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
@@ -44,13 +46,15 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, details, err := h.service.Register(r.Context(), RegisterInput{
-		Name:            request.Name,
-		Email:           request.Email,
-		Password:        request.Password,
-		ConfirmPassword: request.ConfirmPassword,
-		AcceptedTerms:   request.AcceptedTerms,
-		UserAgent:       limited(r.UserAgent(), 512),
-		IPAddress:       clientIP(r),
+		Name:              request.Name,
+		Email:             request.Email,
+		Password:          request.Password,
+		ConfirmPassword:   request.ConfirmPassword,
+		AcceptedTerms:     request.AcceptedTerms,
+		Phone:             request.Phone,
+		VerificationToken: request.VerificationToken,
+		UserAgent:         limited(r.UserAgent(), 512),
+		IPAddress:         clientIP(r),
 	})
 	if len(details) > 0 {
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
@@ -58,6 +62,14 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	if errors.Is(err, ErrEmailExists) {
 		httpx.WriteError(w, r, http.StatusConflict, "EMAIL_ALREADY_EXISTS", "An account with this email already exists", nil)
+		return
+	}
+	if errors.Is(err, ErrPhoneExists) {
+		httpx.WriteError(w, r, http.StatusConflict, "PHONE_ALREADY_EXISTS", "An account with this phone number already exists", nil)
+		return
+	}
+	if errors.Is(err, ErrPhoneNotVerified) {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "PHONE_NOT_VERIFIED", "Phone verification is invalid or expired", nil)
 		return
 	}
 	if err != nil {

@@ -19,6 +19,93 @@ Base URL: `/api/v1`. Успешные ответы — чистые JSON-объ�
 Сервер не возвращает SQL, stack trace, password/token values или внутренние
 тексты ошибок.
 
+## Phone verification
+
+Номер передаётся в E.164 с `+`, например `+77001234567`. Пробелы, дефисы и
+скобки нормализуются. Один verification token можно использовать только один
+раз и только для purpose, для которого он был выдан.
+
+### `POST /phone-verifications`
+
+Отправляет шестизначный код через одобренный WhatsApp authentication template:
+
+```json
+{
+  "phone": "+77001234567",
+  "purpose": "waitlist"
+}
+```
+
+`purpose`: `waitlist` или `registration`. Ответ `202`:
+
+```json
+{
+  "verificationId": "74d36aae-c984-474c-a507-41aaf3cd8bd9",
+  "expiresAt": "2026-08-02T12:05:00Z",
+  "retryAfter": 60
+}
+```
+
+Слишком ранний resend возвращает `429 VERIFICATION_RESEND_TOO_SOON`. Пока
+Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIGURED`.
+
+### `POST /phone-verifications/{verificationId}/confirm`
+
+```json
+{
+  "phone": "+77001234567",
+  "purpose": "waitlist",
+  "code": "123456"
+}
+```
+
+Ответ `200`:
+
+```json
+{
+  "verificationToken": "<single-use-token>",
+  "expiresAt": "2026-08-02T12:10:00Z"
+}
+```
+
+Неверный, истёкший или уже использованный challenge даёт одинаковый
+`422 INVALID_VERIFICATION_CODE`.
+
+## Waitlist
+
+### `POST /waitlist`
+
+Сначала выполните phone verification с purpose `waitlist`, затем передайте
+одноразовый token:
+
+```json
+{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com",
+  "phone": "+77001234567",
+  "source": "landing",
+  "verificationToken": "<single-use-token>"
+}
+```
+
+`name`, `email`, `source` необязательны. Ответ `201` содержит созданную заявку:
+
+```json
+{
+  "id": "2fffd066-e824-4adc-b099-c7c266b7513a",
+  "phone": "+77001234567",
+  "email": "ada@example.com",
+  "displayName": "Ada Lovelace",
+  "source": "landing",
+  "status": "WAITING",
+  "phoneVerifiedAt": "2026-08-02T12:00:30Z",
+  "createdAt": "2026-08-02T12:00:35Z"
+}
+```
+
+Повторный номер даёт `409 WAITLIST_ENTRY_EXISTS`; неверный proof token —
+`422 PHONE_NOT_VERIFIED`.
+
 ## Auth
 
 ### `POST /auth/register`
@@ -27,14 +114,17 @@ Base URL: `/api/v1`. Успешные ответы — чистые JSON-объ�
 {
   "name": "Ada Lovelace",
   "email": "ada@example.com",
+  "phone": "+77001234567",
   "password": "correct horse battery staple",
   "confirmPassword": "correct horse battery staple",
-  "acceptedTerms": true
+  "acceptedTerms": true,
+  "verificationToken": "<single-use-registration-token>"
 }
 ```
 
 `confirmPassword` необязателен для API-клиента, но если передан, обязан
-совпадать. `acceptedTerms` обязателен. Ответ `201`:
+совпадать. `acceptedTerms` обязателен. Перед регистрацией необходимо выполнить
+phone verification с purpose `registration`. Ответ `201`:
 
 ```json
 {
@@ -44,6 +134,7 @@ Base URL: `/api/v1`. Успешные ответы — чистые JSON-объ�
   "user": {
     "id": "2c6eea74-968f-4af4-9f30-929bbf47bc45",
     "email": "ada@example.com",
+    "phone": "+77001234567",
     "displayName": "Ada Lovelace",
     "role": "STUDENT",
     "currentBand": null,
@@ -61,7 +152,9 @@ Base URL: `/api/v1`. Успешные ответы — чистые JSON-объ�
 JavaScript (`HttpOnly`), ограничена `Path=/api/v1/auth`, имеет настраиваемые
 `SameSite`/`Secure` и отправляется браузером только с `credentials: include`.
 
-Duplicate normalized email возвращает `409 EMAIL_ALREADY_EXISTS`.
+Duplicate normalized email возвращает `409 EMAIL_ALREADY_EXISTS`, duplicate
+phone — `409 PHONE_ALREADY_EXISTS`, а неверный proof token —
+`422 PHONE_NOT_VERIFIED`.
 
 ### `POST /auth/login`
 

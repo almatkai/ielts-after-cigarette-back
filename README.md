@@ -3,9 +3,9 @@
 Backend-основа платформы подготовки к IELTS. Это модульный монолит на Go с
 PostgreSQL как источником истины и Redis для rate limiting и readiness.
 
-Текущий scope: инфраструктура, регистрация/вход, JWT access token, отзываемые и
-ротируемые refresh-сессии, профиль, учебная цель, агрегированный dashboard и
-health checks.
+Текущий scope: инфраструктура, WhatsApp-верификация телефона, waitlist,
+регистрация/вход, JWT access token, отзываемые и ротируемые refresh-сессии,
+профиль, учебная цель, агрегированный dashboard и health checks.
 
 ## Стек
 
@@ -33,6 +33,8 @@ internal/auth/        auth, JWT, refresh rotation
 internal/user/        профиль и цель
 internal/dashboard/   агрегированный dashboard
 internal/health/      liveness/readiness
+internal/phoneverification/ одноразовые коды и Infobip WhatsApp
+internal/waitlist/    подтверждённые заявки waitlist
 internal/database/    PostgreSQL pool
 internal/cache/       Redis и rate limiting
 internal/httpx/       JSON, ошибки, middleware
@@ -63,8 +65,14 @@ docs/API.md            REST-контракт и примеры
 | `REFRESH_TOKEN_TTL` | обычно `720h` |
 | `REFRESH_COOKIE_*` | имя, Secure и SameSite для HttpOnly refresh cookie |
 | `CORS_ALLOWED_ORIGINS` | список точных origins через запятую |
-| `AUTH_RATE_LIMIT`, `AUTH_RATE_WINDOW` | лимит register/login/refresh |
+| `AUTH_RATE_LIMIT`, `AUTH_RATE_WINDOW` | лимит публичных write endpoints |
 | `MAX_REQUEST_BODY_BYTES` | максимальный размер JSON body |
+| `PHONE_VERIFICATION_SECRET` | отдельный HMAC-секрет для хеширования кодов |
+| `PHONE_CODE_TTL`, `PHONE_TOKEN_TTL` | срок кода и одноразового proof token |
+| `PHONE_RESEND_INTERVAL`, `PHONE_MAX_ATTEMPTS` | resend/attempt ограничения |
+| `INFOBIP_ENABLED` | включает реальную отправку через Infobip |
+| `INFOBIP_BASE_URL`, `INFOBIP_API_KEY` | API endpoint и ключ Infobip |
+| `INFOBIP_WHATSAPP_*` | sender, approved template и язык WhatsApp |
 
 `.env` исключён из Git. Значения по умолчанию в Compose предназначены только для
 локальной разработки и должны быть переопределены в любом общем окружении.
@@ -123,12 +131,14 @@ docker compose run --rm migrate -path=/migrations -database=$env:DATABASE_URL do
 `TIMESTAMPTZ` и UTC. `exam_date` использует `DATE`: это календарная дата, а не
 момент времени, поэтому она не должна меняться при смене timezone.
 
-Первая миграция создаёт только необходимые таблицы:
+Миграции создают только необходимые таблицы:
 
 - `users`;
 - `user_profiles`;
 - `refresh_sessions`;
 - `user_skill_progress`;
+- `phone_verifications`;
+- `waitlist_entries`;
 - служебную `schema_migrations`, создаваемую migration tool.
 
 ## Проверки
@@ -156,6 +166,9 @@ docker build -t ielts-api:local .
 |---|---|---:|---|
 | GET | `/health/live` | нет | процесс работает |
 | GET | `/health/ready` | нет | PostgreSQL и Redis доступны |
+| POST | `/api/v1/phone-verifications` | нет | отправить WhatsApp-код |
+| POST | `/api/v1/phone-verifications/{id}/confirm` | нет | подтвердить код |
+| POST | `/api/v1/waitlist` | нет | вступить в waitlist с proof token |
 | POST | `/api/v1/auth/register` | нет | регистрация STUDENT |
 | POST | `/api/v1/auth/login` | нет | вход |
 | POST | `/api/v1/auth/refresh` | нет | атомарная ротация refresh token |
@@ -167,6 +180,30 @@ docker build -t ielts-api:local .
 | GET | `/api/v1/dashboard` | Bearer | агрегированная сводка |
 
 Полный контракт с request/response-примерами описан в [docs/API.md](docs/API.md).
+
+## Infobip WhatsApp
+
+До получения production-реквизитов оставьте `INFOBIP_ENABLED=false`: API и БД
+работают, а запрос отправки кода отвечает `503 WHATSAPP_NOT_CONFIGURED`. Для
+включения нужны API key со scope `whatsapp:message:send`, зарегистрированный
+WhatsApp sender и одобренный Meta authentication template с copy-code button.
+После этого заполните `INFOBIP_API_KEY`, `INFOBIP_WHATSAPP_SENDER`,
+`INFOBIP_WHATSAPP_TEMPLATE` и установите `INFOBIP_ENABLED=true`.
+
+Backend генерирует шестизначный код криптографическим RNG, хранит только HMAC,
+отправляет template через `POST /whatsapp/1/message/template` и после проверки
+выдаёт короткоживущий одноразовый token. Исходный код и proof token не пишутся
+в логи или БД в открытом виде.
+
+Документация Infobip: [authentication template tutorial](https://www.infobip.com/docs/tutorials/authenticate-users-with-whatsapp-template-messages),
+[API authorization scopes](https://www.infobip.com/docs/essentials/api-essentials/api-authorization).
+
+## Production deployment
+
+Workflow `.github/workflows/deploy.yml` запускается только при push в `main`,
+выполняет race tests/vet, публикует image в GHCR и разворачивает его через SSH.
+Job использует GitHub Environment `production`. Runtime-файлы находятся на
+сервере в `~/ielts-api`; PostgreSQL и Redis не публикуют порты наружу.
 
 ## Найденные frontend-контракты
 

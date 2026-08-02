@@ -82,6 +82,7 @@ const profileQuery = `
 	SELECT
 		u.id,
 		u.email,
+		COALESCE(u.phone, ''),
 		p.display_name,
 		u.role,
 		p.current_band::double precision,
@@ -106,6 +107,7 @@ func scanProfile(row rowScanner) (Profile, error) {
 	if err := row.Scan(
 		&profile.ID,
 		&profile.Email,
+		&profile.Phone,
 		&profile.DisplayName,
 		&profile.Role,
 		&profile.CurrentBand,

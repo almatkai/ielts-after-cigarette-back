@@ -13,7 +13,7 @@ import (
 )
 
 type Repository interface {
-	CreateUser(context.Context, string, string, string, time.Time) (UserView, error)
+	CreateUser(context.Context, string, string, string, string, []byte, time.Time) (UserView, error)
 	FindUserByEmail(context.Context, string) (User, error)
 	FindUserByID(context.Context, uuid.UUID) (UserView, error)
 	CreateSession(context.Context, Session) error
@@ -31,7 +31,8 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 
 func (r *PostgresRepository) CreateUser(
 	ctx context.Context,
-	email, passwordHash, displayName string,
+	email, passwordHash, displayName, phone string,
+	verificationTokenHash []byte,
 	acceptedAt time.Time,
 ) (UserView, error) {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
@@ -40,13 +41,35 @@ func (r *PostgresRepository) CreateUser(
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	var verificationID uuid.UUID
+	err = tx.QueryRow(ctx, `
+		SELECT id
+		FROM phone_verifications
+		WHERE phone = $1
+			AND purpose = 'REGISTRATION'
+			AND verification_token_hash = $2
+			AND verified_at IS NOT NULL
+			AND consumed_at IS NULL
+			AND token_expires_at > $3
+		FOR UPDATE
+	`, phone, verificationTokenHash, acceptedAt).Scan(&verificationID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return UserView{}, ErrPhoneNotVerified
+	}
+	if err != nil {
+		return UserView{}, fmt.Errorf("lock registration phone verification: %w", err)
+	}
+
 	userID := uuid.New()
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO users (id, email, password_hash, role, terms_accepted_at)
-		VALUES ($1, $2, $3, 'STUDENT', $4)
-	`, userID, email, passwordHash, acceptedAt); err != nil {
+		INSERT INTO users (id, email, phone, password_hash, role, terms_accepted_at)
+		VALUES ($1, $2, $3, $4, 'STUDENT', $5)
+	`, userID, email, phone, passwordHash, acceptedAt); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			if pgErr.ConstraintName == "users_phone_unique" {
+				return UserView{}, ErrPhoneExists
+			}
 			return UserView{}, ErrEmailExists
 		}
 		return UserView{}, fmt.Errorf("insert user: %w", err)
@@ -66,6 +89,11 @@ func (r *PostgresRepository) CreateUser(
 		`, uuid.New(), userID, skill); err != nil {
 			return UserView{}, fmt.Errorf("insert %s skill progress: %w", skill, err)
 		}
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE phone_verifications SET consumed_at = $2 WHERE id = $1
+	`, verificationID, acceptedAt); err != nil {
+		return UserView{}, fmt.Errorf("consume registration phone verification: %w", err)
 	}
 
 	view, err := scanUserView(tx.QueryRow(ctx, userViewQuery, userID))
@@ -211,6 +239,7 @@ const userViewQuery = `
 	SELECT
 		u.id,
 		u.email,
+		COALESCE(u.phone, ''),
 		p.display_name,
 		u.role,
 		p.current_band::double precision,
@@ -235,6 +264,7 @@ func scanUserView(row rowScanner) (UserView, error) {
 	if err := row.Scan(
 		&view.ID,
 		&view.Email,
+		&view.Phone,
 		&view.DisplayName,
 		&view.Role,
 		&view.CurrentBand,

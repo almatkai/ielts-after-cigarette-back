@@ -16,7 +16,9 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/dashboard"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/health"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -60,6 +62,35 @@ func New(
 	dashboardRepository := dashboard.NewPostgresRepository(pool)
 	dashboardHandler := dashboard.NewHandler(dashboard.NewService(dashboardRepository), logger)
 
+	phoneRepository := phoneverification.NewPostgresRepository(pool)
+	infobipAPIKey := cfg.InfobipAPIKey
+	if !cfg.InfobipEnabled {
+		infobipAPIKey = ""
+	}
+	phoneSender := phoneverification.NewInfobipSender(
+		cfg.InfobipBaseURL,
+		infobipAPIKey,
+		cfg.InfobipWhatsAppSender,
+		cfg.InfobipWhatsAppTemplate,
+		cfg.InfobipWhatsAppLanguage,
+		&http.Client{Timeout: cfg.InfobipTimeout},
+	)
+	phoneHandler := phoneverification.NewHandler(
+		phoneverification.NewService(
+			phoneRepository,
+			phoneSender,
+			cfg.PhoneVerificationSecret,
+			cfg.PhoneCodeTTL,
+			cfg.PhoneTokenTTL,
+			cfg.PhoneResendInterval,
+			int(cfg.PhoneMaxAttempts),
+		),
+		logger,
+		cfg.MaxRequestBody,
+	)
+	waitlistRepository := waitlist.NewPostgresRepository(pool)
+	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository), logger, cfg.MaxRequestBody)
+
 	healthHandler := health.NewHandler(
 		pool.Ping,
 		func(ctx context.Context) error { return cache.Ping(ctx, redisClient) },
@@ -77,6 +108,10 @@ func New(
 	router.Get("/health/ready", healthHandler.Ready)
 
 	router.Route("/api/v1", func(api chi.Router) {
+		api.With(rateLimit(rateLimiter, logger, cfg, "phone-send")).Post("/phone-verifications", phoneHandler.Send)
+		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
+		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
+
 		api.Route("/auth", func(public chi.Router) {
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/register", authHandler.Register)
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/login", authHandler.Login)
@@ -111,14 +146,14 @@ func rateLimit(
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			key := fmt.Sprintf("rate-limit:auth:%s:%s", scope, remoteIP(r))
+			key := fmt.Sprintf("rate-limit:public:%s:%s", scope, remoteIP(r))
 			allowed, err := limiter.Allow(r.Context(), key, cfg.AuthRateLimit, cfg.AuthRateWindow)
 			if err != nil {
-				logger.ErrorContext(r.Context(), "auth rate limiter unavailable",
+				logger.ErrorContext(r.Context(), "public rate limiter unavailable",
 					"request_id", httpx.RequestID(r.Context()),
 					"error", err,
 				)
-				httpx.WriteError(w, r, http.StatusServiceUnavailable, "DEPENDENCY_UNAVAILABLE", "Authentication service is temporarily unavailable", nil)
+				httpx.WriteError(w, r, http.StatusServiceUnavailable, "DEPENDENCY_UNAVAILABLE", "Service is temporarily unavailable", nil)
 				return
 			}
 			if !allowed {

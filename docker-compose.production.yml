@@ -1,0 +1,104 @@
+name: ielts-api-production
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    volumes:
+      - ./migrations:/migrations:ro
+    command:
+      - -path=/migrations
+      - -database=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      - up
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    image: ${BACKEND_IMAGE}
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: :8080
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_AUDIENCE: ${JWT_AUDIENCE}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL}
+      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL}
+      REFRESH_COOKIE_NAME: ${REFRESH_COOKIE_NAME}
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE}
+      REFRESH_COOKIE_SAME_SITE: ${REFRESH_COOKIE_SAME_SITE}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT}
+      MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES}
+      AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT}
+      AUTH_RATE_WINDOW: ${AUTH_RATE_WINDOW}
+      PHONE_VERIFICATION_SECRET: ${PHONE_VERIFICATION_SECRET}
+      PHONE_CODE_TTL: ${PHONE_CODE_TTL}
+      PHONE_TOKEN_TTL: ${PHONE_TOKEN_TTL}
+      PHONE_RESEND_INTERVAL: ${PHONE_RESEND_INTERVAL}
+      PHONE_MAX_ATTEMPTS: ${PHONE_MAX_ATTEMPTS}
+      INFOBIP_BASE_URL: ${INFOBIP_BASE_URL}
+      INFOBIP_ENABLED: ${INFOBIP_ENABLED}
+      INFOBIP_API_KEY: ${INFOBIP_API_KEY:-}
+      INFOBIP_WHATSAPP_SENDER: ${INFOBIP_WHATSAPP_SENDER:-}
+      INFOBIP_WHATSAPP_TEMPLATE: ${INFOBIP_WHATSAPP_TEMPLATE:-}
+      INFOBIP_WHATSAPP_LANGUAGE: ${INFOBIP_WHATSAPP_LANGUAGE}
+      INFOBIP_TIMEOUT: ${INFOBIP_TIMEOUT}
+    ports:
+      - "${BACKEND_PORT}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/live"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+

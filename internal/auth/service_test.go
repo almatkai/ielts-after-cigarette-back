@@ -13,13 +13,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const (
+	testPhone             = "+77001234567"
+	testVerificationToken = "0123456789abcdef0123456789abcdef0123456789a"
+)
+
 func TestRegisterCreatesStudentAndNormalizesEmail(t *testing.T) {
 	service, repository := testService()
 	result, details, err := service.Register(context.Background(), RegisterInput{
-		Name:          " Alice ",
-		Email:         " Alice@Example.COM ",
-		Password:      "safe-password",
-		AcceptedTerms: true,
+		Name:              " Alice ",
+		Email:             " Alice@Example.COM ",
+		Password:          "safe-password",
+		AcceptedTerms:     true,
+		Phone:             testPhone,
+		VerificationToken: testVerificationToken,
 	})
 	if err != nil || len(details) != 0 {
 		t.Fatalf("register failed: details=%v err=%v", details, err)
@@ -39,6 +46,7 @@ func TestRegisterRejectsDuplicateEmail(t *testing.T) {
 	service, _ := testService()
 	input := RegisterInput{
 		Name: "Alice", Email: "alice@example.com", Password: "safe-password", AcceptedTerms: true,
+		Phone: testPhone, VerificationToken: testVerificationToken,
 	}
 	if _, _, err := service.Register(context.Background(), input); err != nil {
 		t.Fatalf("first registration failed: %v", err)
@@ -52,6 +60,7 @@ func TestLoginAcceptsCorrectPasswordAndRejectsWrongPassword(t *testing.T) {
 	service, _ := testService()
 	_, _, err := service.Register(context.Background(), RegisterInput{
 		Name: "Alice", Email: "alice@example.com", Password: "safe-password", AcceptedTerms: true,
+		Phone: testPhone, VerificationToken: testVerificationToken,
 	})
 	if err != nil {
 		t.Fatalf("register: %v", err)
@@ -73,6 +82,7 @@ func TestRefreshRotatesTokenAndDetectsReuse(t *testing.T) {
 	service, _ := testService()
 	registered, _, err := service.Register(context.Background(), RegisterInput{
 		Name: "Alice", Email: "alice@example.com", Password: "safe-password", AcceptedTerms: true,
+		Phone: testPhone, VerificationToken: testVerificationToken,
 	})
 	if err != nil {
 		t.Fatalf("register: %v", err)
@@ -94,6 +104,7 @@ func TestLogoutRevokesRefreshSession(t *testing.T) {
 	service, _ := testService()
 	registered, _, err := service.Register(context.Background(), RegisterInput{
 		Name: "Alice", Email: "alice@example.com", Password: "safe-password", AcceptedTerms: true,
+		Phone: testPhone, VerificationToken: testVerificationToken,
 	})
 	if err != nil {
 		t.Fatalf("register: %v", err)
@@ -174,7 +185,8 @@ func testService() (*Service, *fakeRepository) {
 
 func (r *fakeRepository) CreateUser(
 	_ context.Context,
-	email, hash, displayName string,
+	email, hash, displayName, phone string,
+	_ []byte,
 	now time.Time,
 ) (UserView, error) {
 	r.mu.Lock()
@@ -184,7 +196,7 @@ func (r *fakeRepository) CreateUser(
 	}
 	user := User{ID: uuid.New(), Email: email, PasswordHash: hash, Role: "STUDENT"}
 	view := UserView{
-		ID: user.ID, Email: email, DisplayName: displayName, Role: user.Role,
+		ID: user.ID, Email: email, Phone: phone, DisplayName: displayName, Role: user.Role,
 		Timezone: "UTC", CreatedAt: now, UpdatedAt: now,
 	}
 	r.users[email] = user

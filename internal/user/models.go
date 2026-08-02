@@ -12,6 +12,7 @@ var ErrNotFound = errors.New("profile not found")
 type Profile struct {
 	ID          uuid.UUID `json:"id"`
 	Email       string    `json:"email"`
+	Phone       string    `json:"phone,omitempty"`
 	DisplayName string    `json:"displayName"`
 	Role        string    `json:"role"`
 	CurrentBand *float64  `json:"currentBand"`

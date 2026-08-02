@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,6 +33,8 @@ func NewService(repository Repository, tokens *TokenManager) *Service {
 func (s *Service) Register(ctx context.Context, input RegisterInput) (AuthResult, map[string]string, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Email = normalizeEmail(input.Email)
+	input.Phone = phoneverification.NormalizePhone(input.Phone)
+	input.VerificationToken = strings.TrimSpace(input.VerificationToken)
 	details := validateRegistration(input)
 	if len(details) > 0 {
 		return AuthResult{}, details, nil
@@ -41,7 +44,15 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (AuthResult
 	if err != nil {
 		return AuthResult{}, nil, fmt.Errorf("hash password: %w", err)
 	}
-	user, err := s.repository.CreateUser(ctx, input.Email, string(passwordHash), input.Name, s.now().UTC())
+	user, err := s.repository.CreateUser(
+		ctx,
+		input.Email,
+		string(passwordHash),
+		input.Name,
+		input.Phone,
+		phoneverification.HashVerificationToken(input.VerificationToken),
+		s.now().UTC(),
+	)
 	if err != nil {
 		return AuthResult{}, nil, err
 	}
@@ -185,6 +196,12 @@ func validateRegistration(input RegisterInput) map[string]string {
 	}
 	if !input.AcceptedTerms {
 		details["acceptedTerms"] = "must be accepted"
+	}
+	if !phoneverification.ValidPhone(input.Phone) {
+		details["phone"] = "must use E.164 format, for example +77001234567"
+	}
+	if !phoneverification.ValidVerificationToken(input.VerificationToken) {
+		details["verificationToken"] = "is required"
 	}
 	return details
 }
