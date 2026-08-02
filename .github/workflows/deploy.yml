@@ -150,5 +150,5 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 700 ~/ielts-api/.docker && DOCKER_CONFIG=~/ielts-api/.docker docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
           ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'cd ~/ielts-api && tar -xzf deployment.tar.gz && bash scripts/deploy-production.sh' </dev/null
