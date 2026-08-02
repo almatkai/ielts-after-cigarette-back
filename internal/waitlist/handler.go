@@ -19,7 +19,8 @@ func NewHandler(service *Service, logger *slog.Logger, maxBytes int64) *Handler 
 }
 
 type joinRequest struct {
-	Name              string `json:"name,omitempty"`
+	FirstName         string `json:"firstName,omitempty"`
+	LastName          string `json:"lastName,omitempty"`
 	Email             string `json:"email,omitempty"`
 	Phone             string `json:"phone"`
 	Source            string `json:"source,omitempty"`
@@ -33,7 +34,8 @@ func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	entry, details, err := h.service.Join(r.Context(), JoinInput{
-		Name:              request.Name,
+		FirstName:         request.FirstName,
+		LastName:          request.LastName,
 		Email:             request.Email,
 		Phone:             request.Phone,
 		Source:            request.Source,

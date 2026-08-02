@@ -13,7 +13,8 @@ var (
 )
 
 type JoinInput struct {
-	Name              string
+	FirstName         string
+	LastName          string
 	Email             string
 	Phone             string
 	Source            string
@@ -21,7 +22,8 @@ type JoinInput struct {
 }
 
 type CreateParams struct {
-	Name                  string
+	FirstName             string
+	LastName              string
 	Email                 string
 	Phone                 string
 	Source                string
@@ -33,7 +35,8 @@ type Entry struct {
 	ID              uuid.UUID `json:"id"`
 	Phone           string    `json:"phone"`
 	Email           *string   `json:"email"`
-	DisplayName     *string   `json:"displayName"`
+	FirstName       *string   `json:"firstName"`
+	LastName        *string   `json:"lastName"`
 	Source          *string   `json:"source"`
 	Status          string    `json:"status"`
 	PhoneVerifiedAt time.Time `json:"phoneVerifiedAt"`

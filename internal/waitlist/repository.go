@@ -57,15 +57,16 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (E
 	var entry Entry
 	err = tx.QueryRow(ctx, `
 		INSERT INTO waitlist_entries (
-			id, phone, email, display_name, source, phone_verified_at, created_at
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), $6, $7)
-		RETURNING id, phone, email, display_name, source, status, phone_verified_at, created_at
-	`, entryID, params.Phone, params.Email, params.Name, params.Source,
+			id, phone, email, first_name, last_name, source, phone_verified_at, created_at
+		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), $7, $8)
+		RETURNING id, phone, email, first_name, last_name, source, status, phone_verified_at, created_at
+	`, entryID, params.Phone, params.Email, params.FirstName, params.LastName, params.Source,
 		verifiedAt, params.CreatedAt).Scan(
 		&entry.ID,
 		&entry.Phone,
 		&entry.Email,
-		&entry.DisplayName,
+		&entry.FirstName,
+		&entry.LastName,
 		&entry.Source,
 		&entry.Status,
 		&entry.PhoneVerifiedAt,

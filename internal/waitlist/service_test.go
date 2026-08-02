@@ -15,7 +15,8 @@ func TestJoinNormalizesWaitlistEntry(t *testing.T) {
 	service.now = func() time.Time { return now }
 
 	entry, details, err := service.Join(context.Background(), JoinInput{
-		Name:              " Ada Lovelace ",
+		FirstName:         " Ada ",
+		LastName:          " Lovelace ",
 		Email:             " ADA@Example.COM ",
 		Phone:             "+7 (700) 123-45-67",
 		Source:            " landing ",
@@ -24,12 +25,26 @@ func TestJoinNormalizesWaitlistEntry(t *testing.T) {
 	if err != nil || len(details) != 0 {
 		t.Fatalf("Join() details=%v err=%v", details, err)
 	}
-	if repository.params.Name != "Ada Lovelace" || repository.params.Email != "ada@example.com" ||
+	if repository.params.FirstName != "Ada" || repository.params.LastName != "Lovelace" ||
+		repository.params.Email != "ada@example.com" ||
 		repository.params.Phone != "+77001234567" || repository.params.Source != "landing" {
 		t.Fatalf("unexpected params: %+v", repository.params)
 	}
 	if !entry.CreatedAt.Equal(now) {
 		t.Fatalf("CreatedAt=%v, want %v", entry.CreatedAt, now)
+	}
+}
+
+func TestJoinRequiresNamesAndEmail(t *testing.T) {
+	service := NewService(&fakeRepository{})
+	_, details, err := service.Join(context.Background(), JoinInput{Phone: "+77001234567"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"firstName", "lastName", "email", "verificationToken"} {
+		if details[field] == "" {
+			t.Fatalf("missing %q detail: %v", field, details)
+		}
 	}
 }
 

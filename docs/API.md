@@ -80,7 +80,8 @@ Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIG
 
 ```json
 {
-  "name": "Ada Lovelace",
+  "firstName": "Ada",
+  "lastName": "Lovelace",
   "email": "ada@example.com",
   "phone": "+77001234567",
   "source": "landing",
@@ -88,14 +89,16 @@ Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIG
 }
 ```
 
-`name`, `email`, `source` необязательны. Ответ `201` содержит созданную заявку:
+`firstName`, `lastName`, `email` обязательны (каждое имя — от 2 до 100
+символов), `source` необязателен. Ответ `201` содержит созданную заявку:
 
 ```json
 {
   "id": "2fffd066-e824-4adc-b099-c7c266b7513a",
   "phone": "+77001234567",
   "email": "ada@example.com",
-  "displayName": "Ada Lovelace",
+  "firstName": "Ada",
+  "lastName": "Lovelace",
   "source": "landing",
   "status": "WAITING",
   "phoneVerifiedAt": "2026-08-02T12:00:30Z",
@@ -104,7 +107,8 @@ Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIG
 ```
 
 Повторный номер даёт `409 WAITLIST_ENTRY_EXISTS`; неверный proof token —
-`422 PHONE_NOT_VERIFIED`.
+`422 PHONE_NOT_VERIFIED`; отсутствующие или некорректные поля — `422
+VALIDATION_ERROR` с деталями по `firstName`, `lastName`, `email`.
 
 ## Auth
 
