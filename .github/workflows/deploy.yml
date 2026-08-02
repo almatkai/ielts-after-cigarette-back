@@ -141,7 +141,7 @@ jobs:
             printf 'INFOBIP_WHATSAPP_LANGUAGE=%s\n' "$INFOBIP_WHATSAPP_LANGUAGE"
             printf 'INFOBIP_TIMEOUT=%s\n' "$INFOBIP_TIMEOUT"
           } > production.env
-          tar -czf deployment.tar.gz docker-compose.production.yml migrations
+          tar -czf deployment.tar.gz docker-compose.production.yml migrations scripts/deploy-production.sh
       - name: Upload deployment files
         run: |
           ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'install -d -m 700 ~/ielts-api'
@@ -151,21 +151,4 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
-          ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" <<'REMOTE'
-            set -euo pipefail
-            cd ~/ielts-api
-            chmod 600 production.env
-            tar -xzf deployment.tar.gz
-            docker compose --env-file production.env -f docker-compose.production.yml pull backend
-            docker compose --env-file production.env -f docker-compose.production.yml up -d postgres redis
-            docker compose --env-file production.env -f docker-compose.production.yml run --rm -T migrate </dev/null
-            docker compose --env-file production.env -f docker-compose.production.yml up -d backend
-            for attempt in $(seq 1 30); do
-              if curl --fail --silent http://127.0.0.1:8090/health/ready >/dev/null; then
-                exit 0
-              fi
-              sleep 2
-            done
-            docker compose --env-file production.env -f docker-compose.production.yml logs --tail=100 backend
-            exit 1
-          REMOTE
+          ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'cd ~/ielts-api && tar -xzf deployment.tar.gz && bash scripts/deploy-production.sh' </dev/null
