@@ -1,4 +1,4 @@
-name: ielts-api-production
+name: ielts-api-development
 
 services:
   postgres:
@@ -53,7 +53,7 @@ services:
   backend:
     image: ${BACKEND_IMAGE}
     environment:
-      APP_ENV: production
+      APP_ENV: development
       HTTP_ADDR: :8080
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -101,4 +101,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-

@@ -3,10 +3,10 @@ name: Test, build, and deploy
 on:
   push:
     branches:
-      - main
+      - dev
 
 concurrency:
-  group: production
+  group: development
   cancel-in-progress: false
 
 permissions:
@@ -43,7 +43,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v4
       - id: image
-        run: echo "name=${REGISTRY}/${IMAGE_NAME}:main" >> "$GITHUB_OUTPUT"
+        run: echo "name=${REGISTRY}/${IMAGE_NAME}:dev" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -57,7 +57,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -104,7 +104,7 @@ jobs:
           chmod 600 ~/.ssh/ielts_deploy
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-      - name: Prepare production configuration
+      - name: Prepare development configuration
         run: |
           umask 077
           {
@@ -144,11 +144,11 @@ jobs:
           tar -czf deployment.tar.gz docker-compose.production.yml migrations scripts/deploy-production.sh
       - name: Upload deployment files
         run: |
-          ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'install -d -m 700 ~/ielts-api'
-          scp -i ~/.ssh/ielts_deploy production.env deployment.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:~/ielts-api/"
+          ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'install -d -m 700 ~/ielts-api-dev'
+          scp -i ~/.ssh/ielts_deploy production.env deployment.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:~/ielts-api-dev/"
       - name: Deploy
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 700 ~/ielts-api/.docker && DOCKER_CONFIG=~/ielts-api/.docker docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
-          ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'cd ~/ielts-api && tar -xzf deployment.tar.gz && bash scripts/deploy-production.sh' </dev/null
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 700 ~/ielts-api-dev/.docker && DOCKER_CONFIG=~/ielts-api-dev/.docker docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
+          ssh -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'cd ~/ielts-api-dev && tar -xzf deployment.tar.gz && bash scripts/deploy-production.sh' </dev/null
