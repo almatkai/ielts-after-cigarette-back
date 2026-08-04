@@ -47,3 +47,23 @@ func Authenticate(tokens *TokenManager) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+func RequireAnyRole(roles ...string) func(http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(roles))
+	for _, role := range roles {
+		role = NormalizeRole(role)
+		if ValidRole(role) {
+			allowed[role] = struct{}{}
+		}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, ok := allowed[NormalizeRole(Role(r.Context()))]; !ok {
+				httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "You do not have permission to access this resource", nil)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}

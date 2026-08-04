@@ -2,10 +2,30 @@ package auth
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+const (
+	RoleStudent = "STUDENT"
+	RoleEditor  = "EDITOR"
+	RoleAdmin   = "ADMIN"
+)
+
+func NormalizeRole(value string) string {
+	return strings.ToUpper(strings.TrimSpace(value))
+}
+
+func ValidRole(value string) bool {
+	switch NormalizeRole(value) {
+	case RoleStudent, RoleEditor, RoleAdmin:
+		return true
+	default:
+		return false
+	}
+}
 
 var (
 	ErrEmailExists        = errors.New("email already exists")

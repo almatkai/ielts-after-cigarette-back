@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
@@ -17,6 +18,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/health"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/go-chi/chi/v5"
@@ -61,6 +63,9 @@ func New(
 
 	dashboardRepository := dashboard.NewPostgresRepository(pool)
 	dashboardHandler := dashboard.NewHandler(dashboard.NewService(dashboardRepository), logger)
+	adminHandler := adminapi.NewHandler()
+	readingRepository := reading.NewPostgresRepository(pool)
+	readingHandler := reading.NewHandler(reading.NewService(readingRepository), logger, cfg.MaxRequestBody)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
 	infobipAPIKey := cfg.InfobipAPIKey
@@ -126,6 +131,15 @@ func New(
 			protected.Patch("/profile", userHandler.UpdateProfile)
 			protected.Put("/profile/goal", userHandler.UpdateGoal)
 			protected.Get("/dashboard", dashboardHandler.Get)
+			protected.Route("/admin", func(adminRouter chi.Router) {
+				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
+				adminRouter.Get("/access", adminHandler.Access)
+				adminRouter.Get("/reading/materials", readingHandler.List)
+				adminRouter.Post("/reading/materials", readingHandler.Create)
+				adminRouter.Get("/reading/materials/{materialID}", readingHandler.Get)
+				adminRouter.Put("/reading/materials/{materialID}", readingHandler.Update)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/publish", readingHandler.Publish)
+			})
 		})
 	})
 

@@ -227,6 +227,73 @@ auth-ответа без токенов.
 `examDate` не может быть раньше текущей даты в timezone профиля. Ответ `200` —
 обновлённый profile object.
 
+## Admin access
+
+### `GET /admin/access`
+
+Требует Bearer token с ролью `EDITOR` или `ADMIN`. Обычный `STUDENT` получает
+`403 FORBIDDEN`. Ответ `200` подтверждает, что проверку выполнил backend:
+
+```json
+{
+  "userId": "2c6eea74-968f-4af4-9f30-929bbf47bc45",
+  "role": "ADMIN"
+}
+```
+
+Публичного API изменения ролей нет. Первый администратор назначается CLI-командой
+из README; все refresh-сессии пользователя при этом отзываются.
+
+## Admin Reading materials
+
+Все endpoints требуют `EDITOR` или `ADMIN`. Публикация дополнительно требует
+`ADMIN`. Материал содержит стабильную запись каталога и неизменяемые версии
+текста. Каждое сохранение создаёт новую версию; поле `revision` используется для
+optimistic locking.
+
+### `GET /admin/reading/materials`
+
+Ответ `200`: `{ "items": [...] }`. Пустой список всегда представлен `[]`.
+
+### `POST /admin/reading/materials`
+
+```json
+{
+  "slug": "urban-wildlife",
+  "examType": "academic",
+  "difficulty": "intermediate",
+  "title": "Urban wildlife",
+  "description": "Practice passage",
+  "body": "Full passage text...",
+  "sourceTitle": "Licensed source",
+  "sourceUrl": "https://example.com/source"
+}
+```
+
+`slug` можно не передавать при создании — backend сгенерирует его. `body` должен
+содержать 50–100000 символов. Ответ `201` — созданный material с `revision: 1`.
+
+### `GET /admin/reading/materials/{id}`
+
+Возвращает текущую редактируемую версию материала.
+
+### `PUT /admin/reading/materials/{id}`
+
+Принимает полный объект сохранения и обязательный актуальный `revision`.
+Создаёт новую неизменяемую версию текста и увеличивает revision. Устаревший
+revision возвращает `409 REVISION_CONFLICT`, повторяющийся slug —
+`409 READING_SLUG_EXISTS`.
+
+### `POST /admin/reading/materials/{id}/publish`
+
+```json
+{ "revision": 2 }
+```
+
+Фиксирует текущую версию как опубликованную. Только `ADMIN`; `EDITOR` получает
+`403 FORBIDDEN`. Последующие изменения создают новый черновик и выставляют
+`hasUnpublishedChanges: true`, не изменяя опубликованную версию.
+
 ## Dashboard
 
 ### `GET /dashboard`

@@ -178,8 +178,26 @@ docker build -t ielts-api:local .
 | PATCH | `/api/v1/profile` | Bearer | `displayName` и/или `timezone` |
 | PUT | `/api/v1/profile/goal` | Bearer | target band, тип и дата экзамена |
 | GET | `/api/v1/dashboard` | Bearer | агрегированная сводка |
+| GET | `/api/v1/admin/access` | EDITOR/ADMIN | серверная проверка административного доступа |
+| GET/POST | `/api/v1/admin/reading/materials` | EDITOR/ADMIN | список и создание Reading-материалов |
+| GET/PUT | `/api/v1/admin/reading/materials/{id}` | EDITOR/ADMIN | чтение и новая версия черновика |
+| POST | `/api/v1/admin/reading/materials/{id}/publish` | ADMIN | публикация текущей версии |
 
 Полный контракт с request/response-примерами описан в [docs/API.md](docs/API.md).
+
+## Роли и первый администратор
+
+Публичная регистрация всегда создаёт `STUDENT`. Роли `EDITOR` и `ADMIN`
+назначаются только явной CLI-командой внутри backend-контейнера:
+
+```bash
+docker compose exec backend /app/admin set-role --email admin@example.com --role ADMIN
+```
+
+Допустимы `STUDENT`, `EDITOR`, `ADMIN`. Команда принимает только существующего
+пользователя и после изменения роли отзывает его refresh-сессии. Пользователю
+нужно войти заново, чтобы получить access token с новой ролью. HTTP endpoint для
+назначения ролей намеренно отсутствует.
 
 ## Infobip WhatsApp
 
@@ -260,10 +278,10 @@ adapter-функции, не меняя backend-модели ради имён U
 
 ## Пока не реализовано
 
-Диагностика, генерация плана, practice/content engine, mistakes, реальные
-результаты прогресса, Writing AI, Speaking/audio, media storage, уведомления,
-email delivery/password recovery, смена пароля, avatar upload, admin, платежи и
-подписки. Пустые таблицы и заглушки для них намеренно не создавались.
+Диагностика, генерация плана, Reading question/attempt engine, student practice
+catalog, mistakes, реальные результаты прогресса, Writing AI, Speaking/audio,
+media storage, уведомления, email delivery/password recovery, смена пароля,
+avatar upload, управление пользователями в admin, платежи и подписки.
 
 ## Эксплуатационные замечания
 
