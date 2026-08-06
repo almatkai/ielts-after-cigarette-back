@@ -46,7 +46,7 @@ func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if errors.Is(err, ErrEntryExists) {
-		httpx.WriteError(w, r, http.StatusConflict, "WAITLIST_ENTRY_EXISTS", "This phone number is already on the waitlist", nil)
+		httpx.WriteError(w, r, http.StatusConflict, "WAITLIST_ENTRY_EXISTS", "This Google account or phone number is already on the waitlist", nil)
 		return
 	}
 	if err != nil {
