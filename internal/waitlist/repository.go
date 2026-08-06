@@ -14,6 +14,7 @@ type Repository interface {
 	Create(context.Context, CreateParams) (Entry, error)
 	ExistsByGoogleSub(ctx context.Context, googleSub string) (bool, error)
 	ExistsByPhone(ctx context.Context, phone string) (bool, error)
+	List(ctx context.Context) ([]Entry, error)
 }
 
 type PostgresRepository struct {
@@ -54,6 +55,43 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (E
 	}
 	entry.CreatedAt = entry.CreatedAt.UTC()
 	return entry, nil
+}
+
+func (r *PostgresRepository) List(ctx context.Context) ([]Entry, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, phone, email, first_name, last_name, source, google_sub, status, phone_verified_at, created_at
+		FROM waitlist_entries
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list waitlist entries: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]Entry, 0)
+	for rows.Next() {
+		var entry Entry
+		if err := rows.Scan(
+			&entry.ID,
+			&entry.Phone,
+			&entry.Email,
+			&entry.FirstName,
+			&entry.LastName,
+			&entry.Source,
+			&entry.GoogleSub,
+			&entry.Status,
+			&entry.PhoneVerifiedAt,
+			&entry.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan waitlist entry: %w", err)
+		}
+		entry.CreatedAt = entry.CreatedAt.UTC()
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate waitlist entries: %w", err)
+	}
+	return entries, nil
 }
 
 func (r *PostgresRepository) ExistsByGoogleSub(ctx context.Context, googleSub string) (bool, error) {

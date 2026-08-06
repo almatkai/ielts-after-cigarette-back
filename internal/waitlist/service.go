@@ -2,6 +2,7 @@ package waitlist
 
 import (
 	"context"
+	"errors"
 	"net/mail"
 	"strings"
 	"time"
@@ -11,13 +12,20 @@ import (
 )
 
 type Service struct {
-	repository Repository
-	verifier   GoogleTokenVerifier
-	now        func() time.Time
+	repository  Repository
+	verifier    GoogleTokenVerifier
+	adminEmails map[string]struct{}
+	now         func() time.Time
 }
 
-func NewService(repository Repository, verifier GoogleTokenVerifier) *Service {
-	return &Service{repository: repository, verifier: verifier, now: time.Now}
+func NewService(repository Repository, verifier GoogleTokenVerifier, adminEmails []string) *Service {
+	admins := make(map[string]struct{}, len(adminEmails))
+	for _, email := range adminEmails {
+		if email = strings.ToLower(strings.TrimSpace(email)); email != "" {
+			admins[email] = struct{}{}
+		}
+	}
+	return &Service{repository: repository, verifier: verifier, adminEmails: admins, now: time.Now}
 }
 
 func (s *Service) Join(ctx context.Context, input JoinInput) (Entry, map[string]string, error) {
@@ -118,6 +126,28 @@ func (s *Service) Check(ctx context.Context, input CheckInput) (CheckResult, map
 		result.PhoneTaken = taken
 	}
 	return result, nil, nil
+}
+
+var (
+	ErrInvalidAdminToken = errors.New("invalid admin google token")
+	ErrAdminForbidden    = errors.New("google account is not a super admin")
+)
+
+// ListForAdmin returns every waitlist entry, newest first, but only when the
+// Google token belongs to one of the super admin emails from the environment.
+func (s *Service) ListForAdmin(ctx context.Context, googleToken string) ([]Entry, error) {
+	claims, err := s.verifier.Verify(ctx, strings.TrimSpace(googleToken))
+	if err != nil || claims.Sub == "" {
+		return nil, ErrInvalidAdminToken
+	}
+	email := strings.ToLower(strings.TrimSpace(claims.Email))
+	if email == "" || !claims.EmailVerified {
+		return nil, ErrInvalidAdminToken
+	}
+	if _, ok := s.adminEmails[email]; !ok {
+		return nil, ErrAdminForbidden
+	}
+	return s.repository.List(ctx)
 }
 
 func validRequiredName(value string) string {

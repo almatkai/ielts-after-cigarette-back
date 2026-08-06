@@ -41,6 +41,7 @@ type Config struct {
 	InfobipWhatsAppLanguage string
 	InfobipTimeout          time.Duration
 	GoogleClientID          string
+	SuperAdminEmails        []string
 }
 
 func Load() (Config, error) {
@@ -62,6 +63,7 @@ func Load() (Config, error) {
 		InfobipWhatsAppTemplate: os.Getenv("INFOBIP_WHATSAPP_TEMPLATE"),
 		InfobipWhatsAppLanguage: env("INFOBIP_WHATSAPP_LANGUAGE", "en"),
 		GoogleClientID:          env("GOOGLE_CLIENT_ID", "525971866611-vk1derapc3opreb82i2ba2edeldsev8l.apps.googleusercontent.com"),
+		SuperAdminEmails:        splitCSV(os.Getenv("SUPER_ADMIN_EMAILS")),
 	}
 
 	var err error

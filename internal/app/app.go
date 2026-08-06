@@ -94,7 +94,7 @@ func New(
 		cfg.MaxRequestBody,
 	)
 	waitlistRepository := waitlist.NewPostgresRepository(pool)
-	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository, waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID)), logger, cfg.MaxRequestBody)
+	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository, waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID), cfg.SuperAdminEmails), logger, cfg.MaxRequestBody)
 
 	healthHandler := health.NewHandler(
 		pool.Ping,
@@ -117,6 +117,7 @@ func New(
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
+		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Get("/admin/waitlist", waitlistHandler.AdminList)
 
 		api.Route("/auth", func(public chi.Router) {
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/register", authHandler.Register)

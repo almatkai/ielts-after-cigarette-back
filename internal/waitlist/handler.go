@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 )
@@ -55,6 +56,28 @@ func (h *Handler) Check(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
+	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	entries, err := h.service.ListForAdmin(r.Context(), token)
+	if errors.Is(err, ErrInvalidAdminToken) {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "INVALID_TOKEN", "Google token is missing or invalid", nil)
+		return
+	}
+	if errors.Is(err, ErrAdminForbidden) {
+		httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "This Google account is not allowed to view the waitlist", nil)
+		return
+	}
+	if err != nil {
+		h.logger.ErrorContext(r.Context(), "list waitlist entries",
+			"request_id", httpx.RequestID(r.Context()),
+			"error", err,
+		)
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"entries": entries, "total": len(entries)})
 }
 
 func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {

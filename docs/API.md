@@ -137,6 +137,35 @@ email берётся из подтверждённых данных аккаун
 `phone` необязателен; если аккаунт уже записан, проверка номера не выполняется
 и `phoneTaken` всегда `false`.
 
+### `GET /admin/waitlist`
+
+Список заявок waitlist для супер-админа. Авторизация — Google ID token в
+заголовке `Authorization: Bearer <google-id-token>`; email из токена должен
+быть подтверждён Google и входить в список `SUPER_ADMIN_EMAILS` (CSV в env).
+
+Ответ `200`:
+
+```json
+{
+  "entries": [
+    {
+      "id": "b7c1...",
+      "phone": "+77001234567",
+      "email": "ada@example.com",
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "source": "landing",
+      "status": "WAITING",
+      "createdAt": "2026-08-02T12:00:35Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+Токен отсутствует или недействителен — `401 INVALID_TOKEN`; аккаунт не в
+списке супер-админов — `403 FORBIDDEN`.
+
 ## Auth
 
 ### `POST /auth/register`

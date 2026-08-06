@@ -19,7 +19,7 @@ func validGoogleClaims() GoogleClaims {
 
 func TestJoinNormalizesWaitlistEntry(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 	now := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
 	service.now = func() time.Time { return now }
 
@@ -43,7 +43,7 @@ func TestJoinNormalizesWaitlistEntry(t *testing.T) {
 }
 
 func TestJoinRequiresNamesAndValidPhone(t *testing.T) {
-	service := NewService(&fakeRepository{}, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(&fakeRepository{}, &fakeVerifier{claims: validGoogleClaims()}, nil)
 	_, details, err := service.Join(context.Background(), JoinInput{GoogleToken: "valid-token"})
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestJoinRequiresNamesAndValidPhone(t *testing.T) {
 }
 
 func TestJoinRejectsInvalidPhone(t *testing.T) {
-	service := NewService(&fakeRepository{}, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(&fakeRepository{}, &fakeVerifier{claims: validGoogleClaims()}, nil)
 	_, details, err := service.Join(context.Background(), JoinInput{
 		FirstName:   "Ada",
 		LastName:    "Lovelace",
@@ -74,7 +74,7 @@ func TestJoinRejectsInvalidPhone(t *testing.T) {
 func TestJoinRequiresGoogleToken(t *testing.T) {
 	repository := &fakeRepository{}
 	verifier := &fakeVerifier{claims: validGoogleClaims()}
-	service := NewService(repository, verifier)
+	service := NewService(repository, verifier, nil)
 
 	_, details, err := service.Join(context.Background(), JoinInput{
 		FirstName: "Ada",
@@ -98,7 +98,7 @@ func TestJoinRequiresGoogleToken(t *testing.T) {
 
 func TestJoinWithInvalidGoogleTokenReturnsValidationError(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{err: errors.New("bad token")})
+	service := NewService(repository, &fakeVerifier{err: errors.New("bad token")}, nil)
 
 	_, details, err := service.Join(context.Background(), JoinInput{
 		FirstName:   "Ada",
@@ -120,7 +120,7 @@ func TestJoinWithInvalidGoogleTokenReturnsValidationError(t *testing.T) {
 func TestJoinWithValidGoogleTokenStoresSubAndClaimEmail(t *testing.T) {
 	repository := &fakeRepository{}
 	verifier := &fakeVerifier{claims: validGoogleClaims()}
-	service := NewService(repository, verifier)
+	service := NewService(repository, verifier, nil)
 
 	entry, details, err := service.Join(context.Background(), JoinInput{
 		FirstName:   "Ada",
@@ -164,7 +164,7 @@ func TestJoinWithoutVerifiedClaimsEmailReturnsValidationError(t *testing.T) {
 	for name, claims := range claimsCases {
 		t.Run(name, func(t *testing.T) {
 			repository := &fakeRepository{}
-			service := NewService(repository, &fakeVerifier{claims: claims})
+			service := NewService(repository, &fakeVerifier{claims: claims}, nil)
 
 			_, details, err := service.Join(context.Background(), JoinInput{
 				FirstName:   "Ada",
@@ -188,7 +188,7 @@ func TestJoinWithoutVerifiedClaimsEmailReturnsValidationError(t *testing.T) {
 
 func TestCheckRequiresGoogleToken(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 
 	_, details, err := service.Check(context.Background(), CheckInput{})
 	if err != nil {
@@ -201,7 +201,7 @@ func TestCheckRequiresGoogleToken(t *testing.T) {
 
 func TestCheckReturnsAccountRegistered(t *testing.T) {
 	repository := &fakeRepository{subExists: true}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 
 	result, details, err := service.Check(context.Background(), CheckInput{GoogleToken: " valid-token "})
 	if err != nil || len(details) != 0 {
@@ -217,7 +217,7 @@ func TestCheckReturnsAccountRegistered(t *testing.T) {
 
 func TestCheckFlagsTakenPhone(t *testing.T) {
 	repository := &fakeRepository{phoneExists: true}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 
 	result, details, err := service.Check(context.Background(), CheckInput{
 		GoogleToken: "valid-token",
@@ -236,7 +236,7 @@ func TestCheckFlagsTakenPhone(t *testing.T) {
 
 func TestCheckSkipsPhoneLookupWhenAccountRegistered(t *testing.T) {
 	repository := &fakeRepository{subExists: true, phoneExists: true}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 
 	result, details, err := service.Check(context.Background(), CheckInput{
 		GoogleToken: "valid-token",
@@ -255,7 +255,7 @@ func TestCheckSkipsPhoneLookupWhenAccountRegistered(t *testing.T) {
 
 func TestCheckRejectsInvalidPhone(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 
 	_, details, err := service.Check(context.Background(), CheckInput{
 		GoogleToken: "valid-token",
@@ -287,11 +287,17 @@ type fakeRepository struct {
 	phoneExists      bool
 	existsSubQuery   string
 	existsPhoneQuery string
+	entries          []Entry
+	listErr          error
 }
 
 func (r *fakeRepository) ExistsByGoogleSub(_ context.Context, googleSub string) (bool, error) {
 	r.existsSubQuery = googleSub
 	return r.subExists, nil
+}
+
+func (r *fakeRepository) List(_ context.Context) ([]Entry, error) {
+	return r.entries, r.listErr
 }
 
 func (r *fakeRepository) ExistsByPhone(_ context.Context, phone string) (bool, error) {
@@ -315,4 +321,46 @@ func (r *fakeRepository) Create(_ context.Context, params CreateParams) (Entry, 
 		entry.GoogleSub = &params.GoogleSub
 	}
 	return entry, nil
+}
+
+func TestListForAdminReturnsEntriesForSuperAdmin(t *testing.T) {
+	repository := &fakeRepository{entries: []Entry{{ID: uuid.New(), Phone: "+77001234567", Status: "WAITING"}}}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+
+	entries, err := service.ListForAdmin(context.Background(), "token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len(entries)=%d, want 1", len(entries))
+	}
+}
+
+func TestListForAdminRejectsUnknownEmail(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"root@google.com"})
+
+	if _, err := service.ListForAdmin(context.Background(), "token"); !errors.Is(err, ErrAdminForbidden) {
+		t.Fatalf("err=%v, want ErrAdminForbidden", err)
+	}
+}
+
+func TestListForAdminRejectsUnverifiedEmail(t *testing.T) {
+	repository := &fakeRepository{}
+	claims := validGoogleClaims()
+	claims.EmailVerified = false
+	service := NewService(repository, &fakeVerifier{claims: claims}, []string{"ada@google.com"})
+
+	if _, err := service.ListForAdmin(context.Background(), "token"); !errors.Is(err, ErrInvalidAdminToken) {
+		t.Fatalf("err=%v, want ErrInvalidAdminToken", err)
+	}
+}
+
+func TestListForAdminRejectsBadToken(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{err: errors.New("bad token")}, []string{"ada@google.com"})
+
+	if _, err := service.ListForAdmin(context.Background(), "token"); !errors.Is(err, ErrInvalidAdminToken) {
+		t.Fatalf("err=%v, want ErrInvalidAdminToken", err)
+	}
 }
