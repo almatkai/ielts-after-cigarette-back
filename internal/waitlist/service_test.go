@@ -9,25 +9,31 @@ import (
 	"github.com/google/uuid"
 )
 
+func validGoogleClaims() GoogleClaims {
+	return GoogleClaims{
+		Sub:           "google-sub-123",
+		Email:         " Ada@Google.com ",
+		EmailVerified: true,
+	}
+}
+
 func TestJoinNormalizesWaitlistEntry(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
 	now := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
 	service.now = func() time.Time { return now }
 
 	entry, details, err := service.Join(context.Background(), JoinInput{
-		FirstName:         " Ada ",
-		LastName:          " Lovelace ",
-		Email:             " ADA@Example.COM ",
-		Phone:             "+7 (700) 123-45-67",
-		Source:            " landing ",
-		VerificationToken: "0123456789abcdef0123456789abcdef0123456789a",
+		FirstName:   " Ada ",
+		LastName:    " Lovelace ",
+		Phone:       "+7 (700) 123-45-67",
+		Source:      " landing ",
+		GoogleToken: " valid-token ",
 	})
 	if err != nil || len(details) != 0 {
 		t.Fatalf("Join() details=%v err=%v", details, err)
 	}
 	if repository.params.FirstName != "Ada" || repository.params.LastName != "Lovelace" ||
-		repository.params.Email != "ada@example.com" ||
 		repository.params.Phone != "+77001234567" || repository.params.Source != "landing" {
 		t.Fatalf("unexpected params: %+v", repository.params)
 	}
@@ -36,60 +42,57 @@ func TestJoinNormalizesWaitlistEntry(t *testing.T) {
 	}
 }
 
-func TestJoinRequiresNamesAndEmail(t *testing.T) {
-	service := NewService(&fakeRepository{}, &fakeVerifier{})
-	_, details, err := service.Join(context.Background(), JoinInput{Phone: "+77001234567"})
+func TestJoinRequiresNamesAndValidPhone(t *testing.T) {
+	service := NewService(&fakeRepository{}, &fakeVerifier{claims: validGoogleClaims()})
+	_, details, err := service.Join(context.Background(), JoinInput{GoogleToken: "valid-token"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"firstName", "lastName", "email", "verificationToken"} {
+	for _, field := range []string{"firstName", "lastName", "phone"} {
 		if details[field] == "" {
 			t.Fatalf("missing %q detail: %v", field, details)
 		}
 	}
 }
 
-func TestJoinRequiresVerifiedPhoneToken(t *testing.T) {
-	service := NewService(&fakeRepository{}, &fakeVerifier{})
-	_, details, err := service.Join(context.Background(), JoinInput{Phone: "+77001234567"})
+func TestJoinRejectsInvalidPhone(t *testing.T) {
+	service := NewService(&fakeRepository{}, &fakeVerifier{claims: validGoogleClaims()})
+	_, details, err := service.Join(context.Background(), JoinInput{
+		FirstName:   "Ada",
+		LastName:    "Lovelace",
+		Phone:       "12345",
+		GoogleToken: "valid-token",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if details["verificationToken"] == "" {
-		t.Fatalf("missing verification token detail: %v", details)
+	if details["phone"] == "" {
+		t.Fatalf("missing phone detail: %v", details)
 	}
 }
 
-func TestJoinWithValidGoogleTokenStoresSubAndClaimEmail(t *testing.T) {
+func TestJoinRequiresGoogleToken(t *testing.T) {
 	repository := &fakeRepository{}
-	verifier := &fakeVerifier{
-		claims: GoogleClaims{
-			Sub:           "google-sub-123",
-			Email:         " Ada@Google.com ",
-			EmailVerified: true,
-		},
-	}
+	verifier := &fakeVerifier{claims: validGoogleClaims()}
 	service := NewService(repository, verifier)
 
 	_, details, err := service.Join(context.Background(), JoinInput{
-		FirstName:         "Ada",
-		LastName:          "Lovelace",
-		Email:             "typed@example.com",
-		Phone:             "+77001234567",
-		VerificationToken: "0123456789abcdef0123456789abcdef0123456789a",
-		GoogleToken:       " valid-token ",
+		FirstName: "Ada",
+		LastName:  "Lovelace",
+		Email:     "ada@example.com",
+		Phone:     "+77001234567",
 	})
-	if err != nil || len(details) != 0 {
-		t.Fatalf("Join() details=%v err=%v", details, err)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if verifier.calls != 1 {
-		t.Fatalf("Verify() called %d times, want 1", verifier.calls)
+	if details["googleToken"] != "is required" {
+		t.Fatalf("details=%v, want googleToken is required", details)
 	}
-	if repository.params.GoogleSub != "google-sub-123" {
-		t.Fatalf("GoogleSub=%q, want %q", repository.params.GoogleSub, "google-sub-123")
+	if verifier.calls != 0 {
+		t.Fatalf("Verify() called %d times, want 0", verifier.calls)
 	}
-	if repository.params.Email != "ada@google.com" {
-		t.Fatalf("Email=%q, want verified claims email", repository.params.Email)
+	if repository.called {
+		t.Fatal("repository.Create must not be called without a google token")
 	}
 }
 
@@ -98,44 +101,88 @@ func TestJoinWithInvalidGoogleTokenReturnsValidationError(t *testing.T) {
 	service := NewService(repository, &fakeVerifier{err: errors.New("bad token")})
 
 	_, details, err := service.Join(context.Background(), JoinInput{
-		FirstName:         "Ada",
-		LastName:          "Lovelace",
-		Email:             "ada@example.com",
-		Phone:             "+77001234567",
-		VerificationToken: "0123456789abcdef0123456789abcdef0123456789a",
-		GoogleToken:       "bogus",
+		FirstName:   "Ada",
+		LastName:    "Lovelace",
+		Phone:       "+77001234567",
+		GoogleToken: "bogus",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if details["googleToken"] != "is invalid" {
-		t.Fatalf("details=%v, want googleToken detail", details)
+		t.Fatalf("details=%v, want googleToken is invalid", details)
 	}
 	if repository.called {
 		t.Fatal("repository.Create must not be called for an invalid google token")
 	}
 }
 
-func TestJoinWithoutGoogleTokenSkipsVerification(t *testing.T) {
+func TestJoinWithValidGoogleTokenStoresSubAndClaimEmail(t *testing.T) {
 	repository := &fakeRepository{}
-	verifier := &fakeVerifier{err: errors.New("must not be called")}
+	verifier := &fakeVerifier{claims: validGoogleClaims()}
 	service := NewService(repository, verifier)
 
-	_, details, err := service.Join(context.Background(), JoinInput{
-		FirstName:         "Ada",
-		LastName:          "Lovelace",
-		Email:             "ada@example.com",
-		Phone:             "+77001234567",
-		VerificationToken: "0123456789abcdef0123456789abcdef0123456789a",
+	entry, details, err := service.Join(context.Background(), JoinInput{
+		FirstName:   "Ada",
+		LastName:    "Lovelace",
+		Email:       "typed@example.com",
+		Phone:       "+77001234567",
+		Source:      "landing",
+		GoogleToken: "valid-token",
 	})
 	if err != nil || len(details) != 0 {
 		t.Fatalf("Join() details=%v err=%v", details, err)
 	}
-	if verifier.calls != 0 {
-		t.Fatalf("Verify() called %d times, want 0", verifier.calls)
+	if verifier.calls != 1 {
+		t.Fatalf("Verify() called %d times, want 1", verifier.calls)
 	}
-	if repository.params.GoogleSub != "" {
-		t.Fatalf("GoogleSub=%q, want empty", repository.params.GoogleSub)
+	params := repository.params
+	if params.FirstName != "Ada" || params.LastName != "Lovelace" ||
+		params.Phone != "+77001234567" || params.Source != "landing" ||
+		params.GoogleSub != "google-sub-123" {
+		t.Fatalf("unexpected params: %+v", params)
+	}
+	if params.Email != "ada@google.com" {
+		t.Fatalf("Email=%q, want verified claims email", params.Email)
+	}
+	if entry.GoogleSub == nil || *entry.GoogleSub != "google-sub-123" {
+		t.Fatalf("entry.GoogleSub=%v, want google-sub-123", entry.GoogleSub)
+	}
+	if entry.Email == nil || *entry.Email != "ada@google.com" {
+		t.Fatalf("entry.Email=%v, want ada@google.com", entry.Email)
+	}
+	if entry.PhoneVerifiedAt != nil {
+		t.Fatalf("PhoneVerifiedAt=%v, want nil", entry.PhoneVerifiedAt)
+	}
+}
+
+func TestJoinWithoutVerifiedClaimsEmailReturnsValidationError(t *testing.T) {
+	claimsCases := map[string]GoogleClaims{
+		"email not verified": {Sub: "google-sub-123", Email: "ada@google.com", EmailVerified: false},
+		"email missing":      {Sub: "google-sub-123", EmailVerified: true},
+	}
+	for name, claims := range claimsCases {
+		t.Run(name, func(t *testing.T) {
+			repository := &fakeRepository{}
+			service := NewService(repository, &fakeVerifier{claims: claims})
+
+			_, details, err := service.Join(context.Background(), JoinInput{
+				FirstName:   "Ada",
+				LastName:    "Lovelace",
+				Email:       "ada@example.com",
+				Phone:       "+77001234567",
+				GoogleToken: "valid-token",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if details["googleToken"] != "does not provide a verified email" {
+				t.Fatalf("details=%v, want googleToken verified email detail", details)
+			}
+			if repository.called {
+				t.Fatal("repository.Create must not be called without a verified claims email")
+			}
+		})
 	}
 }
 
@@ -158,11 +205,17 @@ type fakeRepository struct {
 func (r *fakeRepository) Create(_ context.Context, params CreateParams) (Entry, error) {
 	r.params = params
 	r.called = true
-	return Entry{
-		ID:              uuid.New(),
-		Phone:           params.Phone,
-		Status:          "WAITING",
-		PhoneVerifiedAt: params.CreatedAt,
-		CreatedAt:       params.CreatedAt,
-	}, nil
+	entry := Entry{
+		ID:        uuid.New(),
+		Phone:     params.Phone,
+		Status:    "WAITING",
+		CreatedAt: params.CreatedAt,
+	}
+	if params.Email != "" {
+		entry.Email = &params.Email
+	}
+	if params.GoogleSub != "" {
+		entry.GoogleSub = &params.GoogleSub
+	}
+	return entry, nil
 }

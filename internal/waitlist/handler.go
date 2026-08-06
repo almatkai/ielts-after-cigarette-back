@@ -19,13 +19,12 @@ func NewHandler(service *Service, logger *slog.Logger, maxBytes int64) *Handler 
 }
 
 type joinRequest struct {
-	FirstName         string `json:"firstName,omitempty"`
-	LastName          string `json:"lastName,omitempty"`
-	Email             string `json:"email,omitempty"`
-	Phone             string `json:"phone"`
-	Source            string `json:"source,omitempty"`
-	VerificationToken string `json:"verificationToken"`
-	GoogleToken       string `json:"googleToken,omitempty"`
+	FirstName   string `json:"firstName,omitempty"`
+	LastName    string `json:"lastName,omitempty"`
+	Email       string `json:"email,omitempty"`
+	Phone       string `json:"phone"`
+	Source      string `json:"source,omitempty"`
+	GoogleToken string `json:"googleToken,omitempty"`
 }
 
 func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
@@ -35,20 +34,15 @@ func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	entry, details, err := h.service.Join(r.Context(), JoinInput{
-		FirstName:         request.FirstName,
-		LastName:          request.LastName,
-		Email:             request.Email,
-		Phone:             request.Phone,
-		Source:            request.Source,
-		VerificationToken: request.VerificationToken,
-		GoogleToken:       request.GoogleToken,
+		FirstName:   request.FirstName,
+		LastName:    request.LastName,
+		Email:       request.Email,
+		Phone:       request.Phone,
+		Source:      request.Source,
+		GoogleToken: request.GoogleToken,
 	})
 	if len(details) > 0 {
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
-		return
-	}
-	if errors.Is(err, ErrPhoneNotVerified) {
-		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "PHONE_NOT_VERIFIED", "Phone verification is invalid or expired", nil)
 		return
 	}
 	if errors.Is(err, ErrEntryExists) {

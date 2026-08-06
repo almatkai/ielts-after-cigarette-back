@@ -75,22 +75,23 @@ Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIG
 
 ### `POST /waitlist`
 
-Сначала выполните phone verification с purpose `waitlist`, затем передайте
-одноразовый token:
+Для добавления в waitlist нужен Google-аккаунт: передайте Google ID token,
+email берётся из подтверждённых данных аккаунта. Номер телефона принимается
+без WhatsApp-проверки:
 
 ```json
 {
   "firstName": "Ada",
   "lastName": "Lovelace",
-  "email": "ada@example.com",
   "phone": "+77001234567",
   "source": "landing",
-  "verificationToken": "<single-use-token>"
+  "googleToken": "<google-id-token>"
 }
 ```
 
-`firstName`, `lastName`, `email` обязательны (каждое имя — от 2 до 100
-символов), `source` необязателен. Ответ `201` содержит созданную заявку:
+`firstName`, `lastName`, `phone`, `googleToken` обязательны (каждое имя — от
+2 до 100 символов), `source` необязателен. Ответ `201` содержит созданную
+заявку:
 
 ```json
 {
@@ -101,14 +102,14 @@ Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIG
   "lastName": "Lovelace",
   "source": "landing",
   "status": "WAITING",
-  "phoneVerifiedAt": "2026-08-02T12:00:30Z",
   "createdAt": "2026-08-02T12:00:35Z"
 }
 ```
 
-Повторный номер даёт `409 WAITLIST_ENTRY_EXISTS`; неверный proof token —
-`422 PHONE_NOT_VERIFIED`; отсутствующие или некорректные поля — `422
-VALIDATION_ERROR` с деталями по `firstName`, `lastName`, `email`.
+Повторный номер даёт `409 WAITLIST_ENTRY_EXISTS`; отсутствующий,
+недействительный или не содержащий подтверждённый email Google token, а
+также некорректные поля — `422 VALIDATION_ERROR` с деталями по `firstName`,
+`lastName`, `phone`, `googleToken`.
 
 ## Auth
 
