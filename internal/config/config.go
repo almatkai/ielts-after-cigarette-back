@@ -40,6 +40,7 @@ type Config struct {
 	InfobipWhatsAppTemplate string
 	InfobipWhatsAppLanguage string
 	InfobipTimeout          time.Duration
+	GoogleClientID          string
 }
 
 func Load() (Config, error) {
@@ -60,6 +61,7 @@ func Load() (Config, error) {
 		InfobipWhatsAppSender:   os.Getenv("INFOBIP_WHATSAPP_SENDER"),
 		InfobipWhatsAppTemplate: os.Getenv("INFOBIP_WHATSAPP_TEMPLATE"),
 		InfobipWhatsAppLanguage: env("INFOBIP_WHATSAPP_LANGUAGE", "en"),
+		GoogleClientID:          env("GOOGLE_CLIENT_ID", "525971866611-vk1derapc3opreb82i2ba2edeldsev8l.apps.googleusercontent.com"),
 	}
 
 	var err error

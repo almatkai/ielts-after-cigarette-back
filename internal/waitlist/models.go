@@ -19,6 +19,7 @@ type JoinInput struct {
 	Phone             string
 	Source            string
 	VerificationToken string
+	GoogleToken       string
 }
 
 type CreateParams struct {
@@ -28,6 +29,7 @@ type CreateParams struct {
 	Phone                 string
 	Source                string
 	VerificationTokenHash []byte
+	GoogleSub             string
 	CreatedAt             time.Time
 }
 
@@ -38,6 +40,7 @@ type Entry struct {
 	FirstName       *string   `json:"firstName"`
 	LastName        *string   `json:"lastName"`
 	Source          *string   `json:"source"`
+	GoogleSub       *string   `json:"googleSub,omitempty"`
 	Status          string    `json:"status"`
 	PhoneVerifiedAt time.Time `json:"phoneVerifiedAt"`
 	CreatedAt       time.Time `json:"createdAt"`

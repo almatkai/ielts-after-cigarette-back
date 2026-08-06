@@ -12,11 +12,12 @@ import (
 
 type Service struct {
 	repository Repository
+	verifier   GoogleTokenVerifier
 	now        func() time.Time
 }
 
-func NewService(repository Repository) *Service {
-	return &Service{repository: repository, now: time.Now}
+func NewService(repository Repository, verifier GoogleTokenVerifier) *Service {
+	return &Service{repository: repository, verifier: verifier, now: time.Now}
 }
 
 func (s *Service) Join(ctx context.Context, input JoinInput) (Entry, map[string]string, error) {
@@ -26,6 +27,19 @@ func (s *Service) Join(ctx context.Context, input JoinInput) (Entry, map[string]
 	input.Phone = phoneverification.NormalizePhone(input.Phone)
 	input.Source = strings.TrimSpace(input.Source)
 	input.VerificationToken = strings.TrimSpace(input.VerificationToken)
+	input.GoogleToken = strings.TrimSpace(input.GoogleToken)
+
+	googleSub := ""
+	if input.GoogleToken != "" {
+		claims, err := s.verifier.Verify(ctx, input.GoogleToken)
+		if err != nil {
+			return Entry{}, map[string]string{"googleToken": "is invalid"}, nil
+		}
+		googleSub = claims.Sub
+		if claims.EmailVerified && strings.TrimSpace(claims.Email) != "" {
+			input.Email = strings.ToLower(strings.TrimSpace(claims.Email))
+		}
+	}
 
 	details := make(map[string]string)
 	if detail := validRequiredName(input.FirstName); detail != "" {
@@ -59,6 +73,7 @@ func (s *Service) Join(ctx context.Context, input JoinInput) (Entry, map[string]
 		Phone:                 input.Phone,
 		Source:                input.Source,
 		VerificationTokenHash: phoneverification.HashVerificationToken(input.VerificationToken),
+		GoogleSub:             googleSub,
 		CreatedAt:             s.now().UTC(),
 	})
 	return entry, nil, err

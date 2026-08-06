@@ -94,7 +94,7 @@ func New(
 		cfg.MaxRequestBody,
 	)
 	waitlistRepository := waitlist.NewPostgresRepository(pool)
-	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository), logger, cfg.MaxRequestBody)
+	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository, waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID)), logger, cfg.MaxRequestBody)
 
 	healthHandler := health.NewHandler(
 		pool.Ping,

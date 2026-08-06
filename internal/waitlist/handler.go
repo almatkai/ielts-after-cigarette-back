@@ -25,6 +25,7 @@ type joinRequest struct {
 	Phone             string `json:"phone"`
 	Source            string `json:"source,omitempty"`
 	VerificationToken string `json:"verificationToken"`
+	GoogleToken       string `json:"googleToken,omitempty"`
 }
 
 func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +41,7 @@ func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 		Phone:             request.Phone,
 		Source:            request.Source,
 		VerificationToken: request.VerificationToken,
+		GoogleToken:       request.GoogleToken,
 	})
 	if len(details) > 0 {
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
