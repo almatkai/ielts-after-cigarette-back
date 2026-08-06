@@ -12,6 +12,8 @@ import (
 
 type Repository interface {
 	Create(context.Context, CreateParams) (Entry, error)
+	ExistsByGoogleSub(ctx context.Context, googleSub string) (bool, error)
+	ExistsByPhone(ctx context.Context, phone string) (bool, error)
 }
 
 type PostgresRepository struct {
@@ -52,4 +54,26 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (E
 	}
 	entry.CreatedAt = entry.CreatedAt.UTC()
 	return entry, nil
+}
+
+func (r *PostgresRepository) ExistsByGoogleSub(ctx context.Context, googleSub string) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM waitlist_entries WHERE google_sub = $1)
+	`, googleSub).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check waitlist google sub: %w", err)
+	}
+	return exists, nil
+}
+
+func (r *PostgresRepository) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM waitlist_entries WHERE phone = $1)
+	`, phone).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check waitlist phone: %w", err)
+	}
+	return exists, nil
 }

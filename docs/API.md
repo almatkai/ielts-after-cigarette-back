@@ -111,6 +111,32 @@ email берётся из подтверждённых данных аккаун
 также некорректные поля — `422 VALIDATION_ERROR` с деталями по `firstName`,
 `lastName`, `phone`, `googleToken`.
 
+### `POST /waitlist/check`
+
+Проверяет дубликаты до попытки записи: по Google ID token определяет, есть
+ли уже заявка у этого аккаунта, а при переданном `phone` — занят ли номер.
+Один Google-аккаунт и один номер соответствуют одной заявке:
+
+```json
+{
+  "phone": "+77001234567",
+  "googleToken": "<google-id-token>"
+}
+```
+
+Ответ `200`:
+
+```json
+{
+  "accountRegistered": false,
+  "phoneTaken": false
+}
+```
+
+`googleToken` обязателен и должен быть действительным (`422 VALIDATION_ERROR`),
+`phone` необязателен; если аккаунт уже записан, проверка номера не выполняется
+и `phoneTaken` всегда `false`.
+
 ## Auth
 
 ### `POST /auth/register`

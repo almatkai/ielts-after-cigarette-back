@@ -27,6 +27,36 @@ type joinRequest struct {
 	GoogleToken string `json:"googleToken,omitempty"`
 }
 
+type checkRequest struct {
+	GoogleToken string `json:"googleToken,omitempty"`
+	Phone       string `json:"phone,omitempty"`
+}
+
+func (h *Handler) Check(w http.ResponseWriter, r *http.Request) {
+	var request checkRequest
+	if err := httpx.DecodeJSON(w, r, h.maxBytes, &request); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
+		return
+	}
+	result, details, err := h.service.Check(r.Context(), CheckInput{
+		GoogleToken: request.GoogleToken,
+		Phone:       request.Phone,
+	})
+	if len(details) > 0 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
+		return
+	}
+	if err != nil {
+		h.logger.ErrorContext(r.Context(), "check waitlist",
+			"request_id", httpx.RequestID(r.Context()),
+			"error", err,
+		)
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
 func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 	var request joinRequest
 	if err := httpx.DecodeJSON(w, r, h.maxBytes, &request); err != nil {

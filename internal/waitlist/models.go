@@ -28,6 +28,16 @@ type CreateParams struct {
 	CreatedAt time.Time
 }
 
+type CheckInput struct {
+	GoogleToken string
+	Phone       string
+}
+
+type CheckResult struct {
+	AccountRegistered bool `json:"accountRegistered"`
+	PhoneTaken        bool `json:"phoneTaken"`
+}
+
 type Entry struct {
 	ID              uuid.UUID  `json:"id"`
 	Phone           string     `json:"phone"`

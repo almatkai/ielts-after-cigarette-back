@@ -186,6 +186,89 @@ func TestJoinWithoutVerifiedClaimsEmailReturnsValidationError(t *testing.T) {
 	}
 }
 
+func TestCheckRequiresGoogleToken(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+
+	_, details, err := service.Check(context.Background(), CheckInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if details["googleToken"] != "is required" {
+		t.Fatalf("details=%v, want googleToken is required", details)
+	}
+}
+
+func TestCheckReturnsAccountRegistered(t *testing.T) {
+	repository := &fakeRepository{subExists: true}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+
+	result, details, err := service.Check(context.Background(), CheckInput{GoogleToken: " valid-token "})
+	if err != nil || len(details) != 0 {
+		t.Fatalf("Check() details=%v err=%v", details, err)
+	}
+	if !result.AccountRegistered {
+		t.Fatal("AccountRegistered=false, want true")
+	}
+	if repository.existsSubQuery != "google-sub-123" {
+		t.Fatalf("existsSubQuery=%q, want google-sub-123", repository.existsSubQuery)
+	}
+}
+
+func TestCheckFlagsTakenPhone(t *testing.T) {
+	repository := &fakeRepository{phoneExists: true}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+
+	result, details, err := service.Check(context.Background(), CheckInput{
+		GoogleToken: "valid-token",
+		Phone:       "+7 (700) 123-45-67",
+	})
+	if err != nil || len(details) != 0 {
+		t.Fatalf("Check() details=%v err=%v", details, err)
+	}
+	if !result.PhoneTaken {
+		t.Fatal("PhoneTaken=false, want true")
+	}
+	if repository.existsPhoneQuery != "+77001234567" {
+		t.Fatalf("existsPhoneQuery=%q, want +77001234567", repository.existsPhoneQuery)
+	}
+}
+
+func TestCheckSkipsPhoneLookupWhenAccountRegistered(t *testing.T) {
+	repository := &fakeRepository{subExists: true, phoneExists: true}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+
+	result, details, err := service.Check(context.Background(), CheckInput{
+		GoogleToken: "valid-token",
+		Phone:       "+77001234567",
+	})
+	if err != nil || len(details) != 0 {
+		t.Fatalf("Check() details=%v err=%v", details, err)
+	}
+	if result.PhoneTaken {
+		t.Fatal("PhoneTaken=true, want false: lookup must be skipped for a registered account")
+	}
+	if repository.existsPhoneQuery != "" {
+		t.Fatalf("existsPhoneQuery=%q, want no phone lookup", repository.existsPhoneQuery)
+	}
+}
+
+func TestCheckRejectsInvalidPhone(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()})
+
+	_, details, err := service.Check(context.Background(), CheckInput{
+		GoogleToken: "valid-token",
+		Phone:       "123",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if details["phone"] == "" {
+		t.Fatalf("details=%v, want phone detail", details)
+	}
+}
+
 type fakeVerifier struct {
 	claims GoogleClaims
 	err    error
@@ -198,8 +281,22 @@ func (v *fakeVerifier) Verify(_ context.Context, _ string) (GoogleClaims, error)
 }
 
 type fakeRepository struct {
-	params CreateParams
-	called bool
+	params           CreateParams
+	called           bool
+	subExists        bool
+	phoneExists      bool
+	existsSubQuery   string
+	existsPhoneQuery string
+}
+
+func (r *fakeRepository) ExistsByGoogleSub(_ context.Context, googleSub string) (bool, error) {
+	r.existsSubQuery = googleSub
+	return r.subExists, nil
+}
+
+func (r *fakeRepository) ExistsByPhone(_ context.Context, phone string) (bool, error) {
+	r.existsPhoneQuery = phone
+	return r.phoneExists, nil
 }
 
 func (r *fakeRepository) Create(_ context.Context, params CreateParams) (Entry, error) {
