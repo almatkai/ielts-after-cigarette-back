@@ -289,6 +289,7 @@ type fakeRepository struct {
 	existsPhoneQuery string
 	entries          []Entry
 	listErr          error
+	admins           map[string]bool
 }
 
 func (r *fakeRepository) ExistsByGoogleSub(_ context.Context, googleSub string) (bool, error) {
@@ -298,6 +299,33 @@ func (r *fakeRepository) ExistsByGoogleSub(_ context.Context, googleSub string) 
 
 func (r *fakeRepository) List(_ context.Context) ([]Entry, error) {
 	return r.entries, r.listErr
+}
+
+func (r *fakeRepository) IsAdmin(_ context.Context, email string) (bool, error) {
+	return r.admins[email], nil
+}
+
+func (r *fakeRepository) ListAdmins(_ context.Context) ([]string, error) {
+	emails := make([]string, 0, len(r.admins))
+	for email, isAdmin := range r.admins {
+		if isAdmin {
+			emails = append(emails, email)
+		}
+	}
+	return emails, nil
+}
+
+func (r *fakeRepository) AddAdmin(_ context.Context, email string) error {
+	if r.admins == nil {
+		r.admins = make(map[string]bool)
+	}
+	r.admins[email] = true
+	return nil
+}
+
+func (r *fakeRepository) RemoveAdmin(_ context.Context, email string) error {
+	delete(r.admins, email)
+	return nil
 }
 
 func (r *fakeRepository) ExistsByPhone(_ context.Context, phone string) (bool, error) {
@@ -362,5 +390,95 @@ func TestListForAdminRejectsBadToken(t *testing.T) {
 
 	if _, err := service.ListForAdmin(context.Background(), "token"); !errors.Is(err, ErrInvalidAdminToken) {
 		t.Fatalf("err=%v, want ErrInvalidAdminToken", err)
+	}
+}
+
+func TestListForAdminAllowsDatabaseAdmin(t *testing.T) {
+	repository := &fakeRepository{
+		entries: []Entry{{ID: uuid.New(), Phone: "+77001234567", Status: "WAITING"}},
+		admins:  map[string]bool{"ada@google.com": true},
+	}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"root@google.com"})
+
+	entries, err := service.ListForAdmin(context.Background(), "token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("len(entries)=%d, want 1", len(entries))
+	}
+}
+
+func TestAddAdminForAdminGrantsAccess(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+
+	if err := service.AddAdminForAdmin(context.Background(), "token", " New@Google.com "); err != nil {
+		t.Fatal(err)
+	}
+	if !repository.admins["new@google.com"] {
+		t.Fatalf("admin was not stored: %v", repository.admins)
+	}
+}
+
+func TestAddAdminForAdminRejectsInvalidEmail(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+
+	if err := service.AddAdminForAdmin(context.Background(), "token", "not-an-email"); !errors.Is(err, ErrAdminEmailInvalid) {
+		t.Fatalf("err=%v, want ErrAdminEmailInvalid", err)
+	}
+}
+
+func TestAddAdminForAdminRejectsNonAdmin(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"root@google.com"})
+
+	if err := service.AddAdminForAdmin(context.Background(), "token", "new@google.com"); !errors.Is(err, ErrAdminForbidden) {
+		t.Fatalf("err=%v, want ErrAdminForbidden", err)
+	}
+}
+
+func TestRemoveAdminForAdminProtectsEnvAdmin(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+
+	if err := service.RemoveAdminForAdmin(context.Background(), "token", "ada@google.com"); !errors.Is(err, ErrAdminProtected) {
+		t.Fatalf("err=%v, want ErrAdminProtected", err)
+	}
+}
+
+func TestRemoveAdminForAdminDropsDatabaseAdmin(t *testing.T) {
+	repository := &fakeRepository{admins: map[string]bool{"old@google.com": true}}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+
+	if err := service.RemoveAdminForAdmin(context.Background(), "token", "old@google.com"); err != nil {
+		t.Fatal(err)
+	}
+	if repository.admins["old@google.com"] {
+		t.Fatal("admin was not removed")
+	}
+}
+
+func TestListAdminsForAdminMergesEnvAndDatabase(t *testing.T) {
+	repository := &fakeRepository{admins: map[string]bool{"db@google.com": true, "ada@google.com": true}}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+
+	admins, err := service.ListAdminsForAdmin(context.Background(), "token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(admins) != 2 {
+		t.Fatalf("len(admins)=%d, want 2: %v", len(admins), admins)
+	}
+	sources := map[string]string{}
+	for _, admin := range admins {
+		sources[admin.Email] = admin.Source
+	}
+	if sources["ada@google.com"] != "env" {
+		t.Fatalf("env admin reported as %q", sources["ada@google.com"])
+	}
+	if sources["db@google.com"] != "db" {
+		t.Fatalf("db admin reported as %q", sources["db@google.com"])
 	}
 }

@@ -141,7 +141,8 @@ email берётся из подтверждённых данных аккаун
 
 Список заявок waitlist для супер-админа. Авторизация — Google ID token в
 заголовке `Authorization: Bearer <google-id-token>`; email из токена должен
-быть подтверждён Google и входить в список `SUPER_ADMIN_EMAILS` (CSV в env).
+быть подтверждён Google и входить в список `SUPER_ADMIN_EMAILS` (CSV в env)
+либо в таблицу `super_admins` (управляется через `/admin/super-admins`).
 
 Ответ `200`:
 
@@ -165,6 +166,40 @@ email берётся из подтверждённых данных аккаун
 
 Токен отсутствует или недействителен — `401 INVALID_TOKEN`; аккаунт не в
 списке супер-админов — `403 FORBIDDEN`.
+
+### `GET /admin/super-admins`
+
+Список супер-админов. Та же авторизация, что у `GET /admin/waitlist`.
+Ответ `200`:
+
+```json
+{
+  "admins": [
+    { "email": "owner@example.com", "source": "env" },
+    { "email": "second@example.com", "source": "db" }
+  ]
+}
+```
+
+`source: "env"` — админ задан переменной `SUPER_ADMIN_EMAILS` и не может быть
+удалён через API; `source: "db"` — админ добавлен в таблицу `super_admins`.
+
+### `POST /admin/super-admins`
+
+Добавить супер-админа. Тело:
+
+```json
+{ "email": "new-admin@example.com" }
+```
+
+Ответ `201` без тела. Невалидный email — `422 VALIDATION_ERROR`; дубликат
+трактуется как успех (идемпотентно).
+
+### `DELETE /admin/super-admins/{email}`
+
+Удалить супер-админа из таблицы `super_admins`. Ответ `204` без тела.
+Попытка удалить админа, заданного через `SUPER_ADMIN_EMAILS`, — `409
+ADMIN_PROTECTED` (его можно убрать только правкой env).
 
 ## Auth
 

@@ -118,6 +118,9 @@ func New(
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Get("/admin/waitlist", waitlistHandler.AdminList)
+		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Get("/admin/super-admins", waitlistHandler.AdminListAdmins)
+		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/admin/super-admins", waitlistHandler.AdminAddAdmin)
+		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Delete("/admin/super-admins/{email}", waitlistHandler.AdminRemoveAdmin)
 
 		api.Route("/auth", func(public chi.Router) {
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/register", authHandler.Register)

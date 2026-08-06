@@ -131,23 +131,90 @@ func (s *Service) Check(ctx context.Context, input CheckInput) (CheckResult, map
 var (
 	ErrInvalidAdminToken = errors.New("invalid admin google token")
 	ErrAdminForbidden    = errors.New("google account is not a super admin")
+	ErrAdminProtected    = errors.New("environment super admin cannot be removed")
+	ErrAdminEmailInvalid = errors.New("admin email is invalid")
 )
 
-// ListForAdmin returns every waitlist entry, newest first, but only when the
-// Google token belongs to one of the super admin emails from the environment.
-func (s *Service) ListForAdmin(ctx context.Context, googleToken string) ([]Entry, error) {
+// authenticateAdmin verifies the Google token and returns the caller's email
+// when it belongs to a super admin: either a bootstrap account from the
+// environment or one stored in the database by another super admin.
+func (s *Service) authenticateAdmin(ctx context.Context, googleToken string) (string, error) {
 	claims, err := s.verifier.Verify(ctx, strings.TrimSpace(googleToken))
 	if err != nil || claims.Sub == "" {
-		return nil, ErrInvalidAdminToken
+		return "", ErrInvalidAdminToken
 	}
 	email := strings.ToLower(strings.TrimSpace(claims.Email))
 	if email == "" || !claims.EmailVerified {
-		return nil, ErrInvalidAdminToken
+		return "", ErrInvalidAdminToken
 	}
-	if _, ok := s.adminEmails[email]; !ok {
-		return nil, ErrAdminForbidden
+	if _, ok := s.adminEmails[email]; ok {
+		return email, nil
+	}
+	isAdmin, err := s.repository.IsAdmin(ctx, email)
+	if err != nil {
+		return "", err
+	}
+	if !isAdmin {
+		return "", ErrAdminForbidden
+	}
+	return email, nil
+}
+
+// ListForAdmin returns every waitlist entry, newest first, but only when the
+// Google token belongs to a super admin.
+func (s *Service) ListForAdmin(ctx context.Context, googleToken string) ([]Entry, error) {
+	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
+		return nil, err
 	}
 	return s.repository.List(ctx)
+}
+
+// ListAdminsForAdmin returns the bootstrap (env) super admins first, then the
+// super admins added at runtime, deduplicated.
+func (s *Service) ListAdminsForAdmin(ctx context.Context, googleToken string) ([]Admin, error) {
+	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
+		return nil, err
+	}
+	dbEmails, err := s.repository.ListAdmins(ctx)
+	if err != nil {
+		return nil, err
+	}
+	admins := make([]Admin, 0, len(s.adminEmails)+len(dbEmails))
+	seen := make(map[string]struct{}, len(s.adminEmails)+len(dbEmails))
+	for email := range s.adminEmails {
+		seen[email] = struct{}{}
+		admins = append(admins, Admin{Email: email, Source: "env"})
+	}
+	for _, email := range dbEmails {
+		if _, ok := seen[email]; ok {
+			continue
+		}
+		seen[email] = struct{}{}
+		admins = append(admins, Admin{Email: email, Source: "db"})
+	}
+	return admins, nil
+}
+
+func (s *Service) AddAdminForAdmin(ctx context.Context, googleToken string, email string) error {
+	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
+		return err
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	if !validEmail(email) {
+		return ErrAdminEmailInvalid
+	}
+	return s.repository.AddAdmin(ctx, email)
+}
+
+func (s *Service) RemoveAdminForAdmin(ctx context.Context, googleToken string, email string) error {
+	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
+		return err
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	if _, ok := s.adminEmails[email]; ok {
+		return ErrAdminProtected
+	}
+	return s.repository.RemoveAdmin(ctx, email)
 }
 
 func validRequiredName(value string) string {

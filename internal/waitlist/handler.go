@@ -80,6 +80,67 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"entries": entries, "total": len(entries)})
 }
 
+func bearerToken(r *http.Request) string {
+	return strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+}
+
+// writeAdminError maps the admin authorization errors to HTTP responses and
+// reports whether the request is already handled.
+func (h *Handler) writeAdminError(w http.ResponseWriter, r *http.Request, err error) bool {
+	switch {
+	case errors.Is(err, ErrInvalidAdminToken):
+		httpx.WriteError(w, r, http.StatusUnauthorized, "INVALID_TOKEN", "Google token is missing or invalid", nil)
+	case errors.Is(err, ErrAdminForbidden):
+		httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "This Google account is not a super admin", nil)
+	case errors.Is(err, ErrAdminProtected):
+		httpx.WriteError(w, r, http.StatusConflict, "ADMIN_PROTECTED", "The bootstrap super admin from the environment cannot be removed", nil)
+	case errors.Is(err, ErrAdminEmailInvalid):
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", map[string]string{"email": "must be a valid email address"})
+	case err != nil:
+		h.logger.ErrorContext(r.Context(), "admin request",
+			"request_id", httpx.RequestID(r.Context()),
+			"error", err,
+		)
+		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+	default:
+		return false
+	}
+	return true
+}
+
+type adminRequest struct {
+	Email string `json:"email"`
+}
+
+func (h *Handler) AdminListAdmins(w http.ResponseWriter, r *http.Request) {
+	admins, err := h.service.ListAdminsForAdmin(r.Context(), bearerToken(r))
+	if h.writeAdminError(w, r, err) {
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"admins": admins})
+}
+
+func (h *Handler) AdminAddAdmin(w http.ResponseWriter, r *http.Request) {
+	var request adminRequest
+	if err := httpx.DecodeJSON(w, r, h.maxBytes, &request); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
+		return
+	}
+	err := h.service.AddAdminForAdmin(r.Context(), bearerToken(r), request.Email)
+	if h.writeAdminError(w, r, err) {
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"status": "ok"})
+}
+
+func (h *Handler) AdminRemoveAdmin(w http.ResponseWriter, r *http.Request) {
+	err := h.service.RemoveAdminForAdmin(r.Context(), bearerToken(r), r.PathValue("email"))
+	if h.writeAdminError(w, r, err) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 	var request joinRequest
 	if err := httpx.DecodeJSON(w, r, h.maxBytes, &request); err != nil {

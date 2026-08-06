@@ -15,6 +15,10 @@ type Repository interface {
 	ExistsByGoogleSub(ctx context.Context, googleSub string) (bool, error)
 	ExistsByPhone(ctx context.Context, phone string) (bool, error)
 	List(ctx context.Context) ([]Entry, error)
+	IsAdmin(ctx context.Context, email string) (bool, error)
+	ListAdmins(ctx context.Context) ([]string, error)
+	AddAdmin(ctx context.Context, email string) error
+	RemoveAdmin(ctx context.Context, email string) error
 }
 
 type PostgresRepository struct {
@@ -92,6 +96,61 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Entry, error) {
 		return nil, fmt.Errorf("iterate waitlist entries: %w", err)
 	}
 	return entries, nil
+}
+
+func (r *PostgresRepository) IsAdmin(ctx context.Context, email string) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM super_admins WHERE email = $1)
+	`, email).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check super admin: %w", err)
+	}
+	return exists, nil
+}
+
+func (r *PostgresRepository) ListAdmins(ctx context.Context) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT email FROM super_admins ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list super admins: %w", err)
+	}
+	defer rows.Close()
+
+	emails := make([]string, 0)
+	for rows.Next() {
+		var email string
+		if err := rows.Scan(&email); err != nil {
+			return nil, fmt.Errorf("scan super admin: %w", err)
+		}
+		emails = append(emails, email)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate super admins: %w", err)
+	}
+	return emails, nil
+}
+
+func (r *PostgresRepository) AddAdmin(ctx context.Context, email string) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO super_admins (email) VALUES ($1)
+		ON CONFLICT (email) DO NOTHING
+	`, email)
+	if err != nil {
+		return fmt.Errorf("add super admin: %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresRepository) RemoveAdmin(ctx context.Context, email string) error {
+	_, err := r.pool.Exec(ctx, `
+		DELETE FROM super_admins WHERE email = $1
+	`, email)
+	if err != nil {
+		return fmt.Errorf("remove super admin: %w", err)
+	}
+	return nil
 }
 
 func (r *PostgresRepository) ExistsByGoogleSub(ctx context.Context, googleSub string) (bool, error) {

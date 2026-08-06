@@ -38,6 +38,14 @@ type CheckResult struct {
 	PhoneTaken        bool `json:"phoneTaken"`
 }
 
+// Admin is a super admin as exposed to the admin API. Source is "env" for the
+// bootstrap accounts from SUPER_ADMIN_EMAILS (cannot be removed at runtime)
+// or "db" for accounts added by an existing super admin.
+type Admin struct {
+	Email  string `json:"email"`
+	Source string `json:"source"`
+}
+
 type Entry struct {
 	ID              uuid.UUID  `json:"id"`
 	Phone           string     `json:"phone"`
