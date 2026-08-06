@@ -1,4 +1,4 @@
-name: ielts-api-development
+name: ielts-api-production
 
 services:
   postgres:
