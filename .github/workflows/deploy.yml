@@ -105,6 +105,7 @@ jobs:
       INFOBIP_WHATSAPP_TEMPLATE: ${{ vars.INFOBIP_WHATSAPP_TEMPLATE }}
       INFOBIP_WHATSAPP_LANGUAGE: ${{ vars.INFOBIP_WHATSAPP_LANGUAGE }}
       INFOBIP_TIMEOUT: ${{ vars.INFOBIP_TIMEOUT }}
+      SUPER_ADMIN_EMAILS: ${{ vars.SUPER_ADMIN_EMAILS }}
     steps:
       - uses: actions/checkout@v7
       - name: Configure SSH
@@ -150,6 +151,7 @@ jobs:
             printf 'INFOBIP_WHATSAPP_TEMPLATE=%s\n' "$INFOBIP_WHATSAPP_TEMPLATE"
             printf 'INFOBIP_WHATSAPP_LANGUAGE=%s\n' "$INFOBIP_WHATSAPP_LANGUAGE"
             printf 'INFOBIP_TIMEOUT=%s\n' "$INFOBIP_TIMEOUT"
+            printf 'SUPER_ADMIN_EMAILS=%s\n' "$SUPER_ADMIN_EMAILS"
           } > production.env
           tar -czf deployment.tar.gz docker-compose.production.yml migrations scripts/deploy-production.sh
       - name: Upload deployment files
