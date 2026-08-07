@@ -190,12 +190,34 @@ func rateLimit(
 	}
 }
 
+// remoteIP returns the client IP for rate limiting. The API is served behind
+// nginx, which sets X-Forwarded-For, so the direct peer is the proxy's docker
+// address. Trust the header only when the peer is private or loopback —
+// otherwise direct callers could spoof it to dodge the rate limiter.
 func remoteIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return host
+	if err != nil {
+		host = strings.TrimSpace(r.RemoteAddr)
 	}
-	return strings.TrimSpace(r.RemoteAddr)
+	if isTrustedProxy(host) {
+		if forwarded := firstForwardedFor(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+			return forwarded
+		}
+	}
+	return host
+}
+
+func firstForwardedFor(header string) string {
+	first, _, _ := strings.Cut(header, ",")
+	return strings.TrimSpace(first)
+}
+
+func isTrustedProxy(host string) bool {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsPrivate() || ip.IsLoopback()
 }
 
 // superAdminChecker answers whether an email may sign in as a platform admin:
