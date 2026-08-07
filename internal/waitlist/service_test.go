@@ -3,6 +3,7 @@ package waitlist
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -283,6 +284,8 @@ func (v *fakeVerifier) Verify(_ context.Context, _ string) (GoogleClaims, error)
 type fakeRepository struct {
 	params           CreateParams
 	called           bool
+	createCalls      int
+	createErrs       []error
 	subExists        bool
 	phoneExists      bool
 	existsSubQuery   string
@@ -336,11 +339,18 @@ func (r *fakeRepository) ExistsByPhone(_ context.Context, phone string) (bool, e
 func (r *fakeRepository) Create(_ context.Context, params CreateParams) (Entry, error) {
 	r.params = params
 	r.called = true
+	r.createCalls++
+	if r.createCalls <= len(r.createErrs) {
+		if err := r.createErrs[r.createCalls-1]; err != nil {
+			return Entry{}, err
+		}
+	}
 	entry := Entry{
-		ID:        uuid.New(),
-		Phone:     params.Phone,
-		Status:    "WAITING",
-		CreatedAt: params.CreatedAt,
+		ID:           uuid.New(),
+		Phone:        params.Phone,
+		Status:       "WAITING",
+		ReferralCode: params.ReferralCode,
+		CreatedAt:    params.CreatedAt,
 	}
 	if params.Email != "" {
 		entry.Email = &params.Email
@@ -348,59 +358,17 @@ func (r *fakeRepository) Create(_ context.Context, params CreateParams) (Entry, 
 	if params.GoogleSub != "" {
 		entry.GoogleSub = &params.GoogleSub
 	}
+	if params.ReferredByCode != "" {
+		entry.ReferredByCode = &params.ReferredByCode
+	}
 	return entry, nil
 }
 
-func TestListForAdminReturnsEntriesForSuperAdmin(t *testing.T) {
+func TestListForAdminReturnsEntries(t *testing.T) {
 	repository := &fakeRepository{entries: []Entry{{ID: uuid.New(), Phone: "+77001234567", Status: "WAITING"}}}
 	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
 
-	entries, err := service.ListForAdmin(context.Background(), "token")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 1 {
-		t.Fatalf("len(entries)=%d, want 1", len(entries))
-	}
-}
-
-func TestListForAdminRejectsUnknownEmail(t *testing.T) {
-	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"root@google.com"})
-
-	if _, err := service.ListForAdmin(context.Background(), "token"); !errors.Is(err, ErrAdminForbidden) {
-		t.Fatalf("err=%v, want ErrAdminForbidden", err)
-	}
-}
-
-func TestListForAdminRejectsUnverifiedEmail(t *testing.T) {
-	repository := &fakeRepository{}
-	claims := validGoogleClaims()
-	claims.EmailVerified = false
-	service := NewService(repository, &fakeVerifier{claims: claims}, []string{"ada@google.com"})
-
-	if _, err := service.ListForAdmin(context.Background(), "token"); !errors.Is(err, ErrInvalidAdminToken) {
-		t.Fatalf("err=%v, want ErrInvalidAdminToken", err)
-	}
-}
-
-func TestListForAdminRejectsBadToken(t *testing.T) {
-	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{err: errors.New("bad token")}, []string{"ada@google.com"})
-
-	if _, err := service.ListForAdmin(context.Background(), "token"); !errors.Is(err, ErrInvalidAdminToken) {
-		t.Fatalf("err=%v, want ErrInvalidAdminToken", err)
-	}
-}
-
-func TestListForAdminAllowsDatabaseAdmin(t *testing.T) {
-	repository := &fakeRepository{
-		entries: []Entry{{ID: uuid.New(), Phone: "+77001234567", Status: "WAITING"}},
-		admins:  map[string]bool{"ada@google.com": true},
-	}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"root@google.com"})
-
-	entries, err := service.ListForAdmin(context.Background(), "token")
+	entries, err := service.ListForAdmin(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -411,9 +379,9 @@ func TestListForAdminAllowsDatabaseAdmin(t *testing.T) {
 
 func TestAddAdminForAdminGrantsAccess(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 
-	if err := service.AddAdminForAdmin(context.Background(), "token", " New@Google.com "); err != nil {
+	if err := service.AddAdminForAdmin(context.Background(), " New@Google.com "); err != nil {
 		t.Fatal(err)
 	}
 	if !repository.admins["new@google.com"] {
@@ -423,19 +391,10 @@ func TestAddAdminForAdminGrantsAccess(t *testing.T) {
 
 func TestAddAdminForAdminRejectsInvalidEmail(t *testing.T) {
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
 
-	if err := service.AddAdminForAdmin(context.Background(), "token", "not-an-email"); !errors.Is(err, ErrAdminEmailInvalid) {
+	if err := service.AddAdminForAdmin(context.Background(), "not-an-email"); !errors.Is(err, ErrAdminEmailInvalid) {
 		t.Fatalf("err=%v, want ErrAdminEmailInvalid", err)
-	}
-}
-
-func TestAddAdminForAdminRejectsNonAdmin(t *testing.T) {
-	repository := &fakeRepository{}
-	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"root@google.com"})
-
-	if err := service.AddAdminForAdmin(context.Background(), "token", "new@google.com"); !errors.Is(err, ErrAdminForbidden) {
-		t.Fatalf("err=%v, want ErrAdminForbidden", err)
 	}
 }
 
@@ -443,7 +402,7 @@ func TestRemoveAdminForAdminProtectsEnvAdmin(t *testing.T) {
 	repository := &fakeRepository{}
 	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
 
-	if err := service.RemoveAdminForAdmin(context.Background(), "token", "ada@google.com"); !errors.Is(err, ErrAdminProtected) {
+	if err := service.RemoveAdminForAdmin(context.Background(), "ada@google.com"); !errors.Is(err, ErrAdminProtected) {
 		t.Fatalf("err=%v, want ErrAdminProtected", err)
 	}
 }
@@ -452,7 +411,7 @@ func TestRemoveAdminForAdminDropsDatabaseAdmin(t *testing.T) {
 	repository := &fakeRepository{admins: map[string]bool{"old@google.com": true}}
 	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
 
-	if err := service.RemoveAdminForAdmin(context.Background(), "token", "old@google.com"); err != nil {
+	if err := service.RemoveAdminForAdmin(context.Background(), "old@google.com"); err != nil {
 		t.Fatal(err)
 	}
 	if repository.admins["old@google.com"] {
@@ -464,7 +423,7 @@ func TestListAdminsForAdminMergesEnvAndDatabase(t *testing.T) {
 	repository := &fakeRepository{admins: map[string]bool{"db@google.com": true, "ada@google.com": true}}
 	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, []string{"ada@google.com"})
 
-	admins, err := service.ListAdminsForAdmin(context.Background(), "token")
+	admins, err := service.ListAdminsForAdmin(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,5 +439,113 @@ func TestListAdminsForAdminMergesEnvAndDatabase(t *testing.T) {
 	}
 	if sources["db@google.com"] != "db" {
 		t.Fatalf("db admin reported as %q", sources["db@google.com"])
+	}
+}
+
+func TestJoinGeneratesReferralCode(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
+
+	entry, details, err := service.Join(context.Background(), JoinInput{
+		FirstName:   "Ada",
+		LastName:    "Lovelace",
+		Phone:       "+77001234567",
+		GoogleToken: "valid-token",
+	})
+	if err != nil || len(details) != 0 {
+		t.Fatalf("Join() details=%v err=%v", details, err)
+	}
+	code := repository.params.ReferralCode
+	if len(code) != referralCodeLength {
+		t.Fatalf("ReferralCode=%q, want %d chars", code, referralCodeLength)
+	}
+	for _, c := range code {
+		if !strings.ContainsRune(referralCodeAlphabet, c) {
+			t.Fatalf("ReferralCode=%q contains %q outside the alphabet", code, c)
+		}
+	}
+	if entry.ReferralCode != code {
+		t.Fatalf("entry.ReferralCode=%q, want stored %q", entry.ReferralCode, code)
+	}
+}
+
+func TestJoinStoresSanitizedRef(t *testing.T) {
+	repository := &fakeRepository{}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
+
+	_, details, err := service.Join(context.Background(), JoinInput{
+		FirstName:   "Ada",
+		LastName:    "Lovelace",
+		Phone:       "+77001234567",
+		GoogleToken: "valid-token",
+		Ref:         " INSTAGRAM ",
+	})
+	if err != nil || len(details) != 0 {
+		t.Fatalf("Join() details=%v err=%v", details, err)
+	}
+	if repository.params.ReferredByCode != "instagram" {
+		t.Fatalf("ReferredByCode=%q, want instagram", repository.params.ReferredByCode)
+	}
+}
+
+func TestJoinIgnoresInvalidRef(t *testing.T) {
+	refs := []string{"bad ref!", "https://spam.example/x", strings.Repeat("a", 65)}
+	for _, ref := range refs {
+		t.Run(ref, func(t *testing.T) {
+			repository := &fakeRepository{}
+			service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
+
+			_, details, err := service.Join(context.Background(), JoinInput{
+				FirstName:   "Ada",
+				LastName:    "Lovelace",
+				Phone:       "+77001234567",
+				GoogleToken: "valid-token",
+				Ref:         ref,
+			})
+			if err != nil || len(details) != 0 {
+				t.Fatalf("Join() details=%v err=%v, want successful join", details, err)
+			}
+			if repository.params.ReferredByCode != "" {
+				t.Fatalf("ReferredByCode=%q, want dropped ref", repository.params.ReferredByCode)
+			}
+		})
+	}
+}
+
+func TestJoinRetriesOnReferralCodeCollision(t *testing.T) {
+	repository := &fakeRepository{createErrs: []error{ErrReferralCodeCollision, ErrReferralCodeCollision}}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
+
+	if _, details, err := service.Join(context.Background(), JoinInput{
+		FirstName:   "Ada",
+		LastName:    "Lovelace",
+		Phone:       "+77001234567",
+		GoogleToken: "valid-token",
+	}); err != nil || len(details) != 0 {
+		t.Fatalf("Join() details=%v err=%v", details, err)
+	}
+	if repository.createCalls != 3 {
+		t.Fatalf("createCalls=%d, want 3", repository.createCalls)
+	}
+}
+
+func TestJoinFailsAfterRepeatedReferralCollisions(t *testing.T) {
+	repository := &fakeRepository{createErrs: []error{
+		ErrReferralCodeCollision, ErrReferralCodeCollision, ErrReferralCodeCollision,
+		ErrReferralCodeCollision, ErrReferralCodeCollision,
+	}}
+	service := NewService(repository, &fakeVerifier{claims: validGoogleClaims()}, nil)
+
+	_, _, err := service.Join(context.Background(), JoinInput{
+		FirstName:   "Ada",
+		LastName:    "Lovelace",
+		Phone:       "+77001234567",
+		GoogleToken: "valid-token",
+	})
+	if !errors.Is(err, ErrReferralCodeCollision) {
+		t.Fatalf("err=%v, want ErrReferralCodeCollision", err)
+	}
+	if repository.createCalls != maxReferralCodeAttempts {
+		t.Fatalf("createCalls=%d, want %d", repository.createCalls, maxReferralCodeAttempts)
 	}
 }

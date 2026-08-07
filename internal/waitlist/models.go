@@ -7,7 +7,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrEntryExists = errors.New("waitlist entry already exists")
+var (
+	ErrEntryExists           = errors.New("waitlist entry already exists")
+	ErrReferralCodeCollision = errors.New("waitlist referral code already exists")
+)
 
 type JoinInput struct {
 	FirstName   string
@@ -16,16 +19,19 @@ type JoinInput struct {
 	Phone       string
 	Source      string
 	GoogleToken string
+	Ref         string
 }
 
 type CreateParams struct {
-	FirstName string
-	LastName  string
-	Email     string
-	Phone     string
-	Source    string
-	GoogleSub string
-	CreatedAt time.Time
+	FirstName      string
+	LastName       string
+	Email          string
+	Phone          string
+	Source         string
+	GoogleSub      string
+	ReferralCode   string
+	ReferredByCode string
+	CreatedAt      time.Time
 }
 
 type CheckInput struct {
@@ -54,6 +60,9 @@ type Entry struct {
 	LastName        *string    `json:"lastName"`
 	Source          *string    `json:"source"`
 	GoogleSub       *string    `json:"googleSub,omitempty"`
+	ReferralCode    string     `json:"referralCode"`
+	ReferredByCode  *string    `json:"referredByCode"`
+	Referrals       int        `json:"referrals"`
 	Status          string     `json:"status"`
 	PhoneVerifiedAt *time.Time `json:"phoneVerifiedAt,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`

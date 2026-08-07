@@ -121,10 +121,6 @@ func New(
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
-		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Get("/admin/waitlist", waitlistHandler.AdminList)
-		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Get("/admin/super-admins", waitlistHandler.AdminListAdmins)
-		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/admin/super-admins", waitlistHandler.AdminAddAdmin)
-		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Delete("/admin/super-admins/{email}", waitlistHandler.AdminRemoveAdmin)
 
 		api.Route("/auth", func(public chi.Router) {
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/register", authHandler.Register)
@@ -149,6 +145,10 @@ func New(
 				adminRouter.Get("/reading/materials/{materialID}", readingHandler.Get)
 				adminRouter.Put("/reading/materials/{materialID}", readingHandler.Update)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/publish", readingHandler.Publish)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/waitlist", waitlistHandler.AdminList)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/super-admins", waitlistHandler.AdminListAdmins)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/super-admins", waitlistHandler.AdminAddAdmin)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Delete("/super-admins/{email}", waitlistHandler.AdminRemoveAdmin)
 			})
 		})
 	})

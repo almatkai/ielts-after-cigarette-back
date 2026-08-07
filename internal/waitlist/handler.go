@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 )
@@ -26,6 +25,7 @@ type joinRequest struct {
 	Phone       string `json:"phone"`
 	Source      string `json:"source,omitempty"`
 	GoogleToken string `json:"googleToken,omitempty"`
+	Ref         string `json:"ref,omitempty"`
 }
 
 type checkRequest struct {
@@ -58,17 +58,9 @@ func (h *Handler) Check(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, result)
 }
 
+// AdminList runs behind auth middleware that already enforced the ADMIN role.
 func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
-	token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-	entries, err := h.service.ListForAdmin(r.Context(), token)
-	if errors.Is(err, ErrInvalidAdminToken) {
-		httpx.WriteError(w, r, http.StatusUnauthorized, "INVALID_TOKEN", "Google token is missing or invalid", nil)
-		return
-	}
-	if errors.Is(err, ErrAdminForbidden) {
-		httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "This Google account is not allowed to view the waitlist", nil)
-		return
-	}
+	entries, err := h.service.ListForAdmin(r.Context())
 	if err != nil {
 		h.logger.ErrorContext(r.Context(), "list waitlist entries",
 			"request_id", httpx.RequestID(r.Context()),
@@ -80,18 +72,10 @@ func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"entries": entries, "total": len(entries)})
 }
 
-func bearerToken(r *http.Request) string {
-	return strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-}
-
-// writeAdminError maps the admin authorization errors to HTTP responses and
+// writeAdminError maps the admin service errors to HTTP responses and
 // reports whether the request is already handled.
 func (h *Handler) writeAdminError(w http.ResponseWriter, r *http.Request, err error) bool {
 	switch {
-	case errors.Is(err, ErrInvalidAdminToken):
-		httpx.WriteError(w, r, http.StatusUnauthorized, "INVALID_TOKEN", "Google token is missing or invalid", nil)
-	case errors.Is(err, ErrAdminForbidden):
-		httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "This Google account is not a super admin", nil)
 	case errors.Is(err, ErrAdminProtected):
 		httpx.WriteError(w, r, http.StatusConflict, "ADMIN_PROTECTED", "The bootstrap super admin from the environment cannot be removed", nil)
 	case errors.Is(err, ErrAdminEmailInvalid):
@@ -113,7 +97,7 @@ type adminRequest struct {
 }
 
 func (h *Handler) AdminListAdmins(w http.ResponseWriter, r *http.Request) {
-	admins, err := h.service.ListAdminsForAdmin(r.Context(), bearerToken(r))
+	admins, err := h.service.ListAdminsForAdmin(r.Context())
 	if h.writeAdminError(w, r, err) {
 		return
 	}
@@ -126,7 +110,7 @@ func (h *Handler) AdminAddAdmin(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
 		return
 	}
-	err := h.service.AddAdminForAdmin(r.Context(), bearerToken(r), request.Email)
+	err := h.service.AddAdminForAdmin(r.Context(), request.Email)
 	if h.writeAdminError(w, r, err) {
 		return
 	}
@@ -134,7 +118,7 @@ func (h *Handler) AdminAddAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AdminRemoveAdmin(w http.ResponseWriter, r *http.Request) {
-	err := h.service.RemoveAdminForAdmin(r.Context(), bearerToken(r), r.PathValue("email"))
+	err := h.service.RemoveAdminForAdmin(r.Context(), r.PathValue("email"))
 	if h.writeAdminError(w, r, err) {
 		return
 	}
@@ -154,6 +138,7 @@ func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 		Phone:       request.Phone,
 		Source:      request.Source,
 		GoogleToken: request.GoogleToken,
+		Ref:         request.Ref,
 	})
 	if len(details) > 0 {
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)

@@ -2,8 +2,11 @@ package waitlist
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/mail"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -71,16 +74,31 @@ func (s *Service) Join(ctx context.Context, input JoinInput) (Entry, map[string]
 		return Entry{}, details, nil
 	}
 
-	entry, err := s.repository.Create(ctx, CreateParams{
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
-		Email:     email,
-		Phone:     input.Phone,
-		Source:    input.Source,
-		GoogleSub: googleSub,
-		CreatedAt: s.now().UTC(),
-	})
-	return entry, nil, err
+	// A bad ref never blocks the join: it is only attribution metadata — a
+	// referrer's code or a campaign tag like "instagram" — with no FK.
+	referredByCode := sanitizeRef(input.Ref)
+
+	for attempt := 0; attempt < maxReferralCodeAttempts; attempt++ {
+		referralCode, err := newReferralCode()
+		if err != nil {
+			return Entry{}, nil, fmt.Errorf("generate referral code: %w", err)
+		}
+		entry, err := s.repository.Create(ctx, CreateParams{
+			FirstName:      input.FirstName,
+			LastName:       input.LastName,
+			Email:          email,
+			Phone:          input.Phone,
+			Source:         input.Source,
+			GoogleSub:      googleSub,
+			ReferralCode:   referralCode,
+			ReferredByCode: referredByCode,
+			CreatedAt:      s.now().UTC(),
+		})
+		if !errors.Is(err, ErrReferralCodeCollision) {
+			return entry, nil, err
+		}
+	}
+	return Entry{}, nil, ErrReferralCodeCollision
 }
 
 // Check lets the client short-circuit duplicates before a join is attempted:
@@ -129,52 +147,19 @@ func (s *Service) Check(ctx context.Context, input CheckInput) (CheckResult, map
 }
 
 var (
-	ErrInvalidAdminToken = errors.New("invalid admin google token")
-	ErrAdminForbidden    = errors.New("google account is not a super admin")
 	ErrAdminProtected    = errors.New("environment super admin cannot be removed")
 	ErrAdminEmailInvalid = errors.New("admin email is invalid")
 )
 
-// authenticateAdmin verifies the Google token and returns the caller's email
-// when it belongs to a super admin: either a bootstrap account from the
-// environment or one stored in the database by another super admin.
-func (s *Service) authenticateAdmin(ctx context.Context, googleToken string) (string, error) {
-	claims, err := s.verifier.Verify(ctx, strings.TrimSpace(googleToken))
-	if err != nil || claims.Sub == "" {
-		return "", ErrInvalidAdminToken
-	}
-	email := strings.ToLower(strings.TrimSpace(claims.Email))
-	if email == "" || !claims.EmailVerified {
-		return "", ErrInvalidAdminToken
-	}
-	if _, ok := s.adminEmails[email]; ok {
-		return email, nil
-	}
-	isAdmin, err := s.repository.IsAdmin(ctx, email)
-	if err != nil {
-		return "", err
-	}
-	if !isAdmin {
-		return "", ErrAdminForbidden
-	}
-	return email, nil
-}
-
-// ListForAdmin returns every waitlist entry, newest first, but only when the
-// Google token belongs to a super admin.
-func (s *Service) ListForAdmin(ctx context.Context, googleToken string) ([]Entry, error) {
-	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
-		return nil, err
-	}
+// ListForAdmin returns every waitlist entry, newest first. Callers must be
+// role-checked by middleware (ADMIN) before this runs.
+func (s *Service) ListForAdmin(ctx context.Context) ([]Entry, error) {
 	return s.repository.List(ctx)
 }
 
 // ListAdminsForAdmin returns the bootstrap (env) super admins first, then the
 // super admins added at runtime, deduplicated.
-func (s *Service) ListAdminsForAdmin(ctx context.Context, googleToken string) ([]Admin, error) {
-	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
-		return nil, err
-	}
+func (s *Service) ListAdminsForAdmin(ctx context.Context) ([]Admin, error) {
 	dbEmails, err := s.repository.ListAdmins(ctx)
 	if err != nil {
 		return nil, err
@@ -195,10 +180,7 @@ func (s *Service) ListAdminsForAdmin(ctx context.Context, googleToken string) ([
 	return admins, nil
 }
 
-func (s *Service) AddAdminForAdmin(ctx context.Context, googleToken string, email string) error {
-	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
-		return err
-	}
+func (s *Service) AddAdminForAdmin(ctx context.Context, email string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if !validEmail(email) {
 		return ErrAdminEmailInvalid
@@ -206,10 +188,7 @@ func (s *Service) AddAdminForAdmin(ctx context.Context, googleToken string, emai
 	return s.repository.AddAdmin(ctx, email)
 }
 
-func (s *Service) RemoveAdminForAdmin(ctx context.Context, googleToken string, email string) error {
-	if _, err := s.authenticateAdmin(ctx, googleToken); err != nil {
-		return err
-	}
+func (s *Service) RemoveAdminForAdmin(ctx context.Context, email string) error {
 	email = strings.ToLower(strings.TrimSpace(email))
 	if _, ok := s.adminEmails[email]; ok {
 		return ErrAdminProtected
@@ -233,4 +212,36 @@ func validEmail(value string) bool {
 	}
 	address, err := mail.ParseAddress(value)
 	return err == nil && address.Address == value && strings.Contains(value, "@")
+}
+
+var refPattern = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
+
+// sanitizeRef normalizes the free-form referral attribute. Anything that does
+// not look like a code or campaign tag is dropped instead of failing the join.
+func sanitizeRef(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if !refPattern.MatchString(value) {
+		return ""
+	}
+	return value
+}
+
+const (
+	// The alphabet skips ambiguous characters (0, 1, i, l, o); its 32 chars
+	// make every masked random byte unbiased.
+	referralCodeAlphabet    = "23456789abcdefghjkmnpqrstuvwxyz"
+	referralCodeLength      = 8
+	maxReferralCodeAttempts = 5
+)
+
+func newReferralCode() (string, error) {
+	raw := make([]byte, referralCodeLength)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	code := make([]byte, referralCodeLength)
+	for i, b := range raw {
+		code[i] = referralCodeAlphabet[int(b)%len(referralCodeAlphabet)]
+	}
+	return string(code), nil
 }

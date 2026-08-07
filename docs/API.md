@@ -85,13 +85,16 @@ email берётся из подтверждённых данных аккаун
   "lastName": "Lovelace",
   "phone": "+77001234567",
   "source": "landing",
-  "googleToken": "<google-id-token>"
+  "googleToken": "<google-id-token>",
+  "ref": "instagram"
 }
 ```
 
 `firstName`, `lastName`, `phone`, `googleToken` обязательны (каждое имя — от
-2 до 100 символов), `source` необязателен. Ответ `201` содержит созданную
-заявку:
+2 до 100 символов), `source` необязателен. `ref` необязателен — реферальный
+код пригласившего или тег кампании (`^[a-z0-9_-]{1,64}$` после lower-case);
+невалидный `ref` молча игнорируется и не блокирует запись. Ответ `201`
+содержит созданную заявку:
 
 ```json
 {
@@ -101,6 +104,9 @@ email берётся из подтверждённых данных аккаун
   "firstName": "Ada",
   "lastName": "Lovelace",
   "source": "landing",
+  "referralCode": "k7m2p9xq",
+  "referredByCode": "instagram",
+  "referrals": 0,
   "status": "WAITING",
   "createdAt": "2026-08-02T12:00:35Z"
 }
@@ -139,10 +145,10 @@ email берётся из подтверждённых данных аккаун
 
 ### `GET /admin/waitlist`
 
-Список заявок waitlist для супер-админа. Авторизация — Google ID token в
-заголовке `Authorization: Bearer <google-id-token>`; email из токена должен
-быть подтверждён Google и входить в список `SUPER_ADMIN_EMAILS` (CSV в env)
-либо в таблицу `super_admins` (управляется через `/admin/super-admins`).
+Список заявок waitlist для супер-админа. Требует
+`Authorization: Bearer <accessToken>` с ролью `ADMIN`; список админов
+складывается из `SUPER_ADMIN_EMAILS` (CSV в env) и таблицы `super_admins`
+(управляется через `/admin/super-admins`).
 
 Ответ `200`:
 
@@ -156,6 +162,9 @@ email берётся из подтверждённых данных аккаун
       "firstName": "Ada",
       "lastName": "Lovelace",
       "source": "landing",
+      "referralCode": "k7m2p9xq",
+      "referredByCode": "instagram",
+      "referrals": 3,
       "status": "WAITING",
       "createdAt": "2026-08-02T12:00:35Z"
     }
@@ -164,8 +173,10 @@ email берётся из подтверждённых данных аккаун
 }
 ```
 
-Токен отсутствует или недействителен — `401 INVALID_TOKEN`; аккаунт не в
-списке супер-админов — `403 FORBIDDEN`.
+`referrals` — число заявок, указавших `referralCode` этой записи как `ref`;
+`referredByCode` — `null`, если запись пришла без атрибуции. Токен отсутствует
+или недействителен — `401 UNAUTHENTICATED`; роль ниже `ADMIN` —
+`403 FORBIDDEN`.
 
 ### `GET /admin/super-admins`
 

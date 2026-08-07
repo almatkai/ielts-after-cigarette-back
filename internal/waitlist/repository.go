@@ -34,11 +34,13 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (E
 	var entry Entry
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO waitlist_entries (
-			id, phone, email, first_name, last_name, source, google_sub, created_at
-		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), $8)
-		RETURNING id, phone, email, first_name, last_name, source, google_sub, status, phone_verified_at, created_at
+			id, phone, email, first_name, last_name, source, google_sub,
+			referral_code, referred_by_code, created_at
+		) VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), $8, NULLIF($9, ''), $10)
+		RETURNING id, phone, email, first_name, last_name, source, google_sub,
+			referral_code, referred_by_code, status, phone_verified_at, created_at
 	`, entryID, params.Phone, params.Email, params.FirstName, params.LastName, params.Source,
-		params.GoogleSub, params.CreatedAt).Scan(
+		params.GoogleSub, params.ReferralCode, params.ReferredByCode, params.CreatedAt).Scan(
 		&entry.ID,
 		&entry.Phone,
 		&entry.Email,
@@ -46,6 +48,8 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (E
 		&entry.LastName,
 		&entry.Source,
 		&entry.GoogleSub,
+		&entry.ReferralCode,
+		&entry.ReferredByCode,
 		&entry.Status,
 		&entry.PhoneVerifiedAt,
 		&entry.CreatedAt,
@@ -53,6 +57,9 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (E
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			if pgErr.ConstraintName == "waitlist_entries_referral_code_unique" {
+				return Entry{}, ErrReferralCodeCollision
+			}
 			return Entry{}, ErrEntryExists
 		}
 		return Entry{}, fmt.Errorf("insert waitlist entry: %w", err)
@@ -63,9 +70,12 @@ func (r *PostgresRepository) Create(ctx context.Context, params CreateParams) (E
 
 func (r *PostgresRepository) List(ctx context.Context) ([]Entry, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, phone, email, first_name, last_name, source, google_sub, status, phone_verified_at, created_at
-		FROM waitlist_entries
-		ORDER BY created_at DESC
+		SELECT w.id, w.phone, w.email, w.first_name, w.last_name, w.source, w.google_sub,
+			w.referral_code, w.referred_by_code,
+			(SELECT COUNT(*) FROM waitlist_entries c WHERE c.referred_by_code = w.referral_code) AS referrals,
+			w.status, w.phone_verified_at, w.created_at
+		FROM waitlist_entries w
+		ORDER BY w.created_at DESC
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list waitlist entries: %w", err)
@@ -83,6 +93,9 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Entry, error) {
 			&entry.LastName,
 			&entry.Source,
 			&entry.GoogleSub,
+			&entry.ReferralCode,
+			&entry.ReferredByCode,
+			&entry.Referrals,
 			&entry.Status,
 			&entry.PhoneVerifiedAt,
 			&entry.CreatedAt,
