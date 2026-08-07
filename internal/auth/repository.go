@@ -14,6 +14,8 @@ import (
 
 type Repository interface {
 	CreateUser(context.Context, string, string, string, string, []byte, time.Time) (UserView, error)
+	CreateGoogleUser(ctx context.Context, email, passwordHash, displayName, role string, now time.Time) (UserView, error)
+	SetRole(ctx context.Context, email, role string) error
 	FindUserByEmail(context.Context, string) (User, error)
 	FindUserByID(context.Context, uuid.UUID) (UserView, error)
 	CreateSession(context.Context, Session) error
@@ -104,6 +106,68 @@ func (r *PostgresRepository) CreateUser(
 		return UserView{}, fmt.Errorf("commit registration transaction: %w", err)
 	}
 	return view, nil
+}
+
+func (r *PostgresRepository) CreateGoogleUser(
+	ctx context.Context,
+	email, passwordHash, displayName, role string,
+	now time.Time,
+) (UserView, error) {
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return UserView{}, fmt.Errorf("begin google user transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	userID := uuid.New()
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO users (id, email, password_hash, role, terms_accepted_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`, userID, email, passwordHash, role, now); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return UserView{}, ErrEmailExists
+		}
+		return UserView{}, fmt.Errorf("insert google user: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO user_profiles (user_id, display_name)
+		VALUES ($1, $2)
+	`, userID, displayName); err != nil {
+		return UserView{}, fmt.Errorf("insert google user profile: %w", err)
+	}
+
+	for _, skill := range []string{"listening", "reading", "writing", "speaking"} {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO user_skill_progress (id, user_id, skill)
+			VALUES ($1, $2, $3)
+		`, uuid.New(), userID, skill); err != nil {
+			return UserView{}, fmt.Errorf("insert %s skill progress: %w", skill, err)
+		}
+	}
+
+	view, err := scanUserView(tx.QueryRow(ctx, userViewQuery, userID))
+	if err != nil {
+		return UserView{}, fmt.Errorf("read google user: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return UserView{}, fmt.Errorf("commit google user transaction: %w", err)
+	}
+	return view, nil
+}
+
+func (r *PostgresRepository) SetRole(ctx context.Context, email, role string) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE users SET role = $2 WHERE email = $1
+	`, email, role)
+	if err != nil {
+		return fmt.Errorf("set user role: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+	return nil
 }
 
 func (r *PostgresRepository) FindUserByEmail(ctx context.Context, email string) (User, error) {

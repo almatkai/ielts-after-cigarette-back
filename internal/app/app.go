@@ -46,8 +46,13 @@ func New(
 	)
 
 	authRepository := auth.NewPostgresRepository(pool)
+	waitlistRepository := waitlist.NewPostgresRepository(pool)
+	authService := auth.NewService(authRepository, tokens).WithGoogleLogin(
+		waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID),
+		newSuperAdminChecker(cfg.SuperAdminEmails, waitlistRepository),
+	)
 	authHandler := auth.NewHandler(
-		auth.NewService(authRepository, tokens),
+		authService,
 		logger,
 		cfg.MaxRequestBody,
 		auth.CookieConfig{
@@ -93,7 +98,6 @@ func New(
 		logger,
 		cfg.MaxRequestBody,
 	)
-	waitlistRepository := waitlist.NewPostgresRepository(pool)
 	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository, waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID), cfg.SuperAdminEmails), logger, cfg.MaxRequestBody)
 
 	healthHandler := health.NewHandler(
@@ -125,6 +129,7 @@ func New(
 		api.Route("/auth", func(public chi.Router) {
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/register", authHandler.Register)
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/login", authHandler.Login)
+			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
 			public.With(rateLimit(rateLimiter, logger, cfg, "refresh")).Post("/refresh", authHandler.Refresh)
 			public.Post("/logout", authHandler.Logout)
 		})
@@ -191,6 +196,31 @@ func remoteIP(r *http.Request) string {
 		return host
 	}
 	return strings.TrimSpace(r.RemoteAddr)
+}
+
+// superAdminChecker answers whether an email may sign in as a platform admin:
+// bootstrap accounts come from SUPER_ADMIN_EMAILS, runtime accounts from the
+// super_admins table managed through the waitlist admin API.
+type superAdminChecker struct {
+	env  map[string]struct{}
+	repo *waitlist.PostgresRepository
+}
+
+func newSuperAdminChecker(envEmails []string, repo *waitlist.PostgresRepository) *superAdminChecker {
+	env := make(map[string]struct{}, len(envEmails))
+	for _, email := range envEmails {
+		if email = strings.ToLower(strings.TrimSpace(email)); email != "" {
+			env[email] = struct{}{}
+		}
+	}
+	return &superAdminChecker{env: env, repo: repo}
+}
+
+func (c *superAdminChecker) IsSuperAdmin(ctx context.Context, email string) (bool, error) {
+	if _, ok := c.env[email]; ok {
+		return true, nil
+	}
+	return c.repo.IsAdmin(ctx, email)
 }
 
 func cookieSameSite(value string) http.SameSite {

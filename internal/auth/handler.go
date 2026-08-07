@@ -114,6 +114,43 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, result)
 }
 
+type googleLoginRequest struct {
+	GoogleToken string `json:"googleToken"`
+}
+
+func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+	var request googleLoginRequest
+	if err := httpx.DecodeJSON(w, r, h.maxBytes, &request); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
+		return
+	}
+	if strings.TrimSpace(request.GoogleToken) == "" {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", map[string]string{
+			"googleToken": "is required",
+		})
+		return
+	}
+	result, err := h.service.GoogleLogin(r.Context(), GoogleLoginInput{
+		GoogleToken: request.GoogleToken,
+		UserAgent:   limited(r.UserAgent(), 512),
+		IPAddress:   clientIP(r),
+	})
+	if errors.Is(err, ErrInvalidGoogleToken) {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "GOOGLE_TOKEN_INVALID", "Google token is invalid or unverified", nil)
+		return
+	}
+	if errors.Is(err, ErrAccountNotFound) {
+		httpx.WriteError(w, r, http.StatusForbidden, "ACCOUNT_NOT_FOUND", "No account exists for this Google email", nil)
+		return
+	}
+	if err != nil {
+		h.internalError(w, r, "log in user with google", err)
+		return
+	}
+	h.setRefreshCookie(w, result.RefreshToken)
+	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
 type refreshRequest struct {
 	RefreshToken string `json:"refreshToken"`
 }

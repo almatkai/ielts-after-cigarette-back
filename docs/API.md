@@ -264,6 +264,21 @@ phone — `409 PHONE_ALREADY_EXISTS`, а неверный proof token —
 Ответ `200` имеет тот же формат, что регистрация. Неверные данные всегда дают
 одинаковый `401 INVALID_CREDENTIALS`, чтобы не раскрывать наличие email.
 
+### `POST /auth/google`
+
+```json
+{ "googleToken": "<google-id-token>" }
+```
+
+Вход по Google ID token (Google Sign-In). Существующий аккаунт получает сессию
+в формате auth-ответа. Если аккаунта нет, он создаётся с ролью `ADMIN` только
+для супер-админов (`SUPER_ADMIN_EMAILS` или таблица `super_admins`); роль
+существующего супер-админа повышается до `ADMIN` (понижения здесь никогда не
+происходит). Ответ `200` также устанавливает refresh cookie. Ошибки:
+`401 GOOGLE_TOKEN_INVALID` (несуществующий/невалидный токен или неподтверждённый
+email), `403 ACCOUNT_NOT_FOUND` (Google-аккаунт не супер-админ и пользователя с
+таким email нет).
+
 ### `POST /auth/refresh`
 
 Пустой POST с refresh cookie. Ответ `200` имеет auth-формат и ротирует cookie.

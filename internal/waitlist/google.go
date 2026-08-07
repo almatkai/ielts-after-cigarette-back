@@ -15,6 +15,7 @@ type GoogleClaims struct {
 	Sub           string
 	Email         string
 	EmailVerified bool
+	Name          string
 }
 
 type GoogleTokenVerifier interface {
@@ -59,6 +60,7 @@ func (v *googleTokenVerifier) Verify(ctx context.Context, idToken string) (Googl
 		Email         string          `json:"email"`
 		EmailVerified json.RawMessage `json:"email_verified"`
 		Audience      string          `json:"aud"`
+		Name          string          `json:"name"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
 		return GoogleClaims{}, fmt.Errorf("decode Google tokeninfo response: %w", err)
@@ -74,6 +76,7 @@ func (v *googleTokenVerifier) Verify(ctx context.Context, idToken string) (Googl
 		Sub:           payload.Sub,
 		Email:         payload.Email,
 		EmailVerified: googleEmailVerified(payload.EmailVerified),
+		Name:          payload.Name,
 	}, nil
 }
 

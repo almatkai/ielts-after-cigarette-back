@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -117,6 +118,109 @@ func TestLogoutRevokesRefreshSession(t *testing.T) {
 	}
 }
 
+func TestGoogleLoginRejectsUnknownNonAdmin(t *testing.T) {
+	service, _ := testGoogleService("admin@example.com")
+	if _, err := service.GoogleLogin(context.Background(), GoogleLoginInput{GoogleToken: "person"}); !errors.Is(err, ErrAccountNotFound) {
+		t.Fatalf("expected account not found, got %v", err)
+	}
+}
+
+func TestGoogleLoginCreatesAdminForNewSuperAdmin(t *testing.T) {
+	service, repository := testGoogleService("admin@example.com")
+	result, err := service.GoogleLogin(context.Background(), GoogleLoginInput{GoogleToken: "admin"})
+	if err != nil {
+		t.Fatalf("google login failed: %v", err)
+	}
+	if result.User.Email != "admin@example.com" || result.User.Role != RoleAdmin {
+		t.Fatalf("unexpected user: %+v", result.User)
+	}
+	if result.User.DisplayName != "Test User" {
+		t.Fatalf("unexpected display name: %q", result.User.DisplayName)
+	}
+	if result.AccessToken == "" || result.RefreshToken == "" {
+		t.Fatal("expected both access and refresh tokens")
+	}
+	if len(repository.sessions) != 1 {
+		t.Fatalf("expected one refresh session, got %d", len(repository.sessions))
+	}
+}
+
+func TestGoogleLoginKeepsRoleForExistingStudent(t *testing.T) {
+	service, _ := testGoogleService("admin@example.com")
+	if _, _, err := service.Register(context.Background(), RegisterInput{
+		Name: "Alice", Email: "alice@example.com", Password: "safe-password", AcceptedTerms: true,
+		Phone: testPhone, VerificationToken: testVerificationToken,
+	}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	result, err := service.GoogleLogin(context.Background(), GoogleLoginInput{GoogleToken: "student"})
+	if err != nil {
+		t.Fatalf("google login failed: %v", err)
+	}
+	if result.User.Role != RoleStudent {
+		t.Fatalf("expected role to stay STUDENT, got %s", result.User.Role)
+	}
+}
+
+func TestGoogleLoginElevatesExistingSuperAdmin(t *testing.T) {
+	service, repository := testGoogleService("admin@example.com")
+	if _, _, err := service.Register(context.Background(), RegisterInput{
+		Name: "Admin", Email: "admin@example.com", Password: "safe-password", AcceptedTerms: true,
+		Phone: testPhone, VerificationToken: testVerificationToken,
+	}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	result, err := service.GoogleLogin(context.Background(), GoogleLoginInput{GoogleToken: "admin"})
+	if err != nil {
+		t.Fatalf("google login failed: %v", err)
+	}
+	if result.User.Role != RoleAdmin {
+		t.Fatalf("expected elevated ADMIN role, got %s", result.User.Role)
+	}
+	if repository.users["admin@example.com"].Role != RoleAdmin {
+		t.Fatal("role was not persisted")
+	}
+}
+
+func TestGoogleLoginRejectsInvalidToken(t *testing.T) {
+	service, _ := testGoogleService("admin@example.com")
+	if _, err := service.GoogleLogin(context.Background(), GoogleLoginInput{GoogleToken: "bogus"}); !errors.Is(err, ErrInvalidGoogleToken) {
+		t.Fatalf("expected invalid google token, got %v", err)
+	}
+}
+
+type fakeGoogleVerifier struct {
+	emails map[string]string
+}
+
+func (v fakeGoogleVerifier) Verify(_ context.Context, token string) (waitlist.GoogleClaims, error) {
+	email, ok := v.emails[token]
+	if !ok {
+		return waitlist.GoogleClaims{}, errors.New("bad token")
+	}
+	return waitlist.GoogleClaims{Sub: "sub-" + token, Email: email, EmailVerified: true, Name: "Test User"}, nil
+}
+
+type fakeSuperAdminChecker struct {
+	emails map[string]struct{}
+}
+
+func (c fakeSuperAdminChecker) IsSuperAdmin(_ context.Context, email string) (bool, error) {
+	_, ok := c.emails[email]
+	return ok, nil
+}
+
+func testGoogleService(adminEmail string) (*Service, *fakeRepository) {
+	service, repository := testService()
+	verifier := fakeGoogleVerifier{emails: map[string]string{
+		"admin":   "admin@example.com",
+		"student": "alice@example.com",
+		"person":  "person@example.com",
+	}}
+	service.WithGoogleLogin(verifier, fakeSuperAdminChecker{emails: map[string]struct{}{adminEmail: {}}})
+	return service, repository
+}
+
 func TestAuthenticateProtectsEndpoint(t *testing.T) {
 	tokens := NewTokenManager(
 		"0123456789abcdef0123456789abcdef",
@@ -202,6 +306,41 @@ func (r *fakeRepository) CreateUser(
 	r.users[email] = user
 	r.views[user.ID] = view
 	return view, nil
+}
+
+func (r *fakeRepository) CreateGoogleUser(
+	_ context.Context,
+	email, hash, displayName, role string,
+	now time.Time,
+) (UserView, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.users[email]; exists {
+		return UserView{}, ErrEmailExists
+	}
+	user := User{ID: uuid.New(), Email: email, PasswordHash: hash, Role: role}
+	view := UserView{
+		ID: user.ID, Email: email, DisplayName: displayName, Role: role,
+		Timezone: "UTC", CreatedAt: now, UpdatedAt: now,
+	}
+	r.users[email] = user
+	r.views[user.ID] = view
+	return view, nil
+}
+
+func (r *fakeRepository) SetRole(_ context.Context, email, role string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	user, ok := r.users[email]
+	if !ok {
+		return ErrUserNotFound
+	}
+	user.Role = role
+	r.users[email] = user
+	view := r.views[user.ID]
+	view.Role = role
+	r.views[user.ID] = view
+	return nil
 }
 
 func (r *fakeRepository) FindUserByEmail(_ context.Context, email string) (User, error) {

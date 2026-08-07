@@ -35,6 +35,8 @@ var (
 	ErrInvalidRefresh     = errors.New("invalid refresh token")
 	ErrRefreshReuse       = errors.New("refresh token reuse detected")
 	ErrUserNotFound       = errors.New("user not found")
+	ErrInvalidGoogleToken = errors.New("google token is invalid")
+	ErrAccountNotFound    = errors.New("account does not exist")
 )
 
 type User struct {
@@ -93,6 +95,12 @@ type LoginInput struct {
 	Password  string
 	UserAgent string
 	IPAddress string
+}
+
+type GoogleLoginInput struct {
+	GoogleToken string
+	UserAgent   string
+	IPAddress   string
 }
 
 type SessionMetadata struct {

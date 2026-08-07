@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -10,13 +12,24 @@ import (
 	"unicode/utf8"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type GoogleClaimsVerifier interface {
+	Verify(ctx context.Context, idToken string) (waitlist.GoogleClaims, error)
+}
+
+type SuperAdminChecker interface {
+	IsSuperAdmin(ctx context.Context, email string) (bool, error)
+}
+
 type Service struct {
 	repository Repository
 	tokens     *TokenManager
+	verifier   GoogleClaimsVerifier
+	admins     SuperAdminChecker
 	bcryptCost int
 	now        func() time.Time
 }
@@ -28,6 +41,15 @@ func NewService(repository Repository, tokens *TokenManager) *Service {
 		bcryptCost: bcrypt.DefaultCost,
 		now:        time.Now,
 	}
+}
+
+// WithGoogleLogin enables Google sign-in on the service. The verifier validates
+// Google ID tokens; the checker decides which Google accounts may bootstrap a
+// platform account (super admins only).
+func (s *Service) WithGoogleLogin(verifier GoogleClaimsVerifier, admins SuperAdminChecker) *Service {
+	s.verifier = verifier
+	s.admins = admins
+	return s
 }
 
 func (s *Service) Register(ctx context.Context, input RegisterInput) (AuthResult, map[string]string, error) {
@@ -87,6 +109,115 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (AuthResult, map[
 		return AuthResult{}, nil, err
 	}
 	return s.issueSession(ctx, user, SessionMetadata{input.UserAgent, input.IPAddress})
+}
+
+// GoogleLogin signs in with a Google ID token. Existing accounts just get a
+// session. Unknown accounts are only provisioned for super admins (env or DB),
+// and always with the ADMIN role — regular students register with a password.
+// The role is only ever elevated here, never demoted.
+func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (AuthResult, error) {
+	if s.verifier == nil || s.admins == nil {
+		return AuthResult{}, fmt.Errorf("google login is not configured")
+	}
+	claims, err := s.verifier.Verify(ctx, strings.TrimSpace(input.GoogleToken))
+	if err != nil {
+		return AuthResult{}, ErrInvalidGoogleToken
+	}
+	email := normalizeEmail(claims.Email)
+	if email == "" || !claims.EmailVerified || !validEmail(email) {
+		return AuthResult{}, ErrInvalidGoogleToken
+	}
+
+	metadata := SessionMetadata{input.UserAgent, input.IPAddress}
+	userRecord, err := s.repository.FindUserByEmail(ctx, email)
+	if err != nil && !errors.Is(err, ErrUserNotFound) {
+		return AuthResult{}, err
+	}
+	if err == nil {
+		user, err := s.repository.FindUserByID(ctx, userRecord.ID)
+		if err != nil {
+			return AuthResult{}, err
+		}
+		if user.Role != RoleAdmin {
+			isAdmin, err := s.admins.IsSuperAdmin(ctx, email)
+			if err != nil {
+				return AuthResult{}, err
+			}
+			if isAdmin {
+				if err := s.repository.SetRole(ctx, email, RoleAdmin); err != nil {
+					return AuthResult{}, err
+				}
+				user, err = s.repository.FindUserByID(ctx, userRecord.ID)
+				if err != nil {
+					return AuthResult{}, err
+				}
+			}
+		}
+		result, _, err := s.issueSession(ctx, user, metadata)
+		return result, err
+	}
+
+	isAdmin, err := s.admins.IsSuperAdmin(ctx, email)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	if !isAdmin {
+		return AuthResult{}, ErrAccountNotFound
+	}
+	user, err := s.createGoogleAdmin(ctx, email, claims.Name)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	result, _, err := s.issueSession(ctx, user, metadata)
+	return result, err
+}
+
+// createGoogleAdmin provisions an ADMIN account for a super admin Google
+// profile. The password is random and unknown to anyone; the account only ever
+// signs in with Google.
+func (s *Service) createGoogleAdmin(ctx context.Context, email, displayName string) (UserView, error) {
+	random := make([]byte, 32)
+	if _, err := rand.Read(random); err != nil {
+		return UserView{}, fmt.Errorf("generate google account password: %w", err)
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(hex.EncodeToString(random)), s.bcryptCost)
+	if err != nil {
+		return UserView{}, fmt.Errorf("hash google account password: %w", err)
+	}
+	user, err := s.repository.CreateGoogleUser(
+		ctx,
+		email,
+		string(passwordHash),
+		googleDisplayName(displayName, email),
+		RoleAdmin,
+		s.now().UTC(),
+	)
+	if errors.Is(err, ErrEmailExists) {
+		// A concurrent request created the account first; sign in to it.
+		userRecord, lookupErr := s.repository.FindUserByEmail(ctx, email)
+		if lookupErr != nil {
+			return UserView{}, lookupErr
+		}
+		return s.repository.FindUserByID(ctx, userRecord.ID)
+	}
+	return user, err
+}
+
+// googleDisplayName prefers the Google profile name and falls back to the
+// email local part, clamped to the user_profiles constraints (1-100 chars).
+func googleDisplayName(name, email string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = strings.TrimSpace(strings.SplitN(email, "@", 2)[0])
+	}
+	if name == "" {
+		name = "Admin"
+	}
+	if utf8.RuneCountInString(name) > 100 {
+		runes := []rune(name)
+		name = string(runes[:100])
+	}
+	return name
 }
 
 func (s *Service) Refresh(ctx context.Context, rawToken string, metadata SessionMetadata) (AuthResult, error) {
