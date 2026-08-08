@@ -126,6 +126,7 @@ func New(
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/register", authHandler.Register)
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/login", authHandler.Login)
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
+			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/google/complete", authHandler.CompleteGoogleRegistration)
 			public.With(rateLimit(rateLimiter, logger, cfg, "refresh")).Post("/refresh", authHandler.Refresh)
 			public.Post("/logout", authHandler.Logout)
 		})

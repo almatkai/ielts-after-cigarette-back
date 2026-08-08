@@ -130,7 +130,7 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	result, err := h.service.GoogleLogin(r.Context(), GoogleLoginInput{
+	outcome, err := h.service.GoogleLogin(r.Context(), GoogleLoginInput{
 		GoogleToken: request.GoogleToken,
 		UserAgent:   limited(r.UserAgent(), 512),
 		IPAddress:   clientIP(r),
@@ -147,8 +147,69 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		h.internalError(w, r, "log in user with google", err)
 		return
 	}
+	if outcome.PendingRegistration != nil {
+		httpx.WriteJSON(w, http.StatusOK, pendingRegistrationResponse{
+			RegistrationRequired: true,
+			RegistrationToken:    outcome.PendingRegistration.Token,
+			Profile:              outcome.PendingRegistration.Profile,
+		})
+		return
+	}
+	h.setRefreshCookie(w, outcome.Session.RefreshToken)
+	httpx.WriteJSON(w, http.StatusOK, outcome.Session)
+}
+
+type pendingRegistrationResponse struct {
+	RegistrationRequired bool          `json:"registrationRequired"`
+	RegistrationToken    string        `json:"registrationToken"`
+	Profile              GoogleProfile `json:"profile"`
+}
+
+type completeGoogleRegistrationRequest struct {
+	RegistrationToken string `json:"registrationToken"`
+	Name              string `json:"name"`
+	Phone             string `json:"phone"`
+	Password          string `json:"password"`
+	AcceptedTerms     bool   `json:"acceptedTerms"`
+}
+
+func (h *Handler) CompleteGoogleRegistration(w http.ResponseWriter, r *http.Request) {
+	var request completeGoogleRegistrationRequest
+	if err := httpx.DecodeJSON(w, r, h.maxBytes, &request); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
+		return
+	}
+	result, details, err := h.service.CompleteGoogleRegistration(r.Context(), CompleteGoogleRegistrationInput{
+		RegistrationToken: request.RegistrationToken,
+		Name:              request.Name,
+		Phone:             request.Phone,
+		Password:          request.Password,
+		AcceptedTerms:     request.AcceptedTerms,
+		UserAgent:         limited(r.UserAgent(), 512),
+		IPAddress:         clientIP(r),
+	})
+	if errors.Is(err, ErrInvalidGoogleToken) {
+		httpx.WriteError(w, r, http.StatusUnauthorized, "GOOGLE_TOKEN_INVALID", "Registration token is invalid or expired", nil)
+		return
+	}
+	if len(details) > 0 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
+		return
+	}
+	if errors.Is(err, ErrEmailExists) {
+		httpx.WriteError(w, r, http.StatusConflict, "EMAIL_ALREADY_EXISTS", "An account with this email already exists", nil)
+		return
+	}
+	if errors.Is(err, ErrPhoneExists) {
+		httpx.WriteError(w, r, http.StatusConflict, "PHONE_ALREADY_EXISTS", "An account with this phone number already exists", nil)
+		return
+	}
+	if err != nil {
+		h.internalError(w, r, "complete google registration", err)
+		return
+	}
 	h.setRefreshCookie(w, result.RefreshToken)
-	httpx.WriteJSON(w, http.StatusOK, result)
+	httpx.WriteJSON(w, http.StatusCreated, result)
 }
 
 type refreshRequest struct {

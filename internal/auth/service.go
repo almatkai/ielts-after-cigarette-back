@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -66,6 +64,31 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (AuthResult
 	if err != nil {
 		return AuthResult{}, nil, fmt.Errorf("hash password: %w", err)
 	}
+	now := s.now().UTC()
+	if existing, err := s.repository.FindUserByEmail(ctx, input.Email); err == nil {
+		if !LeadStatus(existing.Status) {
+			return AuthResult{}, nil, ErrEmailExists
+		}
+		// A waitlist lead with this email already exists — finish registration
+		// on the same row instead of rejecting the sign-up.
+		user, err := s.repository.CompleteWaitlistUser(
+			ctx,
+			existing.ID,
+			"",
+			string(passwordHash),
+			input.Name,
+			input.Phone,
+			"",
+			phoneverification.HashVerificationToken(input.VerificationToken),
+			now,
+		)
+		if err != nil {
+			return AuthResult{}, nil, err
+		}
+		return s.issueSession(ctx, user, SessionMetadata{input.UserAgent, input.IPAddress})
+	} else if !errors.Is(err, ErrUserNotFound) {
+		return AuthResult{}, nil, err
+	}
 	user, err := s.repository.CreateUser(
 		ctx,
 		input.Email,
@@ -73,7 +96,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (AuthResult
 		input.Name,
 		input.Phone,
 		phoneverification.HashVerificationToken(input.VerificationToken),
-		s.now().UTC(),
+		now,
 	)
 	if err != nil {
 		return AuthResult{}, nil, err
@@ -111,92 +134,264 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (AuthResult, map[
 	return s.issueSession(ctx, user, SessionMetadata{input.UserAgent, input.IPAddress})
 }
 
-// GoogleLogin signs in with a Google ID token. Existing accounts just get a
-// session. Unknown accounts are only provisioned for super admins (env or DB),
-// and always with the ADMIN role — regular students register with a password.
+// GoogleLogin signs in with a Google ID token. Existing accounts (matched by
+// google_sub, then by email — linking the sub on first match) just get a
+// session. Waitlist leads (status WAITING/INVITED) never get a session here:
+// super admins are upgraded to ADMIN in place, everyone else gets a pending
+// registration token prefilled with the waitlist name and phone to finish
+// signing up at /auth/google/complete. Unknown accounts are only provisioned
+// for super admins (env or DB), always with the ADMIN role; regular users get
+// the same pending registration token.
 // The role is only ever elevated here, never demoted.
-func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (AuthResult, error) {
+func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (GoogleLoginOutcome, error) {
 	if s.verifier == nil || s.admins == nil {
-		return AuthResult{}, fmt.Errorf("google login is not configured")
+		return GoogleLoginOutcome{}, fmt.Errorf("google login is not configured")
 	}
 	claims, err := s.verifier.Verify(ctx, strings.TrimSpace(input.GoogleToken))
 	if err != nil {
-		return AuthResult{}, ErrInvalidGoogleToken
+		return GoogleLoginOutcome{}, ErrInvalidGoogleToken
 	}
 	email := normalizeEmail(claims.Email)
 	if email == "" || !claims.EmailVerified || !validEmail(email) {
-		return AuthResult{}, ErrInvalidGoogleToken
+		return GoogleLoginOutcome{}, ErrInvalidGoogleToken
 	}
 
 	metadata := SessionMetadata{input.UserAgent, input.IPAddress}
-	userRecord, err := s.repository.FindUserByEmail(ctx, email)
-	if err != nil && !errors.Is(err, ErrUserNotFound) {
-		return AuthResult{}, err
-	}
-	if err == nil {
-		user, err := s.repository.FindUserByID(ctx, userRecord.ID)
-		if err != nil {
-			return AuthResult{}, err
+	userRecord, err := s.repository.FindUserByGoogleSub(ctx, claims.Sub)
+	switch {
+	case err == nil:
+		if LeadStatus(userRecord.Status) {
+			return s.pendingGoogleRegistration(claims, email, &userRecord)
 		}
-		if user.Role != RoleAdmin {
+		return s.googleSessionForUser(ctx, userRecord, metadata)
+	case !errors.Is(err, ErrUserNotFound):
+		return GoogleLoginOutcome{}, err
+	}
+
+	userRecord, err = s.repository.FindUserByEmail(ctx, email)
+	switch {
+	case err == nil:
+		if LeadStatus(userRecord.Status) {
 			isAdmin, err := s.admins.IsSuperAdmin(ctx, email)
 			if err != nil {
-				return AuthResult{}, err
+				return GoogleLoginOutcome{}, err
 			}
 			if isAdmin {
-				if err := s.repository.SetRole(ctx, email, RoleAdmin); err != nil {
-					return AuthResult{}, err
+				user, err := s.repository.UpgradeWaitlistToAdmin(
+					ctx,
+					userRecord.ID,
+					googleDisplayName(claims.Name, email),
+					claims.Sub,
+					s.now().UTC(),
+				)
+				if err == nil {
+					result, _, err := s.issueSession(ctx, user, metadata)
+					if err != nil {
+						return GoogleLoginOutcome{}, err
+					}
+					return GoogleLoginOutcome{Session: &result}, nil
 				}
-				user, err = s.repository.FindUserByID(ctx, userRecord.ID)
-				if err != nil {
-					return AuthResult{}, err
+				if !errors.Is(err, ErrUserNotFound) {
+					return GoogleLoginOutcome{}, err
 				}
+				// The lead finished registration in a concurrent request;
+				// fall through to the normal sign-in below.
+			} else {
+				return s.pendingGoogleRegistration(claims, email, &userRecord)
 			}
 		}
-		result, _, err := s.issueSession(ctx, user, metadata)
-		return result, err
+		if userRecord.GoogleSub == "" {
+			if err := s.repository.LinkGoogleSub(ctx, userRecord.ID, claims.Sub); err != nil {
+				return GoogleLoginOutcome{}, err
+			}
+		}
+		return s.googleSessionForUser(ctx, userRecord, metadata)
+	case !errors.Is(err, ErrUserNotFound):
+		return GoogleLoginOutcome{}, err
 	}
 
 	isAdmin, err := s.admins.IsSuperAdmin(ctx, email)
 	if err != nil {
-		return AuthResult{}, err
+		return GoogleLoginOutcome{}, err
 	}
 	if !isAdmin {
-		return AuthResult{}, ErrAccountNotFound
+		return s.pendingGoogleRegistration(claims, email, nil)
 	}
-	user, err := s.createGoogleAdmin(ctx, email, claims.Name)
+	user, err := s.createGoogleAdmin(ctx, email, claims.Name, claims.Sub)
 	if err != nil {
-		return AuthResult{}, err
+		return GoogleLoginOutcome{}, err
 	}
 	result, _, err := s.issueSession(ctx, user, metadata)
-	return result, err
+	if err != nil {
+		return GoogleLoginOutcome{}, err
+	}
+	return GoogleLoginOutcome{Session: &result}, nil
+}
+
+// pendingGoogleRegistration builds the pending-registration outcome for a
+// Google profile without a registered account. When the profile matches a
+// waitlist lead row, the lead's name and phone prefill the
+// complete-registration form; the session is only issued after the user
+// finishes registration.
+func (s *Service) pendingGoogleRegistration(claims waitlist.GoogleClaims, email string, lead *User) (GoogleLoginOutcome, error) {
+	name := strings.TrimSpace(claims.Name)
+	phone := ""
+	if lead != nil {
+		leadName := strings.TrimSpace(strings.TrimSpace(lead.FirstName) + " " + strings.TrimSpace(lead.LastName))
+		if leadName != "" {
+			name = leadName
+		}
+		phone = lead.Phone
+	}
+	token, err := s.tokens.NewGoogleRegistrationToken(claims.Sub, email, name)
+	if err != nil {
+		return GoogleLoginOutcome{}, err
+	}
+	return GoogleLoginOutcome{PendingRegistration: &PendingRegistration{
+		Token:   token,
+		Profile: GoogleProfile{Email: email, Name: googleDisplayName(name, email), Phone: phone},
+	}}, nil
+}
+
+func (s *Service) googleSessionForUser(ctx context.Context, userRecord User, metadata SessionMetadata) (GoogleLoginOutcome, error) {
+	user, err := s.repository.FindUserByID(ctx, userRecord.ID)
+	if err != nil {
+		return GoogleLoginOutcome{}, err
+	}
+	if user.Role != RoleAdmin {
+		isAdmin, err := s.admins.IsSuperAdmin(ctx, userRecord.Email)
+		if err != nil {
+			return GoogleLoginOutcome{}, err
+		}
+		if isAdmin {
+			if err := s.repository.SetRole(ctx, userRecord.Email, RoleAdmin); err != nil {
+				return GoogleLoginOutcome{}, err
+			}
+			user, err = s.repository.FindUserByID(ctx, userRecord.ID)
+			if err != nil {
+				return GoogleLoginOutcome{}, err
+			}
+		}
+	}
+	result, _, err := s.issueSession(ctx, user, metadata)
+	if err != nil {
+		return GoogleLoginOutcome{}, err
+	}
+	return GoogleLoginOutcome{Session: &result}, nil
+}
+
+// CompleteGoogleRegistration turns a pending Google registration token plus
+// the user-chosen name, phone and password into a full STUDENT account and a
+// session. The token proves both the email and the Google identity, so no
+// WhatsApp phone verification is required.
+func (s *Service) CompleteGoogleRegistration(
+	ctx context.Context,
+	input CompleteGoogleRegistrationInput,
+) (AuthResult, map[string]string, error) {
+	registrationToken := strings.TrimSpace(input.RegistrationToken)
+	if registrationToken == "" {
+		return AuthResult{}, nil, ErrInvalidGoogleToken
+	}
+	claims, err := s.tokens.ParseGoogleRegistrationToken(registrationToken)
+	if err != nil {
+		return AuthResult{}, nil, ErrInvalidGoogleToken
+	}
+	email := normalizeEmail(claims.Email)
+	if !validEmail(email) {
+		return AuthResult{}, nil, ErrInvalidGoogleToken
+	}
+
+	input.Name = strings.TrimSpace(input.Name)
+	input.Phone = phoneverification.NormalizePhone(input.Phone)
+	details := validateGoogleRegistration(input)
+	if len(details) > 0 {
+		return AuthResult{}, details, nil
+	}
+
+	var lead *User
+	if existing, err := s.repository.FindUserByEmail(ctx, email); err == nil {
+		if !LeadStatus(existing.Status) {
+			return AuthResult{}, nil, ErrEmailExists
+		}
+		lead = &existing
+	} else if !errors.Is(err, ErrUserNotFound) {
+		return AuthResult{}, nil, err
+	}
+	if lead == nil {
+		if existing, err := s.repository.FindUserByGoogleSub(ctx, claims.Subject); err == nil {
+			if !LeadStatus(existing.Status) {
+				return AuthResult{}, nil, ErrEmailExists
+			}
+			lead = &existing
+		} else if !errors.Is(err, ErrUserNotFound) {
+			return AuthResult{}, nil, err
+		}
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), s.bcryptCost)
+	if err != nil {
+		return AuthResult{}, nil, fmt.Errorf("hash password: %w", err)
+	}
+	var user UserView
+	if lead != nil {
+		// Finish registration on the waitlist lead row; the Google email from
+		// the token replaces the lead's placeholder email when there is one.
+		user, err = s.repository.CompleteWaitlistUser(
+			ctx,
+			lead.ID,
+			email,
+			string(passwordHash),
+			input.Name,
+			input.Phone,
+			claims.Subject,
+			nil,
+			s.now().UTC(),
+		)
+	} else {
+		user, err = s.repository.CreateGoogleCompletedUser(
+			ctx,
+			email,
+			string(passwordHash),
+			input.Name,
+			input.Phone,
+			claims.Subject,
+			s.now().UTC(),
+		)
+	}
+	if err != nil {
+		return AuthResult{}, nil, err
+	}
+	result, _, err := s.issueSession(ctx, user, SessionMetadata{input.UserAgent, input.IPAddress})
+	return result, nil, err
 }
 
 // createGoogleAdmin provisions an ADMIN account for a super admin Google
-// profile. The password is random and unknown to anyone; the account only ever
-// signs in with Google.
-func (s *Service) createGoogleAdmin(ctx context.Context, email, displayName string) (UserView, error) {
-	random := make([]byte, 32)
-	if _, err := rand.Read(random); err != nil {
-		return UserView{}, fmt.Errorf("generate google account password: %w", err)
-	}
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(hex.EncodeToString(random)), s.bcryptCost)
-	if err != nil {
-		return UserView{}, fmt.Errorf("hash google account password: %w", err)
-	}
+// profile. The account has no password and only ever signs in with Google.
+func (s *Service) createGoogleAdmin(ctx context.Context, email, displayName, googleSub string) (UserView, error) {
 	user, err := s.repository.CreateGoogleUser(
 		ctx,
 		email,
-		string(passwordHash),
+		"",
 		googleDisplayName(displayName, email),
 		RoleAdmin,
+		googleSub,
 		s.now().UTC(),
 	)
 	if errors.Is(err, ErrEmailExists) {
-		// A concurrent request created the account first; sign in to it.
+		// A concurrent request created the account first, or the email
+		// belongs to a waitlist lead that now upgrades to admin.
 		userRecord, lookupErr := s.repository.FindUserByEmail(ctx, email)
 		if lookupErr != nil {
 			return UserView{}, lookupErr
+		}
+		if LeadStatus(userRecord.Status) {
+			return s.repository.UpgradeWaitlistToAdmin(
+				ctx,
+				userRecord.ID,
+				googleDisplayName(displayName, email),
+				googleSub,
+				s.now().UTC(),
+			)
 		}
 		return s.repository.FindUserByID(ctx, userRecord.ID)
 	}
@@ -333,6 +528,27 @@ func validateRegistration(input RegisterInput) map[string]string {
 	}
 	if !phoneverification.ValidVerificationToken(input.VerificationToken) {
 		details["verificationToken"] = "is required"
+	}
+	return details
+}
+
+// validateGoogleRegistration mirrors validateRegistration minus the email and
+// verification token checks — the Google registration token proves the
+// identity, so neither is collected from the user.
+func validateGoogleRegistration(input CompleteGoogleRegistrationInput) map[string]string {
+	details := map[string]string{}
+	nameLength := utf8.RuneCountInString(input.Name)
+	if nameLength < 2 || nameLength > 100 {
+		details["name"] = "must contain between 2 and 100 characters"
+	}
+	if utf8.RuneCountInString(input.Password) < 8 || len(input.Password) > 72 {
+		details["password"] = "must contain at least 8 characters and at most 72 bytes"
+	}
+	if !input.AcceptedTerms {
+		details["acceptedTerms"] = "must be accepted"
+	}
+	if !phoneverification.ValidPhone(input.Phone) {
+		details["phone"] = "must use E.164 format, for example +77001234567"
 	}
 	return details
 }

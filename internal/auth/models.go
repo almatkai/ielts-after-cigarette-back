@@ -14,6 +14,18 @@ const (
 	RoleAdmin   = "ADMIN"
 )
 
+const (
+	StatusWaiting    = "WAITING"
+	StatusInvited    = "INVITED"
+	StatusRegistered = "REGISTERED"
+)
+
+// LeadStatus reports whether a user row is a waitlist lead that has not
+// finished registration yet.
+func LeadStatus(status string) bool {
+	return status == StatusWaiting || status == StatusInvited
+}
+
 func NormalizeRole(value string) string {
 	return strings.ToUpper(strings.TrimSpace(value))
 }
@@ -44,6 +56,11 @@ type User struct {
 	Email        string
 	PasswordHash string
 	Role         string
+	GoogleSub    string
+	Status       string
+	Phone        string
+	FirstName    string
+	LastName     string
 }
 
 type UserView struct {
@@ -101,6 +118,35 @@ type GoogleLoginInput struct {
 	GoogleToken string
 	UserAgent   string
 	IPAddress   string
+}
+
+// GoogleLoginOutcome is the tagged result of GoogleLogin: exactly one field is
+// non-nil — a session for an existing account, or a pending registration for
+// an unknown Google profile.
+type GoogleLoginOutcome struct {
+	Session             *AuthResult
+	PendingRegistration *PendingRegistration
+}
+
+type PendingRegistration struct {
+	Token   string
+	Profile GoogleProfile
+}
+
+type GoogleProfile struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	Phone string `json:"phone,omitempty"`
+}
+
+type CompleteGoogleRegistrationInput struct {
+	RegistrationToken string
+	Name              string
+	Phone             string
+	Password          string
+	AcceptedTerms     bool
+	UserAgent         string
+	IPAddress         string
 }
 
 type SessionMetadata struct {

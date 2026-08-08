@@ -85,6 +85,71 @@ func (m *TokenManager) ParseAccessToken(raw string) (AccessClaims, error) {
 	return claims, nil
 }
 
+const (
+	// GoogleRegistrationPurpose marks a short-lived token carrying an
+	// unregistered Google profile between /auth/google and
+	// /auth/google/complete. It never authenticates a session.
+	GoogleRegistrationPurpose = "google_registration"
+	googleRegistrationTTL     = 30 * time.Minute
+)
+
+type GoogleRegistrationClaims struct {
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+	Purpose string `json:"purpose"`
+	jwt.RegisteredClaims
+}
+
+func (m *TokenManager) NewGoogleRegistrationToken(googleSub, email, name string) (string, error) {
+	now := m.now().UTC()
+	claims := GoogleRegistrationClaims{
+		Email:   email,
+		Name:    name,
+		Purpose: GoogleRegistrationPurpose,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    m.issuer,
+			Subject:   googleSub,
+			Audience:  jwt.ClaimStrings{m.audience},
+			ExpiresAt: jwt.NewNumericDate(now.Add(googleRegistrationTTL)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			ID:        uuid.NewString(),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString(m.secret)
+	if err != nil {
+		return "", fmt.Errorf("sign google registration token: %w", err)
+	}
+	return signed, nil
+}
+
+func (m *TokenManager) ParseGoogleRegistrationToken(raw string) (GoogleRegistrationClaims, error) {
+	var claims GoogleRegistrationClaims
+	token, err := jwt.ParseWithClaims(
+		raw,
+		&claims,
+		func(token *jwt.Token) (any, error) {
+			if token.Method != jwt.SigningMethodHS256 {
+				return nil, fmt.Errorf("unexpected signing method %q", token.Method.Alg())
+			}
+			return m.secret, nil
+		},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithIssuer(m.issuer),
+		jwt.WithAudience(m.audience),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+	)
+	if err != nil || !token.Valid {
+		return GoogleRegistrationClaims{}, ErrInvalidGoogleToken
+	}
+	if claims.Purpose != GoogleRegistrationPurpose || claims.Subject == "" {
+		return GoogleRegistrationClaims{}, ErrInvalidGoogleToken
+	}
+	return claims, nil
+}
+
 func (m *TokenManager) NewRefreshToken() (raw string, hash []byte, expiresAt time.Time, err error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {

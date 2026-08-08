@@ -73,6 +73,11 @@ Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIG
 
 ## Waitlist
 
+Заявки waitlist хранятся в таблице `users` со статусом `WAITING`/`INVITED`
+(без пароля); регистрация через `POST /auth/register` или
+`POST /auth/google/complete` дозавершает ту же строку и переводит её в
+`REGISTERED`.
+
 ### `POST /waitlist`
 
 Для добавления в waitlist нужен Google-аккаунт: передайте Google ID token,
@@ -282,13 +287,54 @@ phone — `409 PHONE_ALREADY_EXISTS`, а неверный proof token —
 ```
 
 Вход по Google ID token (Google Sign-In). Существующий аккаунт получает сессию
-в формате auth-ответа. Если аккаунта нет, он создаётся с ролью `ADMIN` только
-для супер-админов (`SUPER_ADMIN_EMAILS` или таблица `super_admins`); роль
+в формате auth-ответа; если супер-админ (`SUPER_ADMIN_EMAILS` или таблица
+`super_admins`) входит в первый раз, аккаунт создаётся с ролью `ADMIN`, а роль
 существующего супер-админа повышается до `ADMIN` (понижения здесь никогда не
-происходит). Ответ `200` также устанавливает refresh cookie. Ошибки:
-`401 GOOGLE_TOKEN_INVALID` (несуществующий/невалидный токен или неподтверждённый
-email), `403 ACCOUNT_NOT_FOUND` (Google-аккаунт не супер-админ и пользователя с
-таким email нет).
+происходит). Лид из waitlist (строка `users` со статусом `WAITING`/`INVITED`)
+с email супер-админа апгрейдится до `ADMIN` на той же строке.
+
+Если аккаунта нет, ответ `200` возвращает pending-регистрацию (без сессии и
+refresh cookie):
+
+```json
+{
+  "registrationRequired": true,
+  "registrationToken": "<jwt, 30 минут>",
+  "profile": {
+    "email": "ada@example.com",
+    "name": "Ada Lovelace",
+    "phone": "+77001234567"
+  }
+}
+```
+
+`profile.name` берётся из Google-аккаунта, а если Google-профиль совпал с
+лидом waitlist (по `google_sub` или email) — из `firstName`/`lastName` заявки,
+`profile.phone` — из заявки (поле отсутствует, если заявки не было). Клиент
+показывает форму завершения регистрации и вызывает
+`POST /auth/google/complete`. Ошибки: `401 GOOGLE_TOKEN_INVALID`
+(несуществующий/невалидный токен или неподтверждённый email),
+`422 VALIDATION_ERROR` (пустой `googleToken`).
+
+### `POST /auth/google/complete`
+
+```json
+{
+  "registrationToken": "<jwt из /auth/google>",
+  "name": "Ada Lovelace",
+  "phone": "+77001234567",
+  "password": "correct horse battery staple",
+  "acceptedTerms": true
+}
+```
+
+Завершает регистрацию по pending-токену: создаёт студента или дозавершает
+строку лида waitlist (статус становится `REGISTERED`), Google identity заменяет
+WhatsApp-проверку телефона. Ответ `201` — auth-формат с refresh cookie.
+Ошибки: `401 GOOGLE_TOKEN_INVALID` (токен регистрации недействителен или
+истёк), `409 EMAIL_ALREADY_EXISTS`, `409 PHONE_ALREADY_EXISTS`,
+`422 VALIDATION_ERROR` (`name`, `phone`, `password`, `acceptedTerms`).
+Повторная попытка с тем же токеном после временной ошибки разрешена.
 
 ### `POST /auth/refresh`
 
