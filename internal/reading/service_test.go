@@ -20,6 +20,13 @@ func (r *repositoryStub) Create(_ context.Context, _ uuid.UUID, input SaveInput)
 	r.created = input
 	return Material{Slug: input.Slug}, nil
 }
+func (r *repositoryStub) CreateMany(_ context.Context, _ uuid.UUID, inputs []SaveInput) ([]Material, error) {
+	items := make([]Material, len(inputs))
+	for index, input := range inputs {
+		items[index] = Material{Title: input.Title}
+	}
+	return items, nil
+}
 func (r *repositoryStub) Update(_ context.Context, _, _ uuid.UUID, input SaveInput) (Material, error) {
 	r.updated = input
 	return Material{Revision: input.Revision + 1}, nil

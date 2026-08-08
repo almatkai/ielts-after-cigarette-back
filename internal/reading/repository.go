@@ -2,6 +2,7 @@ package reading
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -60,6 +61,10 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID) (Material, e
 	if err != nil {
 		return Material{}, fmt.Errorf("get reading material: %w", err)
 	}
+	material.QuestionGroups, err = r.questionGroups(ctx, material.ID, material.CurrentVersionNumber)
+	if err != nil {
+		return Material{}, err
+	}
 	return material, nil
 }
 
@@ -70,15 +75,54 @@ func (r *PostgresRepository) Create(ctx context.Context, actorID uuid.UUID, inpu
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	materialID, err := createMaterialInTx(ctx, tx, actorID, input)
+	if err != nil {
+		return Material{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Material{}, fmt.Errorf("commit reading material create: %w", err)
+	}
+	return r.Get(ctx, materialID)
+}
+
+func (r *PostgresRepository) CreateMany(ctx context.Context, actorID uuid.UUID, inputs []SaveInput) ([]Material, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin reading material bulk create: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	ids := make([]uuid.UUID, 0, len(inputs))
+	for _, input := range inputs {
+		id, err := createMaterialInTx(ctx, tx, actorID, input)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit reading material bulk create: %w", err)
+	}
+	items := make([]Material, 0, len(ids))
+	for _, id := range ids {
+		material, err := r.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, material)
+	}
+	return items, nil
+}
+
+func createMaterialInTx(ctx context.Context, tx pgx.Tx, actorID uuid.UUID, input SaveInput) (uuid.UUID, error) {
 	materialID := uuid.New()
 	versionID := uuid.New()
-	_, err = tx.Exec(ctx, `
+	_, err := tx.Exec(ctx, `
 		INSERT INTO reading_materials (
 			id, slug, exam_type, difficulty, status, revision, created_by, updated_by
 		) VALUES ($1, $2, $3, $4, $5, 1, $6, $6)
 	`, materialID, input.Slug, input.ExamType, input.Difficulty, StatusDraft, actorID)
 	if err != nil {
-		return Material{}, mapWriteError(err)
+		return uuid.Nil, mapWriteError(err)
 	}
 	_, err = tx.Exec(ctx, `
 		INSERT INTO reading_material_versions (
@@ -87,17 +131,17 @@ func (r *PostgresRepository) Create(ctx context.Context, actorID uuid.UUID, inpu
 		) VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8)
 	`, versionID, materialID, input.Title, input.Description, input.Body, input.SourceTitle, input.SourceURL, actorID)
 	if err != nil {
-		return Material{}, fmt.Errorf("insert reading material version: %w", err)
+		return uuid.Nil, fmt.Errorf("insert reading material version: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE reading_materials SET current_version_id = $2 WHERE id = $1
 	`, materialID, versionID); err != nil {
-		return Material{}, fmt.Errorf("link current reading material version: %w", err)
+		return uuid.Nil, fmt.Errorf("link current reading material version: %w", err)
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return Material{}, fmt.Errorf("commit reading material create: %w", err)
+	if err := insertQuestionGroups(ctx, tx, versionID, input.QuestionGroups, actorID); err != nil {
+		return uuid.Nil, err
 	}
-	return r.Get(ctx, materialID)
+	return materialID, nil
 }
 
 func (r *PostgresRepository) Update(ctx context.Context, id, actorID uuid.UUID, input SaveInput) (Material, error) {
@@ -135,6 +179,9 @@ func (r *PostgresRepository) Update(ctx context.Context, id, actorID uuid.UUID, 
 	`, versionID, id, nextVersion, input.Title, input.Description, input.Body, input.SourceTitle, input.SourceURL, actorID)
 	if err != nil {
 		return Material{}, fmt.Errorf("insert reading material version: %w", err)
+	}
+	if err := insertQuestionGroups(ctx, tx, versionID, input.QuestionGroups, actorID); err != nil {
+		return Material{}, err
 	}
 	_, err = tx.Exec(ctx, `
 		UPDATE reading_materials
@@ -201,6 +248,97 @@ func scanMaterial(row rowScanner) (Material, error) {
 		&material.UpdatedAt,
 	)
 	return material, err
+}
+
+func insertQuestionGroups(ctx context.Context, tx pgx.Tx, versionID uuid.UUID, groups []QuestionGroup, actorID uuid.UUID) error {
+	for groupIndex, group := range groups {
+		groupID := uuid.New()
+		position := group.Position
+		if position < 1 {
+			position = groupIndex + 1
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO reading_question_groups (id, material_version_id, position, question_type, instructions, created_by)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`, groupID, versionID, position, group.Type, group.Instructions, actorID); err != nil {
+			return fmt.Errorf("insert reading question group: %w", err)
+		}
+		for questionIndex, question := range group.Questions {
+			content, err := json.Marshal(question.Content)
+			if err != nil {
+				return fmt.Errorf("marshal question content: %w", err)
+			}
+			answer, err := json.Marshal(question.Answer)
+			if err != nil {
+				return fmt.Errorf("marshal question answer: %w", err)
+			}
+			qPosition := question.Position
+			if qPosition < 1 {
+				qPosition = questionIndex + 1
+			}
+			points := question.Points
+			if points < 1 {
+				points = 1
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO reading_questions (id, group_id, position, prompt, content, answer, explanation, points, created_by)
+				VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9)
+			`, uuid.New(), groupID, qPosition, question.Prompt, content, answer, question.Explanation, points, actorID); err != nil {
+				return fmt.Errorf("insert reading question: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (r *PostgresRepository) questionGroups(ctx context.Context, materialID uuid.UUID, versionNumber int) ([]QuestionGroup, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT g.id, g.position, g.question_type, g.instructions,
+			q.id, q.position, q.prompt, q.content, q.answer, q.explanation, q.points
+		FROM reading_question_groups g
+		JOIN reading_material_versions v ON v.id = g.material_version_id
+		LEFT JOIN reading_questions q ON q.group_id = g.id
+		WHERE v.material_id = $1 AND v.version_number = $2
+		ORDER BY g.position, q.position
+	`, materialID, versionNumber)
+	if err != nil {
+		return nil, fmt.Errorf("list reading question groups: %w", err)
+	}
+	defer rows.Close()
+	groups := []QuestionGroup{}
+	byID := map[uuid.UUID]int{}
+	for rows.Next() {
+		var group QuestionGroup
+		var position *int
+		var qID *uuid.UUID
+		var prompt, explanation *string
+		var content, answer []byte
+		var points *int
+		if err := rows.Scan(&group.ID, &group.Position, &group.Type, &group.Instructions, &qID, &position, &prompt, &content, &answer, &explanation, &points); err != nil {
+			return nil, fmt.Errorf("scan reading question group: %w", err)
+		}
+		if index, ok := byID[group.ID]; ok {
+			group = groups[index]
+		} else {
+			byID[group.ID] = len(groups)
+			groups = append(groups, group)
+			groups[len(groups)-1].Questions = []Question{}
+		}
+		if qID != nil {
+			var qContent, qAnswer map[string]any
+			if err := json.Unmarshal(content, &qContent); err != nil {
+				return nil, fmt.Errorf("decode question content: %w", err)
+			}
+			if err := json.Unmarshal(answer, &qAnswer); err != nil {
+				return nil, fmt.Errorf("decode question answer: %w", err)
+			}
+			groups[byID[group.ID]].Questions = append(groups[byID[group.ID]].Questions, Question{ID: *qID, Position: *position, Prompt: *prompt, Content: qContent, Answer: qAnswer, Explanation: *explanation, Points: *points})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate reading question groups: %w", err)
+	}
+	return groups, nil
 }
 
 func mapWriteError(err error) error {

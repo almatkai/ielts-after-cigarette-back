@@ -143,6 +143,8 @@ func New(
 				adminRouter.Get("/access", adminHandler.Access)
 				adminRouter.Get("/reading/materials", readingHandler.List)
 				adminRouter.Post("/reading/materials", readingHandler.Create)
+				adminRouter.Post("/reading/import/parse", readingHandler.ParseImport)
+				adminRouter.Post("/reading/import", readingHandler.BulkImport)
 				adminRouter.Get("/reading/materials/{materialID}", readingHandler.Get)
 				adminRouter.Put("/reading/materials/{materialID}", readingHandler.Update)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/publish", readingHandler.Publish)

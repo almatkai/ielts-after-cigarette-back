@@ -1,5 +1,7 @@
 # IELTS preparation API
 
+Reading bulk import format: [docs/READING_IMPORT_FORMAT.md](docs/READING_IMPORT_FORMAT.md).
+
 Backend-основа платформы подготовки к IELTS. Это модульный монолит на Go с
 PostgreSQL как источником истины и Redis для rate limiting и readiness.
 

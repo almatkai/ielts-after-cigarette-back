@@ -62,6 +62,35 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, material)
 }
 
+func (h *Handler) ParseImport(w http.ResponseWriter, r *http.Request) {
+	var input ImportParseInput
+	if err := httpx.DecodeJSON(w, r, h.maxRequestBody, &input); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be a valid JSON object", nil)
+		return
+	}
+	result := h.service.ParseImport(input)
+	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) BulkImport(w http.ResponseWriter, r *http.Request) {
+	var input BulkCreateInput
+	if err := httpx.DecodeJSON(w, r, h.maxRequestBody, &input); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be a valid JSON object", nil)
+		return
+	}
+	actorID, _ := auth.UserID(r.Context())
+	items, details, err := h.service.BulkCreate(r.Context(), actorID, input.Passages)
+	if len(details) > 0 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Imported passages failed validation", details)
+		return
+	}
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, BulkCreateResult{Items: items})
+}
+
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	materialID, ok := h.materialID(w, r)
 	if !ok {
