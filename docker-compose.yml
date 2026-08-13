@@ -76,6 +76,8 @@ services:
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
       REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-15s}
       MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-1048576}
+      LISTENING_MEDIA_DIR: /data/listening-media
+      MAX_MEDIA_UPLOAD_BYTES: ${MAX_MEDIA_UPLOAD_BYTES:-52428800}
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10}
       AUTH_RATE_WINDOW: ${AUTH_RATE_WINDOW:-1m}
       PHONE_CODE_TTL: ${PHONE_CODE_TTL:-5m}
@@ -92,6 +94,8 @@ services:
       SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - listening_media:/data/listening-media
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -108,3 +112,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  listening_media:

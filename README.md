@@ -1,6 +1,8 @@
 # IELTS preparation API
 
 Reading bulk import format: [docs/READING_IMPORT_FORMAT.md](docs/READING_IMPORT_FORMAT.md).
+Listening bulk import format: [docs/LISTENING_IMPORT_FORMAT.md](docs/LISTENING_IMPORT_FORMAT.md).
+Reusable AI conversion prompt: [docs/AI_IMPORT_PROMPT.md](docs/AI_IMPORT_PROMPT.md).
 
 Backend-основа платформы подготовки к IELTS. Это модульный монолит на Go с
 PostgreSQL как источником истины и Redis для rate limiting и readiness.
@@ -69,6 +71,8 @@ docs/API.md            REST-контракт и примеры
 | `CORS_ALLOWED_ORIGINS` | список точных origins через запятую |
 | `AUTH_RATE_LIMIT`, `AUTH_RATE_WINDOW` | лимит публичных write endpoints |
 | `MAX_REQUEST_BODY_BYTES` | максимальный размер JSON body |
+| `LISTENING_MEDIA_DIR` | каталог аудио и изображений Listening; в Docker это отдельный volume |
+| `MAX_MEDIA_UPLOAD_BYTES` | максимальный размер одного Listening media-файла |
 | `PHONE_VERIFICATION_SECRET` | отдельный HMAC-секрет для хеширования кодов |
 | `PHONE_CODE_TTL`, `PHONE_TOKEN_TTL` | срок кода и одноразового proof token |
 | `PHONE_RESEND_INTERVAL`, `PHONE_MAX_ATTEMPTS` | resend/attempt ограничения |
@@ -184,6 +188,13 @@ docker build -t ielts-api:local .
 | GET/POST | `/api/v1/admin/reading/materials` | EDITOR/ADMIN | список и создание Reading-материалов |
 | GET/PUT | `/api/v1/admin/reading/materials/{id}` | EDITOR/ADMIN | чтение и новая версия черновика |
 | POST | `/api/v1/admin/reading/materials/{id}/publish` | ADMIN | публикация текущей версии |
+| GET/POST | `/api/v1/admin/listening/tests` | EDITOR/ADMIN | библиотека и создание Listening-тестов |
+| GET/PUT | `/api/v1/admin/listening/tests/{id}` | EDITOR/ADMIN | чтение и новая версия черновика |
+| POST | `/api/v1/admin/listening/import/parse` | EDITOR/ADMIN | строгий preview массового импорта |
+| POST | `/api/v1/admin/listening/media` | EDITOR/ADMIN | загрузка аудио или изображения |
+| POST | `/api/v1/admin/listening/tests/{id}/publish` | ADMIN | публикация текущей версии |
+| GET | `/api/v1/listening/tests` | Bearer | опубликованная Listening-библиотека |
+| GET | `/api/v1/listening/tests/{id}` | Bearer | student DTO без ответов и объяснений |
 
 Полный контракт с request/response-примерами описан в [docs/API.md](docs/API.md).
 
@@ -280,9 +291,9 @@ adapter-функции, не меняя backend-модели ради имён U
 
 ## Пока не реализовано
 
-Диагностика, генерация плана, Reading question/attempt engine, student practice
+Диагностика, генерация плана, Reading/Listening attempt и grading engine, полноценный student practice
 catalog, mistakes, реальные результаты прогресса, Writing AI, Speaking/audio,
-media storage, уведомления, email delivery/password recovery, смена пароля,
+production object storage/CDN для media, уведомления, email delivery/password recovery, смена пароля,
 avatar upload, управление пользователями в admin, платежи и подписки.
 
 ## Эксплуатационные замечания

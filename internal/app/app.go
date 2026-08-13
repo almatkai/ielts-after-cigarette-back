@@ -17,6 +17,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/dashboard"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/health"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
@@ -71,6 +72,8 @@ func New(
 	adminHandler := adminapi.NewHandler()
 	readingRepository := reading.NewPostgresRepository(pool)
 	readingHandler := reading.NewHandler(reading.NewService(readingRepository), logger, cfg.MaxRequestBody)
+	listeningRepository := listening.NewPostgresRepository(pool)
+	listeningHandler := listening.NewHandler(listening.NewService(listeningRepository, cfg.ListeningMediaDir), logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
 	infobipAPIKey := cfg.InfobipAPIKey
@@ -133,6 +136,9 @@ func New(
 
 		api.Group(func(protected chi.Router) {
 			protected.Use(auth.Authenticate(tokens))
+			protected.Get("/listening/tests", listeningHandler.ListPublic)
+			protected.Get("/listening/tests/{testID}", listeningHandler.GetPublic)
+			protected.Get("/listening/media/{mediaID}", listeningHandler.Media)
 			protected.Get("/users/me", authHandler.Me)
 			protected.Get("/profile", userHandler.Get)
 			protected.Patch("/profile", userHandler.UpdateProfile)
@@ -148,6 +154,14 @@ func New(
 				adminRouter.Get("/reading/materials/{materialID}", readingHandler.Get)
 				adminRouter.Put("/reading/materials/{materialID}", readingHandler.Update)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/publish", readingHandler.Publish)
+				adminRouter.Get("/listening/tests", listeningHandler.ListAdmin)
+				adminRouter.Post("/listening/tests", listeningHandler.Create)
+				adminRouter.Get("/listening/tests/{testID}", listeningHandler.GetAdmin)
+				adminRouter.Put("/listening/tests/{testID}", listeningHandler.Update)
+				adminRouter.Post("/listening/import/parse", listeningHandler.ParseImport)
+				adminRouter.Post("/listening/import", listeningHandler.Import)
+				adminRouter.Post("/listening/media", listeningHandler.UploadMedia)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/publish", listeningHandler.Publish)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/waitlist", waitlistHandler.AdminList)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/super-admins", waitlistHandler.AdminListAdmins)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/super-admins", waitlistHandler.AdminAddAdmin)

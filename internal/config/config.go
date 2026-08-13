@@ -26,6 +26,8 @@ type Config struct {
 	ShutdownTimeout         time.Duration
 	RequestTimeout          time.Duration
 	MaxRequestBody          int64
+	ListeningMediaDir       string
+	MaxMediaUploadBytes     int64
 	AuthRateLimit           int64
 	AuthRateWindow          time.Duration
 	PhoneVerificationSecret string
@@ -64,6 +66,7 @@ func Load() (Config, error) {
 		InfobipWhatsAppLanguage: env("INFOBIP_WHATSAPP_LANGUAGE", "en"),
 		GoogleClientID:          env("GOOGLE_CLIENT_ID", "525971866611-vk1derapc3opreb82i2ba2edeldsev8l.apps.googleusercontent.com"),
 		SuperAdminEmails:        splitCSV(os.Getenv("SUPER_ADMIN_EMAILS")),
+		ListeningMediaDir:       env("LISTENING_MEDIA_DIR", "./var/listening-media"),
 	}
 
 	var err error
@@ -95,6 +98,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.MaxRequestBody, err = int64Env("MAX_REQUEST_BODY_BYTES", 1<<20); err != nil {
+		return Config{}, err
+	}
+	if cfg.MaxMediaUploadBytes, err = int64Env("MAX_MEDIA_UPLOAD_BYTES", 50<<20); err != nil {
 		return Config{}, err
 	}
 	if cfg.AuthRateLimit, err = int64Env("AUTH_RATE_LIMIT", 10); err != nil {
