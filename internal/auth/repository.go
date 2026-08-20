@@ -14,14 +14,14 @@ import (
 
 type Repository interface {
 	CreateUser(context.Context, string, string, string, string, []byte, time.Time) (UserView, error)
-	CreateGoogleUser(ctx context.Context, email, passwordHash, displayName, role, googleSub string, now time.Time) (UserView, error)
-	CreateGoogleCompletedUser(ctx context.Context, email, passwordHash, displayName, phone, googleSub string, now time.Time) (UserView, error)
-	CompleteWaitlistUser(ctx context.Context, userID uuid.UUID, email, passwordHash, displayName, phone, googleSub string, verificationTokenHash []byte, now time.Time) (UserView, error)
-	UpgradeWaitlistToAdmin(ctx context.Context, userID uuid.UUID, displayName, googleSub string, now time.Time) (UserView, error)
+	CreateGoogleUser(ctx context.Context, email, passwordHash, displayName, role, provider, sub string, now time.Time) (UserView, error)
+	CreateGoogleCompletedUser(ctx context.Context, email, passwordHash, displayName, phone, provider, sub string, now time.Time) (UserView, error)
+	CompleteWaitlistUser(ctx context.Context, userID uuid.UUID, email, passwordHash, displayName, phone, provider, sub string, verificationTokenHash []byte, now time.Time) (UserView, error)
+	UpgradeWaitlistToAdmin(ctx context.Context, userID uuid.UUID, displayName, provider, sub string, now time.Time) (UserView, error)
 	SetRole(ctx context.Context, email, role string) error
-	LinkGoogleSub(ctx context.Context, userID uuid.UUID, googleSub string) error
+	LinkIdentity(ctx context.Context, userID uuid.UUID, provider, sub, email string) error
 	FindUserByEmail(context.Context, string) (User, error)
-	FindUserByGoogleSub(context.Context, string) (User, error)
+	FindUserByIdentity(ctx context.Context, provider, sub string) (User, error)
 	FindUserByID(context.Context, uuid.UUID) (UserView, error)
 	CreateSession(context.Context, Session) error
 	RotateSession(context.Context, []byte, Session, time.Time) (uuid.UUID, error)
@@ -115,7 +115,7 @@ func (r *PostgresRepository) CreateUser(
 
 func (r *PostgresRepository) CreateGoogleUser(
 	ctx context.Context,
-	email, passwordHash, displayName, role, googleSub string,
+	email, passwordHash, displayName, role, provider, sub string,
 	now time.Time,
 ) (UserView, error) {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
@@ -126,14 +126,18 @@ func (r *PostgresRepository) CreateGoogleUser(
 
 	userID := uuid.New()
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO users (id, email, password_hash, role, terms_accepted_at, google_sub)
-		VALUES ($1, $2, NULLIF($3, ''), $4, $5, NULLIF($6, ''))
-	`, userID, email, passwordHash, role, now, googleSub); err != nil {
+		INSERT INTO users (id, email, password_hash, role, terms_accepted_at)
+		VALUES ($1, $2, NULLIF($3, ''), $4, $5)
+	`, userID, email, passwordHash, role, now); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return UserView{}, ErrEmailExists
 		}
 		return UserView{}, fmt.Errorf("insert google user: %w", err)
+	}
+
+	if err := insertIdentity(ctx, tx, userID, provider, sub, email); err != nil {
+		return UserView{}, err
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -169,7 +173,7 @@ func (r *PostgresRepository) CreateGoogleUser(
 // verification token consumption.
 func (r *PostgresRepository) CreateGoogleCompletedUser(
 	ctx context.Context,
-	email, passwordHash, displayName, phone, googleSub string,
+	email, passwordHash, displayName, phone, provider, sub string,
 	now time.Time,
 ) (UserView, error) {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
@@ -180,9 +184,9 @@ func (r *PostgresRepository) CreateGoogleCompletedUser(
 
 	userID := uuid.New()
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO users (id, email, phone, password_hash, role, terms_accepted_at, google_sub)
-		VALUES ($1, $2, $3, $4, 'STUDENT', $5, NULLIF($6, ''))
-	`, userID, email, phone, passwordHash, now, googleSub); err != nil {
+		INSERT INTO users (id, email, phone, password_hash, role, terms_accepted_at)
+		VALUES ($1, $2, $3, $4, 'STUDENT', $5)
+	`, userID, email, phone, passwordHash, now); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			if pgErr.ConstraintName == "users_phone_unique" {
@@ -191,6 +195,10 @@ func (r *PostgresRepository) CreateGoogleCompletedUser(
 			return UserView{}, ErrEmailExists
 		}
 		return UserView{}, fmt.Errorf("insert google registered user: %w", err)
+	}
+
+	if err := insertIdentity(ctx, tx, userID, provider, sub, email); err != nil {
+		return UserView{}, err
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -228,7 +236,7 @@ func (r *PostgresRepository) CreateGoogleCompletedUser(
 func (r *PostgresRepository) CompleteWaitlistUser(
 	ctx context.Context,
 	userID uuid.UUID,
-	email, passwordHash, displayName, phone, googleSub string,
+	email, passwordHash, displayName, phone, provider, sub string,
 	verificationTokenHash []byte,
 	now time.Time,
 ) (UserView, error) {
@@ -266,10 +274,9 @@ func (r *PostgresRepository) CompleteWaitlistUser(
 			terms_accepted_at = $4,
 			status = 'REGISTERED',
 			phone = COALESCE(NULLIF($5, ''), phone),
-			google_sub = COALESCE(google_sub, NULLIF($6, '')),
 			updated_at = $4
 		WHERE id = $1 AND status IN ('WAITING', 'INVITED')
-	`, userID, email, passwordHash, now, phone, googleSub)
+	`, userID, email, passwordHash, now, phone)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -282,6 +289,10 @@ func (r *PostgresRepository) CompleteWaitlistUser(
 	}
 	if tag.RowsAffected() == 0 {
 		return UserView{}, ErrUserNotFound
+	}
+
+	if err := insertIdentity(ctx, tx, userID, provider, sub, email); err != nil {
+		return UserView{}, err
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -326,7 +337,7 @@ func (r *PostgresRepository) CompleteWaitlistUser(
 func (r *PostgresRepository) UpgradeWaitlistToAdmin(
 	ctx context.Context,
 	userID uuid.UUID,
-	displayName, googleSub string,
+	displayName, provider, sub string,
 	now time.Time,
 ) (UserView, error) {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
@@ -340,15 +351,18 @@ func (r *PostgresRepository) UpgradeWaitlistToAdmin(
 		SET role = 'ADMIN',
 			status = 'REGISTERED',
 			terms_accepted_at = $2,
-			google_sub = COALESCE(google_sub, NULLIF($3, '')),
 			updated_at = $2
 		WHERE id = $1 AND status IN ('WAITING', 'INVITED')
-	`, userID, now, googleSub)
+	`, userID, now)
 	if err != nil {
 		return UserView{}, fmt.Errorf("upgrade waitlist user to admin: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return UserView{}, ErrUserNotFound
+	}
+
+	if err := insertIdentity(ctx, tx, userID, provider, sub, ""); err != nil {
+		return UserView{}, err
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -412,14 +426,15 @@ func (r *PostgresRepository) FindUserByEmail(ctx context.Context, email string) 
 	return user, nil
 }
 
-func (r *PostgresRepository) FindUserByGoogleSub(ctx context.Context, googleSub string) (User, error) {
+func (r *PostgresRepository) FindUserByIdentity(ctx context.Context, provider, sub string) (User, error) {
 	var user User
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, email, COALESCE(password_hash, ''), role, COALESCE(google_sub, ''),
-			status, COALESCE(phone, ''), COALESCE(first_name, ''), COALESCE(last_name, '')
-		FROM users
-		WHERE google_sub = $1
-	`, googleSub).Scan(
+		SELECT u.id, u.email, COALESCE(u.password_hash, ''), u.role, '' AS google_sub,
+			u.status, COALESCE(u.phone, ''), COALESCE(u.first_name, ''), COALESCE(u.last_name, '')
+		FROM user_identities AS identity
+		JOIN users AS u ON u.id = identity.user_id
+		WHERE identity.provider = $1 AND identity.provider_sub = $2
+	`, provider, sub).Scan(
 		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.GoogleSub,
 		&user.Status, &user.Phone, &user.FirstName, &user.LastName,
 	)
@@ -427,24 +442,41 @@ func (r *PostgresRepository) FindUserByGoogleSub(ctx context.Context, googleSub 
 		return User{}, ErrUserNotFound
 	}
 	if err != nil {
-		return User{}, fmt.Errorf("find user by google sub: %w", err)
+		return User{}, fmt.Errorf("find user by identity: %w", err)
 	}
 	return user, nil
 }
 
-// LinkGoogleSub attaches a Google identity to an existing account that signed
-// up with the same email. Only fills an empty google_sub; it never overwrites.
-// A unique-violation race (the sub was linked to another account first) must
-// not break sign-in, so it is ignored.
-func (r *PostgresRepository) LinkGoogleSub(ctx context.Context, userID uuid.UUID, googleSub string) error {
+// LinkIdentity attaches an OAuth provider identity to an existing account that
+// signed up with the same email. The insert is idempotent: a conflicting row
+// (the identity is already linked) must not break sign-in, so it is ignored.
+func (r *PostgresRepository) LinkIdentity(ctx context.Context, userID uuid.UUID, provider, sub, email string) error {
+	if provider == "" || sub == "" {
+		return nil
+	}
 	if _, err := r.pool.Exec(ctx, `
-		UPDATE users SET google_sub = $2 WHERE id = $1 AND google_sub IS NULL
-	`, userID, googleSub); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return nil
-		}
-		return fmt.Errorf("link google sub: %w", err)
+		INSERT INTO user_identities (id, user_id, provider, provider_sub, email)
+		VALUES ($1, $2, $3, $4, NULLIF($5, ''))
+		ON CONFLICT (provider, provider_sub) DO NOTHING
+	`, uuid.New(), userID, provider, sub, email); err != nil {
+		return fmt.Errorf("link %s identity: %w", provider, err)
+	}
+	return nil
+}
+
+// insertIdentity records the OAuth identity inside an existing transaction.
+// Registration paths with no OAuth identity (plain email sign-up) pass an
+// empty sub and are skipped.
+func insertIdentity(ctx context.Context, tx pgx.Tx, userID uuid.UUID, provider, sub, email string) error {
+	if provider == "" || sub == "" {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO user_identities (id, user_id, provider, provider_sub, email)
+		VALUES ($1, $2, $3, $4, NULLIF($5, ''))
+		ON CONFLICT (provider, provider_sub) DO NOTHING
+	`, uuid.New(), userID, provider, sub, email); err != nil {
+		return fmt.Errorf("link %s identity: %w", provider, err)
 	}
 	return nil
 }

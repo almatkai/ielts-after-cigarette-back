@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/auth/oauth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -571,10 +572,11 @@ func TestAuthenticateProtectsEndpoint(t *testing.T) {
 }
 
 type fakeRepository struct {
-	mu       sync.Mutex
-	users    map[string]User
-	views    map[uuid.UUID]UserView
-	sessions map[string]fakeSession
+	mu         sync.Mutex
+	users      map[string]User
+	views      map[uuid.UUID]UserView
+	sessions   map[string]fakeSession
+	identities map[string]uuid.UUID
 }
 
 type fakeSession struct {
@@ -584,9 +586,10 @@ type fakeSession struct {
 
 func testService() (*Service, *fakeRepository) {
 	repository := &fakeRepository{
-		users:    map[string]User{},
-		views:    map[uuid.UUID]UserView{},
-		sessions: map[string]fakeSession{},
+		users:      map[string]User{},
+		views:      map[uuid.UUID]UserView{},
+		sessions:   map[string]fakeSession{},
+		identities: map[string]uuid.UUID{},
 	}
 	tokens := NewTokenManager(
 		"0123456789abcdef0123456789abcdef",
@@ -623,7 +626,7 @@ func (r *fakeRepository) CreateUser(
 
 func (r *fakeRepository) CreateGoogleUser(
 	_ context.Context,
-	email, hash, displayName, role, googleSub string,
+	email, hash, displayName, role, provider, sub string,
 	now time.Time,
 ) (UserView, error) {
 	r.mu.Lock()
@@ -631,19 +634,25 @@ func (r *fakeRepository) CreateGoogleUser(
 	if _, exists := r.users[email]; exists {
 		return UserView{}, ErrEmailExists
 	}
-	user := User{ID: uuid.New(), Email: email, PasswordHash: hash, Role: role, GoogleSub: googleSub, Status: StatusRegistered}
+	user := User{ID: uuid.New(), Email: email, PasswordHash: hash, Role: role, Status: StatusRegistered}
+	if provider == "google" {
+		user.GoogleSub = sub
+	}
 	view := UserView{
 		ID: user.ID, Email: email, DisplayName: displayName, Role: role,
 		Timezone: "UTC", CreatedAt: now, UpdatedAt: now,
 	}
 	r.users[email] = user
 	r.views[user.ID] = view
+	if sub != "" {
+		r.identities[provider+":"+sub] = user.ID
+	}
 	return view, nil
 }
 
 func (r *fakeRepository) CreateGoogleCompletedUser(
 	_ context.Context,
-	email, hash, displayName, phone, googleSub string,
+	email, hash, displayName, phone, provider, sub string,
 	now time.Time,
 ) (UserView, error) {
 	r.mu.Lock()
@@ -656,20 +665,26 @@ func (r *fakeRepository) CreateGoogleCompletedUser(
 			return UserView{}, ErrPhoneExists
 		}
 	}
-	user := User{ID: uuid.New(), Email: email, PasswordHash: hash, Role: "STUDENT", GoogleSub: googleSub, Status: StatusRegistered, Phone: phone}
+	user := User{ID: uuid.New(), Email: email, PasswordHash: hash, Role: "STUDENT", Status: StatusRegistered, Phone: phone}
+	if provider == "google" {
+		user.GoogleSub = sub
+	}
 	view := UserView{
 		ID: user.ID, Email: email, Phone: phone, DisplayName: displayName, Role: user.Role,
 		Timezone: "UTC", CreatedAt: now, UpdatedAt: now,
 	}
 	r.users[email] = user
 	r.views[user.ID] = view
+	if sub != "" {
+		r.identities[provider+":"+sub] = user.ID
+	}
 	return view, nil
 }
 
 func (r *fakeRepository) CompleteWaitlistUser(
 	_ context.Context,
 	userID uuid.UUID,
-	email, hash, displayName, phone, googleSub string,
+	email, hash, displayName, phone, provider, sub string,
 	_ []byte,
 	now time.Time,
 ) (UserView, error) {
@@ -704,8 +719,11 @@ func (r *fakeRepository) CompleteWaitlistUser(
 	}
 	user.PasswordHash = hash
 	user.Status = StatusRegistered
-	if user.GoogleSub == "" {
-		user.GoogleSub = googleSub
+	if sub != "" {
+		r.identities[provider+":"+sub] = user.ID
+		if provider == "google" && user.GoogleSub == "" {
+			user.GoogleSub = sub
+		}
 	}
 	if phone != "" {
 		user.Phone = phone
@@ -731,7 +749,7 @@ func (r *fakeRepository) CompleteWaitlistUser(
 func (r *fakeRepository) UpgradeWaitlistToAdmin(
 	_ context.Context,
 	userID uuid.UUID,
-	displayName, googleSub string,
+	displayName, provider, sub string,
 	now time.Time,
 ) (UserView, error) {
 	r.mu.Lock()
@@ -745,8 +763,11 @@ func (r *fakeRepository) UpgradeWaitlistToAdmin(
 		}
 		user.Role = RoleAdmin
 		user.Status = StatusRegistered
-		if user.GoogleSub == "" {
-			user.GoogleSub = googleSub
+		if sub != "" {
+			r.identities[provider+":"+sub] = user.ID
+			if provider == "google" && user.GoogleSub == "" {
+				user.GoogleSub = sub
+			}
 		}
 		r.users[key] = user
 		view := r.views[user.ID]
@@ -788,28 +809,40 @@ func (r *fakeRepository) seedLead(email, phone, firstName, lastName, googleSub s
 	return user
 }
 
-func (r *fakeRepository) LinkGoogleSub(_ context.Context, userID uuid.UUID, googleSub string) error {
+func (r *fakeRepository) LinkIdentity(_ context.Context, userID uuid.UUID, provider, sub, _ string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for email, user := range r.users {
 		if user.ID != userID {
 			continue
 		}
-		if user.GoogleSub == "" {
-			user.GoogleSub = googleSub
-			r.users[email] = user
+		if sub != "" {
+			r.identities[provider+":"+sub] = userID
+			if provider == "google" && user.GoogleSub == "" {
+				user.GoogleSub = sub
+				r.users[email] = user
+			}
 		}
 		return nil
 	}
 	return ErrUserNotFound
 }
 
-func (r *fakeRepository) FindUserByGoogleSub(_ context.Context, googleSub string) (User, error) {
+func (r *fakeRepository) FindUserByIdentity(_ context.Context, provider, sub string) (User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, user := range r.users {
-		if user.GoogleSub != "" && user.GoogleSub == googleSub {
-			return user, nil
+	if userID, ok := r.identities[provider+":"+sub]; ok {
+		for _, user := range r.users {
+			if user.ID == userID {
+				return user, nil
+			}
+		}
+	}
+	if provider == "google" {
+		for _, user := range r.users {
+			if user.GoogleSub != "" && user.GoogleSub == sub {
+				return user, nil
+			}
 		}
 	}
 	return User{}, ErrUserNotFound
@@ -895,4 +928,111 @@ func (r *fakeRepository) RevokeSession(_ context.Context, hash []byte, _ time.Ti
 	session.revoked = true
 	r.sessions[string(hash)] = session
 	return nil
+}
+
+func TestLoginWithOAuthCreatesAdminForNewSuperAdmin(t *testing.T) {
+	service, repository := testGoogleService("admin@example.com")
+	outcome, err := service.LoginWithOAuth(context.Background(), "github", oauth.ExternalIdentity{
+		Sub: "gh-admin", Email: "admin@example.com", Name: "Git Admin",
+	}, SessionMetadata{})
+	if err != nil {
+		t.Fatalf("oauth login failed: %v", err)
+	}
+	if outcome.Session == nil {
+		t.Fatal("expected session outcome")
+	}
+	if outcome.Session.User.Email != "admin@example.com" || outcome.Session.User.Role != RoleAdmin {
+		t.Fatalf("unexpected user: %+v", outcome.Session.User)
+	}
+	if outcome.Session.User.DisplayName != "Git Admin" {
+		t.Fatalf("unexpected display name: %q", outcome.Session.User.DisplayName)
+	}
+	userID, ok := repository.identities["github:gh-admin"]
+	if !ok {
+		t.Fatal("github identity was not recorded")
+	}
+	if repository.users["admin@example.com"].GoogleSub != "" {
+		t.Fatal("github login must not populate the legacy google_sub column")
+	}
+
+	// A second login resolves the same account strictly by provider identity.
+	again, err := service.LoginWithOAuth(context.Background(), "github", oauth.ExternalIdentity{
+		Sub: "gh-admin", Email: "admin@example.com", Name: "Git Admin",
+	}, SessionMetadata{})
+	if err != nil {
+		t.Fatalf("second oauth login failed: %v", err)
+	}
+	if again.Session == nil || again.Session.User.ID != userID {
+		t.Fatalf("expected the same account by identity, got %+v", again.Session)
+	}
+}
+
+func TestLoginWithOAuthLinksIdentityForExistingEmail(t *testing.T) {
+	service, repository := testGoogleService("admin@example.com")
+	if _, _, err := service.Register(context.Background(), RegisterInput{
+		Name: "Alice", Email: "alice@example.com", Password: "safe-password", AcceptedTerms: true,
+		Phone: testPhone, VerificationToken: testVerificationToken,
+	}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	outcome, err := service.LoginWithOAuth(context.Background(), "github", oauth.ExternalIdentity{
+		Sub: "gh-sub", Email: " ALICE@example.com ", Name: "Alice GH",
+	}, SessionMetadata{})
+	if err != nil {
+		t.Fatalf("oauth login failed: %v", err)
+	}
+	if outcome.Session == nil || outcome.Session.User.Role != RoleStudent {
+		t.Fatalf("expected student session, got %+v", outcome.Session)
+	}
+	if _, ok := repository.identities["github:gh-sub"]; !ok {
+		t.Fatal("github identity was not linked to the existing account")
+	}
+	if repository.users["alice@example.com"].GoogleSub != "" {
+		t.Fatal("github login must not populate the legacy google_sub column")
+	}
+}
+
+func TestLoginWithOAuthReturnsPendingRegistrationForUnknownEmail(t *testing.T) {
+	service, _ := testGoogleService("admin@example.com")
+	outcome, err := service.LoginWithOAuth(context.Background(), "yandex", oauth.ExternalIdentity{
+		Sub: "ya-new", Email: "newcomer@example.com", Name: "New Person",
+	}, SessionMetadata{})
+	if err != nil {
+		t.Fatalf("oauth login failed: %v", err)
+	}
+	pending := outcome.PendingRegistration
+	if outcome.Session != nil || pending == nil {
+		t.Fatalf("expected pending registration outcome, got %+v", outcome)
+	}
+	if pending.Profile.Email != "newcomer@example.com" || pending.Profile.Name != "New Person" {
+		t.Fatalf("unexpected profile: %+v", pending.Profile)
+	}
+	claims, err := service.tokens.ParseGoogleRegistrationToken(pending.Token)
+	if err != nil {
+		t.Fatalf("registration token did not verify: %v", err)
+	}
+	if claims.Provider != "yandex" || claims.Subject != "ya-new" || claims.Email != "newcomer@example.com" {
+		t.Fatalf("unexpected registration claims: %+v", claims)
+	}
+}
+
+func TestLoginWithOAuthRequiresVerifiedEmail(t *testing.T) {
+	service, _ := testGoogleService("admin@example.com")
+	for _, email := range []string{"", "not-an-email"} {
+		_, err := service.LoginWithOAuth(context.Background(), "github", oauth.ExternalIdentity{
+			Sub: "gh-sub", Email: email,
+		}, SessionMetadata{})
+		if !errors.Is(err, ErrOAuthEmailRequired) {
+			t.Fatalf("expected ErrOAuthEmailRequired for %q, got %v", email, err)
+		}
+	}
+}
+
+func TestLoginWithOAuthRequiresSubject(t *testing.T) {
+	service, _ := testGoogleService("admin@example.com")
+	if _, err := service.LoginWithOAuth(context.Background(), "github", oauth.ExternalIdentity{
+		Email: "alice@example.com",
+	}, SessionMetadata{}); err == nil {
+		t.Fatal("expected an error for an empty subject")
+	}
 }

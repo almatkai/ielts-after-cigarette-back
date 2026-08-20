@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/auth/oauth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/google/uuid"
@@ -79,6 +80,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (AuthResult
 			input.Name,
 			input.Phone,
 			"",
+			"",
 			phoneverification.HashVerificationToken(input.VerificationToken),
 			now,
 		)
@@ -135,8 +137,8 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (AuthResult, map[
 }
 
 // GoogleLogin signs in with a Google ID token. Existing accounts (matched by
-// google_sub, then by email — linking the sub on first match) just get a
-// session. Waitlist leads (status WAITING/INVITED) never get a session here:
+// the stored OAuth identity, then by email — linking the identity on first
+// match) just get a session. Waitlist leads (status WAITING/INVITED) never get a session here:
 // super admins are upgraded to ADMIN in place, everyone else gets a pending
 // registration token prefilled with the waitlist name and phone to finish
 // signing up at /auth/google/complete. Unknown accounts are only provisioned
@@ -156,14 +158,41 @@ func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (Goog
 		return GoogleLoginOutcome{}, ErrInvalidGoogleToken
 	}
 
-	metadata := SessionMetadata{input.UserAgent, input.IPAddress}
-	userRecord, err := s.repository.FindUserByGoogleSub(ctx, claims.Sub)
+	return s.oauthLogin(ctx, "google", claims.Sub, email, claims.Name, "", SessionMetadata{input.UserAgent, input.IPAddress})
+}
+
+// LoginWithOAuth signs in with an identity fetched from an external OAuth
+// provider (GitHub, Yandex). After the identity is obtained it goes through
+// the exact same pipeline as GoogleLogin: existing accounts (matched by
+// identity, then by email — linking the identity on first match) get a
+// session, super admins are provisioned or upgraded as ADMIN, and everyone
+// else gets a pending registration token. A valid email is mandatory — the
+// complete-registration step uses it as the account key.
+func (s *Service) LoginWithOAuth(ctx context.Context, provider string, identity oauth.ExternalIdentity, metadata SessionMetadata) (GoogleLoginOutcome, error) {
+	provider = strings.TrimSpace(provider)
+	sub := strings.TrimSpace(identity.Sub)
+	if provider == "" || sub == "" {
+		return GoogleLoginOutcome{}, fmt.Errorf("oauth identity for provider %q is missing subject", provider)
+	}
+	email := normalizeEmail(identity.Email)
+	if email == "" || !validEmail(email) {
+		return GoogleLoginOutcome{}, ErrOAuthEmailRequired
+	}
+	return s.oauthLogin(ctx, provider, sub, email, identity.Name, strings.TrimSpace(identity.Phone), metadata)
+}
+
+// oauthLogin is the shared OAuth sign-in pipeline: match by provider identity,
+// then by email (super admins upgrade/register in place, other waitlist leads
+// get a pending registration), and unknown emails bootstrap only super admins.
+// The phone is optional and only used to prefill the registration form.
+func (s *Service) oauthLogin(ctx context.Context, provider, sub, email, name, phone string, metadata SessionMetadata) (GoogleLoginOutcome, error) {
+	userRecord, err := s.repository.FindUserByIdentity(ctx, provider, sub)
 	switch {
 	case err == nil:
 		if LeadStatus(userRecord.Status) {
-			return s.pendingGoogleRegistration(claims, email, &userRecord)
+			return s.pendingOAuthRegistration(provider, sub, email, name, phone, &userRecord)
 		}
-		return s.googleSessionForUser(ctx, userRecord, metadata)
+		return s.oauthSessionForUser(ctx, userRecord, metadata)
 	case !errors.Is(err, ErrUserNotFound):
 		return GoogleLoginOutcome{}, err
 	}
@@ -180,8 +209,9 @@ func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (Goog
 				user, err := s.repository.UpgradeWaitlistToAdmin(
 					ctx,
 					userRecord.ID,
-					googleDisplayName(claims.Name, email),
-					claims.Sub,
+					oauthDisplayName(name, email),
+					provider,
+					sub,
 					s.now().UTC(),
 				)
 				if err == nil {
@@ -197,15 +227,13 @@ func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (Goog
 				// The lead finished registration in a concurrent request;
 				// fall through to the normal sign-in below.
 			} else {
-				return s.pendingGoogleRegistration(claims, email, &userRecord)
+				return s.pendingOAuthRegistration(provider, sub, email, name, phone, &userRecord)
 			}
 		}
-		if userRecord.GoogleSub == "" {
-			if err := s.repository.LinkGoogleSub(ctx, userRecord.ID, claims.Sub); err != nil {
-				return GoogleLoginOutcome{}, err
-			}
+		if err := s.repository.LinkIdentity(ctx, userRecord.ID, provider, sub, email); err != nil {
+			return GoogleLoginOutcome{}, err
 		}
-		return s.googleSessionForUser(ctx, userRecord, metadata)
+		return s.oauthSessionForUser(ctx, userRecord, metadata)
 	case !errors.Is(err, ErrUserNotFound):
 		return GoogleLoginOutcome{}, err
 	}
@@ -215,9 +243,9 @@ func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (Goog
 		return GoogleLoginOutcome{}, err
 	}
 	if !isAdmin {
-		return s.pendingGoogleRegistration(claims, email, nil)
+		return s.pendingOAuthRegistration(provider, sub, email, name, phone, nil)
 	}
-	user, err := s.createGoogleAdmin(ctx, email, claims.Name, claims.Sub)
+	user, err := s.createOAuthAdmin(ctx, provider, email, name, sub)
 	if err != nil {
 		return GoogleLoginOutcome{}, err
 	}
@@ -228,32 +256,34 @@ func (s *Service) GoogleLogin(ctx context.Context, input GoogleLoginInput) (Goog
 	return GoogleLoginOutcome{Session: &result}, nil
 }
 
-// pendingGoogleRegistration builds the pending-registration outcome for a
-// Google profile without a registered account. When the profile matches a
-// waitlist lead row, the lead's name and phone prefill the
-// complete-registration form; the session is only issued after the user
-// finishes registration.
-func (s *Service) pendingGoogleRegistration(claims waitlist.GoogleClaims, email string, lead *User) (GoogleLoginOutcome, error) {
-	name := strings.TrimSpace(claims.Name)
-	phone := ""
+// pendingOAuthRegistration builds the pending-registration outcome for an
+// OAuth profile without a registered account. The phone from the provider
+// (Yandex) prefills the complete-registration form; when the profile matches
+// a waitlist lead row, the lead's name and phone override the provider's.
+// The session is only issued after the user finishes registration.
+func (s *Service) pendingOAuthRegistration(provider, sub, email, name, phone string, lead *User) (GoogleLoginOutcome, error) {
+	name = strings.TrimSpace(name)
+	phone = strings.TrimSpace(phone)
 	if lead != nil {
 		leadName := strings.TrimSpace(strings.TrimSpace(lead.FirstName) + " " + strings.TrimSpace(lead.LastName))
 		if leadName != "" {
 			name = leadName
 		}
-		phone = lead.Phone
+		if leadPhone := strings.TrimSpace(lead.Phone); leadPhone != "" {
+			phone = leadPhone
+		}
 	}
-	token, err := s.tokens.NewGoogleRegistrationToken(claims.Sub, email, name)
+	token, err := s.tokens.NewOAuthRegistrationToken(provider, sub, email, name, phone)
 	if err != nil {
 		return GoogleLoginOutcome{}, err
 	}
 	return GoogleLoginOutcome{PendingRegistration: &PendingRegistration{
 		Token:   token,
-		Profile: GoogleProfile{Email: email, Name: googleDisplayName(name, email), Phone: phone},
+		Profile: GoogleProfile{Email: email, Name: oauthDisplayName(name, email), Phone: phone},
 	}}, nil
 }
 
-func (s *Service) googleSessionForUser(ctx context.Context, userRecord User, metadata SessionMetadata) (GoogleLoginOutcome, error) {
+func (s *Service) oauthSessionForUser(ctx context.Context, userRecord User, metadata SessionMetadata) (GoogleLoginOutcome, error) {
 	user, err := s.repository.FindUserByID(ctx, userRecord.ID)
 	if err != nil {
 		return GoogleLoginOutcome{}, err
@@ -318,7 +348,7 @@ func (s *Service) CompleteGoogleRegistration(
 		return AuthResult{}, nil, err
 	}
 	if lead == nil {
-		if existing, err := s.repository.FindUserByGoogleSub(ctx, claims.Subject); err == nil {
+		if existing, err := s.repository.FindUserByIdentity(ctx, claims.Provider, claims.Subject); err == nil {
 			if !LeadStatus(existing.Status) {
 				return AuthResult{}, nil, ErrEmailExists
 			}
@@ -343,6 +373,7 @@ func (s *Service) CompleteGoogleRegistration(
 			string(passwordHash),
 			input.Name,
 			input.Phone,
+			claims.Provider,
 			claims.Subject,
 			nil,
 			s.now().UTC(),
@@ -354,6 +385,7 @@ func (s *Service) CompleteGoogleRegistration(
 			string(passwordHash),
 			input.Name,
 			input.Phone,
+			claims.Provider,
 			claims.Subject,
 			s.now().UTC(),
 		)
@@ -365,16 +397,17 @@ func (s *Service) CompleteGoogleRegistration(
 	return result, nil, err
 }
 
-// createGoogleAdmin provisions an ADMIN account for a super admin Google
-// profile. The account has no password and only ever signs in with Google.
-func (s *Service) createGoogleAdmin(ctx context.Context, email, displayName, googleSub string) (UserView, error) {
+// createOAuthAdmin provisions an ADMIN account for a super admin OAuth
+// profile. The account has no password and only ever signs in with OAuth.
+func (s *Service) createOAuthAdmin(ctx context.Context, provider, email, displayName, sub string) (UserView, error) {
 	user, err := s.repository.CreateGoogleUser(
 		ctx,
 		email,
 		"",
-		googleDisplayName(displayName, email),
+		oauthDisplayName(displayName, email),
 		RoleAdmin,
-		googleSub,
+		provider,
+		sub,
 		s.now().UTC(),
 	)
 	if errors.Is(err, ErrEmailExists) {
@@ -388,8 +421,9 @@ func (s *Service) createGoogleAdmin(ctx context.Context, email, displayName, goo
 			return s.repository.UpgradeWaitlistToAdmin(
 				ctx,
 				userRecord.ID,
-				googleDisplayName(displayName, email),
-				googleSub,
+				oauthDisplayName(displayName, email),
+				provider,
+				sub,
 				s.now().UTC(),
 			)
 		}
@@ -398,9 +432,9 @@ func (s *Service) createGoogleAdmin(ctx context.Context, email, displayName, goo
 	return user, err
 }
 
-// googleDisplayName prefers the Google profile name and falls back to the
+// oauthDisplayName prefers the OAuth profile name and falls back to the
 // email local part, clamped to the user_profiles constraints (1-100 chars).
-func googleDisplayName(name, email string) string {
+func oauthDisplayName(name, email string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		name = strings.TrimSpace(strings.SplitN(email, "@", 2)[0])

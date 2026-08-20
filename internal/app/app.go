@@ -12,6 +12,7 @@ import (
 
 	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/auth/oauth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/dashboard"
@@ -47,20 +48,43 @@ func New(
 
 	authRepository := auth.NewPostgresRepository(pool)
 	waitlistRepository := waitlist.NewPostgresRepository(pool)
+	googleTokenVerifier := waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID)
 	authService := auth.NewService(authRepository, tokens).WithGoogleLogin(
-		waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID),
+		googleTokenVerifier,
 		newSuperAdminChecker(cfg.SuperAdminEmails, waitlistRepository),
 	)
-	authHandler := auth.NewHandler(
+	authCookie := auth.CookieConfig{
+		Name:     cfg.RefreshCookieName,
+		Secure:   cfg.RefreshCookieSecure,
+		SameSite: cookieSameSite(cfg.RefreshCookieSameSite),
+		MaxAge:   cfg.RefreshTokenTTL,
+	}
+	authHandler := auth.NewHandler(authService, logger, cfg.MaxRequestBody, authCookie)
+
+	// External OAuth providers register only when fully configured, so a
+	// deployment without the provider apps simply never exposes them.
+	// Google reuses the GIS verifier: account subs match across both flows.
+	oauthProviders := map[string]oauth.Provider{}
+	if cfg.GoogleClientSecret != "" {
+		provider := oauth.NewGoogle(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.OAuthCallbackBase+"/google/callback", googleTokenVerifier, nil)
+		oauthProviders[provider.Name()] = provider
+	}
+	if cfg.GitHubClientID != "" && cfg.GitHubClientSecret != "" {
+		provider := oauth.NewGitHub(cfg.GitHubClientID, cfg.GitHubClientSecret, cfg.OAuthCallbackBase+"/github/callback", nil)
+		oauthProviders[provider.Name()] = provider
+	}
+	if cfg.YandexClientID != "" && cfg.YandexClientSecret != "" {
+		provider := oauth.NewYandex(cfg.YandexClientID, cfg.YandexClientSecret, cfg.OAuthCallbackBase+"/yandex/callback", nil)
+		oauthProviders[provider.Name()] = provider
+	}
+	oauthHandler := auth.NewOAuthHandler(
 		authService,
-		logger,
+		tokens,
+		oauthProviders,
+		cfg.FrontendBaseURL,
+		authCookie,
 		cfg.MaxRequestBody,
-		auth.CookieConfig{
-			Name:     cfg.RefreshCookieName,
-			Secure:   cfg.RefreshCookieSecure,
-			SameSite: cookieSameSite(cfg.RefreshCookieSameSite),
-			MaxAge:   cfg.RefreshTokenTTL,
-		},
+		logger,
 	)
 
 	userRepository := user.NewPostgresRepository(pool)
@@ -127,6 +151,11 @@ func New(
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/login", authHandler.Login)
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/google/complete", authHandler.CompleteGoogleRegistration)
+			// The OAuth complete step is provider-neutral: the registration
+			// token's provider claim decides which identity row is recorded.
+			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/oauth/complete", authHandler.CompleteGoogleRegistration)
+			public.With(rateLimit(rateLimiter, logger, cfg, "oauth")).Get("/{provider}/start", oauthHandler.Start)
+			public.With(rateLimit(rateLimiter, logger, cfg, "oauth")).Get("/{provider}/callback", oauthHandler.Callback)
 			public.With(rateLimit(rateLimiter, logger, cfg, "refresh")).Post("/refresh", authHandler.Refresh)
 			public.Post("/logout", authHandler.Logout)
 		})

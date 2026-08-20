@@ -41,6 +41,13 @@ type Config struct {
 	InfobipWhatsAppLanguage string
 	InfobipTimeout          time.Duration
 	GoogleClientID          string
+	GoogleClientSecret      string
+	GitHubClientID          string
+	GitHubClientSecret      string
+	YandexClientID          string
+	YandexClientSecret      string
+	OAuthCallbackBase       string
+	FrontendBaseURL         string
 	SuperAdminEmails        []string
 }
 
@@ -63,6 +70,13 @@ func Load() (Config, error) {
 		InfobipWhatsAppTemplate: os.Getenv("INFOBIP_WHATSAPP_TEMPLATE"),
 		InfobipWhatsAppLanguage: env("INFOBIP_WHATSAPP_LANGUAGE", "en"),
 		GoogleClientID:          env("GOOGLE_CLIENT_ID", "525971866611-vk1derapc3opreb82i2ba2edeldsev8l.apps.googleusercontent.com"),
+		GoogleClientSecret:      os.Getenv("GOOGLE_CLIENT_SECRET"),
+		GitHubClientID:          os.Getenv("GITHUB_CLIENT_ID"),
+		GitHubClientSecret:      os.Getenv("GITHUB_CLIENT_SECRET"),
+		YandexClientID:          os.Getenv("YANDEX_CLIENT_ID"),
+		YandexClientSecret:      os.Getenv("YANDEX_CLIENT_SECRET"),
+		OAuthCallbackBase:       strings.TrimRight(env("OAUTH_CALLBACK_BASE", "http://localhost:8080/api/v1/auth"), "/"),
+		FrontendBaseURL:         strings.TrimRight(env("FRONTEND_BASE_URL", "http://localhost:3001"), "/"),
 		SuperAdminEmails:        splitCSV(os.Getenv("SUPER_ADMIN_EMAILS")),
 	}
 

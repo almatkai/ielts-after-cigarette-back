@@ -106,6 +106,14 @@ jobs:
       INFOBIP_WHATSAPP_LANGUAGE: ${{ vars.INFOBIP_WHATSAPP_LANGUAGE }}
       INFOBIP_TIMEOUT: ${{ vars.INFOBIP_TIMEOUT }}
       SUPER_ADMIN_EMAILS: ${{ vars.SUPER_ADMIN_EMAILS }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GITHUB_CLIENT_ID: ${{ vars.GITHUB_CLIENT_ID }}
+      GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET }}
+      YANDEX_CLIENT_ID: ${{ vars.YANDEX_CLIENT_ID }}
+      YANDEX_CLIENT_SECRET: ${{ secrets.YANDEX_CLIENT_SECRET }}
+      OAUTH_CALLBACK_BASE: ${{ vars.OAUTH_CALLBACK_BASE }}
+      FRONTEND_BASE_URL: ${{ vars.FRONTEND_BASE_URL }}
     steps:
       - uses: actions/checkout@v7
       - name: Configure SSH
@@ -152,6 +160,14 @@ jobs:
             printf 'INFOBIP_WHATSAPP_LANGUAGE=%s\n' "$INFOBIP_WHATSAPP_LANGUAGE"
             printf 'INFOBIP_TIMEOUT=%s\n' "$INFOBIP_TIMEOUT"
             printf 'SUPER_ADMIN_EMAILS=%s\n' "$SUPER_ADMIN_EMAILS"
+            printf 'GOOGLE_CLIENT_ID=%s\n' "$GOOGLE_CLIENT_ID"
+            printf 'GOOGLE_CLIENT_SECRET=%s\n' "$GOOGLE_CLIENT_SECRET"
+            printf 'GITHUB_CLIENT_ID=%s\n' "$GITHUB_CLIENT_ID"
+            printf 'GITHUB_CLIENT_SECRET=%s\n' "$GITHUB_CLIENT_SECRET"
+            printf 'YANDEX_CLIENT_ID=%s\n' "$YANDEX_CLIENT_ID"
+            printf 'YANDEX_CLIENT_SECRET=%s\n' "$YANDEX_CLIENT_SECRET"
+            printf 'OAUTH_CALLBACK_BASE=%s\n' "$OAUTH_CALLBACK_BASE"
+            printf 'FRONTEND_BASE_URL=%s\n' "$FRONTEND_BASE_URL"
           } > production.env
           tar -czf deployment.tar.gz docker-compose.production.yml migrations scripts/deploy-production.sh
       - name: Upload deployment files

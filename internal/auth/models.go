@@ -48,6 +48,10 @@ var (
 	ErrRefreshReuse       = errors.New("refresh token reuse detected")
 	ErrUserNotFound       = errors.New("user not found")
 	ErrInvalidGoogleToken = errors.New("google token is invalid")
+	ErrInvalidOAuthState  = errors.New("oauth state is invalid")
+	// ErrOAuthEmailRequired means the OAuth provider account does not expose a
+	// usable email address, which sign-in requires.
+	ErrOAuthEmailRequired = errors.New("oauth account requires a verified email")
 	ErrAccountNotFound    = errors.New("account does not exist")
 )
 

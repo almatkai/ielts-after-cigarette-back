@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -87,28 +88,40 @@ func (m *TokenManager) ParseAccessToken(raw string) (AccessClaims, error) {
 
 const (
 	// GoogleRegistrationPurpose marks a short-lived token carrying an
-	// unregistered Google profile between /auth/google and
-	// /auth/google/complete. It never authenticates a session.
+	// unregistered social profile between the OAuth sign-in endpoints and
+	// /auth/oauth/complete (historically /auth/google/complete). It never
+	// authenticates a session.
 	GoogleRegistrationPurpose = "google_registration"
 	googleRegistrationTTL     = 30 * time.Minute
 )
 
 type GoogleRegistrationClaims struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Purpose string `json:"purpose"`
+	Provider string `json:"provider"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Phone    string `json:"phone,omitempty"`
+	Purpose  string `json:"purpose"`
 	jwt.RegisteredClaims
 }
 
 func (m *TokenManager) NewGoogleRegistrationToken(googleSub, email, name string) (string, error) {
+	return m.NewOAuthRegistrationToken("google", googleSub, email, name, "")
+}
+
+// NewOAuthRegistrationToken issues a pending-registration token for any OAuth
+// provider; the provider claim lets the complete step record the right
+// identity row, and the optional phone prefills the registration form.
+func (m *TokenManager) NewOAuthRegistrationToken(provider, sub, email, name, phone string) (string, error) {
 	now := m.now().UTC()
 	claims := GoogleRegistrationClaims{
-		Email:   email,
-		Name:    name,
-		Purpose: GoogleRegistrationPurpose,
+		Provider: provider,
+		Email:    email,
+		Name:     name,
+		Phone:    phone,
+		Purpose:  GoogleRegistrationPurpose,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
-			Subject:   googleSub,
+			Subject:   sub,
 			Audience:  jwt.ClaimStrings{m.audience},
 			ExpiresAt: jwt.NewNumericDate(now.Add(googleRegistrationTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -119,7 +132,7 @@ func (m *TokenManager) NewGoogleRegistrationToken(googleSub, email, name string)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString(m.secret)
 	if err != nil {
-		return "", fmt.Errorf("sign google registration token: %w", err)
+		return "", fmt.Errorf("sign oauth registration token: %w", err)
 	}
 	return signed, nil
 }
@@ -144,10 +157,91 @@ func (m *TokenManager) ParseGoogleRegistrationToken(raw string) (GoogleRegistrat
 	if err != nil || !token.Valid {
 		return GoogleRegistrationClaims{}, ErrInvalidGoogleToken
 	}
-	if claims.Purpose != GoogleRegistrationPurpose || claims.Subject == "" {
+	if claims.Purpose != GoogleRegistrationPurpose || claims.Provider == "" || claims.Subject == "" {
 		return GoogleRegistrationClaims{}, ErrInvalidGoogleToken
 	}
 	return claims, nil
+}
+
+const (
+	// OAuthStatePurpose marks the short-lived token carried as the state
+	// parameter between /auth/{provider}/start and /auth/{provider}/callback.
+	// It binds the callback to the provider and the frontend path to return
+	// to, and never authenticates a session.
+	OAuthStatePurpose = "oauth_state"
+	oauthStateTTL     = 10 * time.Minute
+
+	// defaultOAuthNext is where the callback redirects when the start request
+	// carries no usable next path.
+	defaultOAuthNext = "/app/dashboard"
+)
+
+type OAuthStateClaims struct {
+	Provider string `json:"provider"`
+	Next     string `json:"next"`
+	Purpose  string `json:"purpose"`
+	jwt.RegisteredClaims
+}
+
+func (m *TokenManager) NewOAuthStateToken(provider, next string) (string, error) {
+	now := m.now().UTC()
+	claims := OAuthStateClaims{
+		Provider: provider,
+		Next:     sanitizeOAuthNext(next),
+		Purpose:  OAuthStatePurpose,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    m.issuer,
+			Subject:   provider,
+			Audience:  jwt.ClaimStrings{m.audience},
+			ExpiresAt: jwt.NewNumericDate(now.Add(oauthStateTTL)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			ID:        uuid.NewString(),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString(m.secret)
+	if err != nil {
+		return "", fmt.Errorf("sign oauth state token: %w", err)
+	}
+	return signed, nil
+}
+
+func (m *TokenManager) ParseOAuthStateToken(raw string) (OAuthStateClaims, error) {
+	var claims OAuthStateClaims
+	token, err := jwt.ParseWithClaims(
+		raw,
+		&claims,
+		func(token *jwt.Token) (any, error) {
+			if token.Method != jwt.SigningMethodHS256 {
+				return nil, fmt.Errorf("unexpected signing method %q", token.Method.Alg())
+			}
+			return m.secret, nil
+		},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithIssuer(m.issuer),
+		jwt.WithAudience(m.audience),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+	)
+	if err != nil || !token.Valid {
+		return OAuthStateClaims{}, ErrInvalidOAuthState
+	}
+	if claims.Purpose != OAuthStatePurpose || claims.Provider == "" {
+		return OAuthStateClaims{}, ErrInvalidOAuthState
+	}
+	return claims, nil
+}
+
+// sanitizeOAuthNext restricts the post-login redirect to frontend-relative
+// paths under /app/ so a crafted start URL cannot bounce the browser to an
+// arbitrary origin; anything else falls back to the dashboard.
+func sanitizeOAuthNext(next string) string {
+	next = strings.TrimSpace(next)
+	if !strings.HasPrefix(next, "/app/") {
+		return defaultOAuthNext
+	}
+	return next
 }
 
 func (m *TokenManager) NewRefreshToken() (raw string, hash []byte, expiresAt time.Time, err error) {
