@@ -16,6 +16,10 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 type Repository interface {
 	List(context.Context) ([]Material, error)
 	Get(context.Context, uuid.UUID) (Material, error)
+	ListPublished(context.Context) ([]MaterialSummary, error)
+	GetPublished(context.Context, uuid.UUID) (Material, error)
+	GetVersion(context.Context, uuid.UUID, uuid.UUID) (Material, error)
+	PublishedVersionID(context.Context, uuid.UUID) (uuid.UUID, error)
 	Create(context.Context, uuid.UUID, SaveInput) (Material, error)
 	CreateMany(context.Context, uuid.UUID, []SaveInput) ([]Material, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Material, error)
@@ -67,6 +71,65 @@ func (s *Service) List(ctx context.Context) ([]Material, error) {
 
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (Material, error) {
 	return s.repository.Get(ctx, id)
+}
+
+func (s *Service) ListPublic(ctx context.Context) ([]MaterialSummary, error) {
+	items, err := s.repository.ListPublished(ctx)
+	if items == nil {
+		items = []MaterialSummary{}
+	}
+	return items, err
+}
+
+func (s *Service) GetPublic(ctx context.Context, id uuid.UUID) (PublicMaterial, error) {
+	material, err := s.repository.GetPublished(ctx, id)
+	if err != nil {
+		return PublicMaterial{}, err
+	}
+	return publicMaterial(material), nil
+}
+
+// GetVersion returns the full structure (with answers) of a specific version.
+func (s *Service) GetVersion(ctx context.Context, id, versionID uuid.UUID) (Material, error) {
+	return s.repository.GetVersion(ctx, id, versionID)
+}
+
+// GetVersionPublic returns the public structure (without answers) of a
+// specific version.
+func (s *Service) GetVersionPublic(ctx context.Context, id, versionID uuid.UUID) (PublicMaterial, error) {
+	material, err := s.repository.GetVersion(ctx, id, versionID)
+	if err != nil {
+		return PublicMaterial{}, err
+	}
+	return publicMaterial(material), nil
+}
+
+// PublishedVersionID returns the published version of a PUBLISHED material.
+func (s *Service) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	return s.repository.PublishedVersionID(ctx, id)
+}
+
+func publicMaterial(material Material) PublicMaterial {
+	result := PublicMaterial{
+		ID: material.ID, Slug: material.Slug, ExamType: material.ExamType,
+		Difficulty: material.Difficulty, Title: material.Title,
+		Description: material.Description, Body: material.Body,
+		QuestionGroups: []PublicQuestionGroup{},
+	}
+	for _, group := range material.QuestionGroups {
+		publicGroup := PublicQuestionGroup{
+			ID: group.ID, Position: group.Position, Type: group.Type,
+			Instructions: group.Instructions, Questions: []PublicQuestion{},
+		}
+		for _, question := range group.Questions {
+			publicGroup.Questions = append(publicGroup.Questions, PublicQuestion{
+				ID: question.ID, Position: question.Position, Prompt: question.Prompt,
+				Content: question.Content, Points: question.Points,
+			})
+		}
+		result.QuestionGroups = append(result.QuestionGroups, publicGroup)
+	}
+	return result
 }
 
 func (s *Service) Create(ctx context.Context, actorID uuid.UUID, input SaveInput) (Material, map[string]string, error) {

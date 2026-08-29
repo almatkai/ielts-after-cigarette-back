@@ -130,7 +130,6 @@ func decodeBody(t *testing.T, response *httptest.ResponseRecorder, target any) {
 	}
 }
 
-
 func TestRefreshCookieAttributes(t *testing.T) {
 	handler := &Handler{cookie: CookieConfig{
 		Name:     "ielts_refresh",

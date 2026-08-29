@@ -97,6 +97,45 @@ type SaveInput struct {
 	Revision       int64           `json:"revision,omitempty"`
 }
 
+// MaterialSummary is the public list shape: no passage body, no questions.
+type MaterialSummary struct {
+	ID          uuid.UUID  `json:"id"`
+	Slug        string     `json:"slug"`
+	ExamType    string     `json:"examType"`
+	Difficulty  string     `json:"difficulty"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	PublishedAt *time.Time `json:"publishedAt"`
+}
+
+// Public* types mirror Material without correct answers and explanations.
+type PublicQuestion struct {
+	ID       uuid.UUID      `json:"id"`
+	Position int            `json:"position"`
+	Prompt   string         `json:"prompt"`
+	Content  map[string]any `json:"content"`
+	Points   int            `json:"points"`
+}
+
+type PublicQuestionGroup struct {
+	ID           uuid.UUID        `json:"id"`
+	Position     int              `json:"position"`
+	Type         string           `json:"type"`
+	Instructions string           `json:"instructions"`
+	Questions    []PublicQuestion `json:"questions"`
+}
+
+type PublicMaterial struct {
+	ID             uuid.UUID             `json:"id"`
+	Slug           string                `json:"slug"`
+	ExamType       string                `json:"examType"`
+	Difficulty     string                `json:"difficulty"`
+	Title          string                `json:"title"`
+	Description    string                `json:"description"`
+	Body           string                `json:"body"`
+	QuestionGroups []PublicQuestionGroup `json:"questionGroups"`
+}
+
 type PublishInput struct {
 	Revision int64 `json:"revision"`
 }

@@ -201,9 +201,9 @@ func (r *PostgresRepository) ExistsByPhone(ctx context.Context, phone string) (b
 // unique placeholder address. The placeholders are internal: every read path
 // maps them back to NULL.
 const (
-	placeholderEmailDomain  = "@placeholder.invalid"
-	placeholderEmailPattern = "waitlist-%" + placeholderEmailDomain
-	visibleEmailColumn      = `CASE WHEN email LIKE '` + placeholderEmailPattern + `' THEN NULL ELSE email END`
+	placeholderEmailDomain    = "@placeholder.invalid"
+	placeholderEmailPattern   = "waitlist-%" + placeholderEmailDomain
+	visibleEmailColumn        = `CASE WHEN email LIKE '` + placeholderEmailPattern + `' THEN NULL ELSE email END`
 	visibleEmailColumnAliased = `CASE WHEN u.email LIKE '` + placeholderEmailPattern + `' THEN NULL ELSE u.email END`
 )
 

@@ -1,0 +1,113 @@
+package attempts
+
+import (
+	"context"
+	"errors"
+
+	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
+	"github.com/google/uuid"
+)
+
+// MaterialProvider adapts a material module (listening, reading) to the
+// attempts service. Module-specific not-found errors are translated to
+// ErrMaterialNotFound so the handler has a single mapping.
+type MaterialProvider interface {
+	// PublishedVersionID returns the published version of a PUBLISHED material.
+	PublishedVersionID(ctx context.Context, materialID uuid.UUID) (uuid.UUID, error)
+	// PublicStructure returns the version structure without correct answers.
+	PublicStructure(ctx context.Context, materialID, versionID uuid.UUID) (any, error)
+	// GradingStructure returns the version with correct answers for grading.
+	GradingStructure(ctx context.Context, materialID, versionID uuid.UUID) (GradingMaterial, error)
+}
+
+type listeningProvider struct {
+	service *listening.Service
+}
+
+func NewListeningProvider(service *listening.Service) MaterialProvider {
+	return listeningProvider{service: service}
+}
+
+func (p listeningProvider) PublishedVersionID(ctx context.Context, materialID uuid.UUID) (uuid.UUID, error) {
+	versionID, err := p.service.PublishedVersionID(ctx, materialID)
+	if errors.Is(err, listening.ErrNotFound) {
+		return uuid.Nil, ErrMaterialNotFound
+	}
+	return versionID, err
+}
+
+func (p listeningProvider) PublicStructure(ctx context.Context, materialID, versionID uuid.UUID) (any, error) {
+	test, err := p.service.GetVersionPublic(ctx, materialID, versionID)
+	if errors.Is(err, listening.ErrNotFound) {
+		return nil, ErrMaterialNotFound
+	}
+	return test, err
+}
+
+func (p listeningProvider) GradingStructure(ctx context.Context, materialID, versionID uuid.UUID) (GradingMaterial, error) {
+	test, err := p.service.GetVersion(ctx, materialID, versionID)
+	if errors.Is(err, listening.ErrNotFound) {
+		return GradingMaterial{}, ErrMaterialNotFound
+	}
+	if err != nil {
+		return GradingMaterial{}, err
+	}
+	questions := []GradingQuestion{}
+	for _, part := range test.Parts {
+		for _, group := range part.Groups {
+			for _, question := range group.Questions {
+				questions = append(questions, GradingQuestion{
+					ID: question.ID, Number: question.Number, Prompt: question.Prompt,
+					Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
+				})
+			}
+		}
+	}
+	return GradingMaterial{ExamType: test.ExamType, Questions: questions}, nil
+}
+
+type readingProvider struct {
+	service *reading.Service
+}
+
+func NewReadingProvider(service *reading.Service) MaterialProvider {
+	return readingProvider{service: service}
+}
+
+func (p readingProvider) PublishedVersionID(ctx context.Context, materialID uuid.UUID) (uuid.UUID, error) {
+	versionID, err := p.service.PublishedVersionID(ctx, materialID)
+	if errors.Is(err, reading.ErrNotFound) {
+		return uuid.Nil, ErrMaterialNotFound
+	}
+	return versionID, err
+}
+
+func (p readingProvider) PublicStructure(ctx context.Context, materialID, versionID uuid.UUID) (any, error) {
+	material, err := p.service.GetVersionPublic(ctx, materialID, versionID)
+	if errors.Is(err, reading.ErrNotFound) {
+		return nil, ErrMaterialNotFound
+	}
+	return material, err
+}
+
+func (p readingProvider) GradingStructure(ctx context.Context, materialID, versionID uuid.UUID) (GradingMaterial, error) {
+	material, err := p.service.GetVersion(ctx, materialID, versionID)
+	if errors.Is(err, reading.ErrNotFound) {
+		return GradingMaterial{}, ErrMaterialNotFound
+	}
+	if err != nil {
+		return GradingMaterial{}, err
+	}
+	questions := []GradingQuestion{}
+	for _, group := range material.QuestionGroups {
+		for _, question := range group.Questions {
+			questions = append(questions, GradingQuestion{
+				// Reading questions have no number; position identifies them.
+				ID: question.ID, Number: question.Position, Prompt: question.Prompt,
+				Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
+			})
+		}
+	}
+	return GradingMaterial{ExamType: material.ExamType, Questions: questions}, nil
+}

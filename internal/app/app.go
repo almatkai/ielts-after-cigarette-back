@@ -11,6 +11,7 @@ import (
 	"time"
 
 	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
@@ -71,9 +72,16 @@ func New(
 	dashboardHandler := dashboard.NewHandler(dashboard.NewService(dashboardRepository), logger)
 	adminHandler := adminapi.NewHandler()
 	readingRepository := reading.NewPostgresRepository(pool)
-	readingHandler := reading.NewHandler(reading.NewService(readingRepository), logger, cfg.MaxRequestBody)
+	readingService := reading.NewService(readingRepository)
+	readingHandler := reading.NewHandler(readingService, logger, cfg.MaxRequestBody)
 	listeningRepository := listening.NewPostgresRepository(pool)
-	listeningHandler := listening.NewHandler(listening.NewService(listeningRepository, cfg.ListeningMediaDir), logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
+	listeningService := listening.NewService(listeningRepository, cfg.ListeningMediaDir)
+	listeningHandler := listening.NewHandler(listeningService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
+	attemptsRepository := attempts.NewPostgresRepository(pool)
+	attemptsHandler := attempts.NewHandler(attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
+		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
+		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
+	}), logger, cfg.MaxRequestBody)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
 	infobipAPIKey := cfg.InfobipAPIKey
@@ -139,6 +147,14 @@ func New(
 			protected.Get("/listening/tests", listeningHandler.ListPublic)
 			protected.Get("/listening/tests/{testID}", listeningHandler.GetPublic)
 			protected.Get("/listening/media/{mediaID}", listeningHandler.Media)
+			protected.Post("/listening/tests/{testID}/attempts", attemptsHandler.Start)
+			protected.Get("/reading/materials", readingHandler.ListPublic)
+			protected.Get("/reading/materials/{materialID}", readingHandler.GetPublic)
+			protected.Post("/reading/materials/{materialID}/attempts", attemptsHandler.StartReading)
+			protected.Put("/attempts/{attemptID}/answers", attemptsHandler.SaveAnswers)
+			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)
+			protected.Get("/attempts", attemptsHandler.List)
+			protected.Get("/attempts/{attemptID}", attemptsHandler.Get)
 			protected.Get("/users/me", authHandler.Me)
 			protected.Get("/profile", userHandler.Get)
 			protected.Patch("/profile", userHandler.UpdateProfile)

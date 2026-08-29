@@ -457,6 +457,66 @@ revision возвращает `409 REVISION_CONFLICT`, повторяющийс�
 `403 FORBIDDEN`. Последующие изменения создают новый черновик и выставляют
 `hasUnpublishedChanges: true`, не изменяя опубликованную версию.
 
+## Reading materials (студент)
+
+Требуют Bearer token. Видны только опубликованные материалы.
+
+### `GET /reading/materials`
+
+Список опубликованных материалов (без текста passage и вопросов), свежие
+первые. Ответ `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+      "slug": "cambridge-18-reading-1",
+      "examType": "academic",
+      "difficulty": "intermediate",
+      "title": "Cambridge 18 Reading Passage 1",
+      "description": "",
+      "publishedAt": "2026-08-01T09:00:00Z"
+    }
+  ]
+}
+```
+
+### `GET /reading/materials/{materialId}`
+
+Публичная структура опубликованной версии: текст passage и вопросы БЕЗ
+`answer` и `explanation`. Материал не опубликован или не найден —
+`404 READING_MATERIAL_NOT_FOUND`. Ответ `200`:
+
+```json
+{
+  "id": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+  "slug": "cambridge-18-reading-1",
+  "examType": "academic",
+  "difficulty": "intermediate",
+  "title": "Cambridge 18 Reading Passage 1",
+  "description": "",
+  "body": "The full passage text…",
+  "questionGroups": [
+    {
+      "id": "d43f2c73-4e0f-5a3b-1f6d-2c3b4e5f6a78",
+      "position": 1,
+      "type": "true_false_not_given",
+      "instructions": "Do the following statements agree with the information given in the passage?",
+      "questions": [
+        {
+          "id": "b21d0a51-2c8d-4e1f-9d4b-0a1f2e3d4c56",
+          "position": 1,
+          "prompt": "The library moved to North Campus in 2015.",
+          "content": {},
+          "points": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## Dashboard
 
 ### `GET /dashboard`
@@ -504,6 +564,215 @@ revision возвращает `409 REVISION_CONFLICT`, повторяющийс�
     }
   ],
   "unreadNotifications": 0
+}
+```
+
+## Attempts
+
+Попытки прохождения тестов студентами. Все endpoint'ы требуют Bearer token и
+доступны только владельцу попытки (чужая попытка даёт `404 NOT_FOUND`).
+Поддерживаются `materialType: "listening"` и `"reading"`. Попытка привязана к
+конкретной версии материала (`materialVersionId`): грейдинг и разбор всегда
+идут по той версии, на которой попытка была начата.
+
+Формат ответа студента зависит от типа вопроса:
+
+- выбор варианта (multiple choice, matching, labelling): `{"optionId": "A"}`
+  или `{"optionIds": ["A", "C"]}` — буквы в верхнем регистре;
+- true/false/not given и yes/no/not given (reading): `{"value": "TRUE"}` —
+  одно из `TRUE`/`FALSE`/`NOT_GIVEN` или `YES`/`NO`/`NOT_GIVEN`, сравнение
+  без учёта регистра и пробелов по краям;
+- текстовый ответ (completion, short answer): `{"value": "Green Street"}` —
+  сравнение без учёта регистра и пробелов по краям.
+
+### `POST /listening/tests/{testId}/attempts`
+
+Старт попытки. Тест должен быть опубликован, иначе `404 NOT_FOUND`. Если у
+пользователя уже есть незавершённая попытка на этот тест — возвращается она
+(`200`), иначе создаётся новая (`201`). Ответ содержит попытку и публичную
+структуру теста (без правильных ответов):
+
+```json
+{
+  "attempt": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "materialType": "listening",
+    "materialId": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+    "materialVersionId": "a12c9f40-1b7c-4d0e-8c3a-9f0e1d2b3a45",
+    "status": "IN_PROGRESS",
+    "score": null,
+    "maxScore": null,
+    "band": null,
+    "startedAt": "2026-08-02T12:00:00Z",
+    "submittedAt": null
+  },
+  "test": {
+    "id": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+    "slug": "cambridge-18-test-1",
+    "examType": "academic",
+    "title": "Cambridge 18 Test 1",
+    "description": "",
+    "durationMinutes": 40,
+    "parts": []
+  }
+}
+```
+
+### `POST /reading/materials/{materialId}/attempts`
+
+Та же семантика, что и для listening: материал должен быть опубликован,
+существующая `IN_PROGRESS` попытка возвращается с `200`, новая создаётся с
+`201`. Ответ содержит попытку и публичную структуру материала (ключ
+`material` вместо `test`, структура — как в
+`GET /reading/materials/{materialId}`):
+
+```json
+{
+  "attempt": {
+    "id": "8d0f778a-8536-41ef-a55c-f18ad2a01bf8",
+    "materialType": "reading",
+    "materialId": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+    "materialVersionId": "b23d0a51-2c8d-4e1f-9d4b-0a1f2e3d4c56",
+    "status": "IN_PROGRESS",
+    "score": null,
+    "maxScore": null,
+    "band": null,
+    "startedAt": "2026-08-02T12:00:00Z",
+    "submittedAt": null
+  },
+  "material": {
+    "id": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+    "slug": "cambridge-18-reading-1",
+    "examType": "academic",
+    "difficulty": "intermediate",
+    "title": "Cambridge 18 Reading Passage 1",
+    "description": "",
+    "body": "The full passage text…",
+    "questionGroups": []
+  }
+}
+```
+
+### `PUT /attempts/{attemptId}/answers`
+
+Сохраняет черновик ответов (идемпотентно, upsert по `questionId`). Только для
+попытки в статусе `IN_PROGRESS`, иначе `409 ATTEMPT_ALREADY_SUBMITTED`.
+
+```json
+{
+  "answers": [
+    {"questionId": "b21d0a51-2c8d-4e1f-9d4b-0a1f2e3d4c56", "answer": {"optionId": "B"}},
+    {"questionId": "c32e1b62-3d9e-4f2a-0e5c-1b2a3f4e5d67", "answer": {"value": "Green Street"}}
+  ]
+}
+```
+
+Ответ `200`: `{"saved": 2}`.
+
+### `POST /attempts/{attemptId}/submit`
+
+Сдача попытки. Принимает тот же body, что и сохранение черновика (финальные
+ответы мержатся поверх ранее сохранённых), грейдит, проставляет
+`score`/`maxScore`/`band`/`submittedAt` и переводит попытку в `SUBMITTED`.
+Повторный submit — `409 ATTEMPT_ALREADY_SUBMITTED`. Band считается по таблице
+IELTS для skill'а попытки: у listening одна таблица, у reading — отдельные
+таблицы для `academic` и `general` (выбор по `examType` материала); raw score
+масштабируется к 40 вопросам. После грейдинга обновляется
+`user_skill_progress` для соответствующего skill (`completedTasks +1`,
+`accuracyPercent` и `estimatedBand` — по этой попытке). Ответ `200` — попытка:
+
+```json
+{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "materialType": "listening",
+  "materialId": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+  "materialVersionId": "a12c9f40-1b7c-4d0e-8c3a-9f0e1d2b3a45",
+  "status": "SUBMITTED",
+  "score": 34,
+  "maxScore": 40,
+  "band": 7.5,
+  "startedAt": "2026-08-02T12:00:00Z",
+  "submittedAt": "2026-08-02T12:31:07Z"
+}
+```
+
+### `GET /attempts?materialType=listening`
+
+История попыток пользователя, новые первые. `materialType` — `listening` или
+`reading`, другие значения — `422 VALIDATION_ERROR`; без параметра возвращаются
+попытки всех типов. `testTitle`/`testSlug` — название и slug теста или
+reading-материала. Ответ `200`:
+
+```json
+{
+  "items": [
+    {
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "materialType": "listening",
+      "materialId": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+      "materialVersionId": "a12c9f40-1b7c-4d0e-8c3a-9f0e1d2b3a45",
+      "status": "SUBMITTED",
+      "score": 34,
+      "maxScore": 40,
+      "band": 7.5,
+      "startedAt": "2026-08-02T12:00:00Z",
+      "submittedAt": "2026-08-02T12:31:07Z",
+      "testTitle": "Cambridge 18 Test 1",
+      "testSlug": "cambridge-18-test-1"
+    }
+  ]
+}
+```
+
+### `GET /attempts/{attemptId}`
+
+Детали попытки. Для `IN_PROGRESS` — только сохранённые ответы, без правильных:
+
+```json
+{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "materialType": "listening",
+  "materialId": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+  "materialVersionId": "a12c9f40-1b7c-4d0e-8c3a-9f0e1d2b3a45",
+  "status": "IN_PROGRESS",
+  "score": null,
+  "maxScore": null,
+  "band": null,
+  "startedAt": "2026-08-02T12:00:00Z",
+  "submittedAt": null,
+  "answers": [
+    {"questionId": "b21d0a51-2c8d-4e1f-9d4b-0a1f2e3d4c56", "answer": {"optionId": "B"}}
+  ]
+}
+```
+
+Для `SUBMITTED` — разбор по каждому вопросу с правильным ответом и
+объяснением:
+
+```json
+{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "materialType": "listening",
+  "materialId": "3f6f26a1-9b2c-4b6e-9d6d-2f0d8f2a1c10",
+  "materialVersionId": "a12c9f40-1b7c-4d0e-8c3a-9f0e1d2b3a45",
+  "status": "SUBMITTED",
+  "score": 34,
+  "maxScore": 40,
+  "band": 7.5,
+  "startedAt": "2026-08-02T12:00:00Z",
+  "submittedAt": "2026-08-02T12:31:07Z",
+  "review": [
+    {
+      "questionId": "b21d0a51-2c8d-4e1f-9d4b-0a1f2e3d4c56",
+      "number": 1,
+      "prompt": "What does the speaker say about the library?",
+      "answer": {"optionId": "B"},
+      "isCorrect": true,
+      "pointsAwarded": 1,
+      "correctAnswer": {"optionId": "B"},
+      "explanation": "The speaker mentions the library moved to North Campus."
+    }
+  ]
 }
 ```
 

@@ -16,6 +16,18 @@ func (r *repositoryStub) List(context.Context) ([]Material, error) { return nil,
 func (r *repositoryStub) Get(context.Context, uuid.UUID) (Material, error) {
 	return Material{}, nil
 }
+func (r *repositoryStub) ListPublished(context.Context) ([]MaterialSummary, error) {
+	return nil, nil
+}
+func (r *repositoryStub) GetPublished(context.Context, uuid.UUID) (Material, error) {
+	return Material{}, nil
+}
+func (r *repositoryStub) GetVersion(context.Context, uuid.UUID, uuid.UUID) (Material, error) {
+	return Material{}, nil
+}
+func (r *repositoryStub) PublishedVersionID(context.Context, uuid.UUID) (uuid.UUID, error) {
+	return uuid.Nil, nil
+}
 func (r *repositoryStub) Create(_ context.Context, _ uuid.UUID, input SaveInput) (Material, error) {
 	r.created = input
 	return Material{Slug: input.Slug}, nil

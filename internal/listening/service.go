@@ -50,6 +50,26 @@ func (s *Service) GetPublic(ctx context.Context, id uuid.UUID) (PublicTest, erro
 	return publicTest(item), nil
 }
 
+// GetVersion returns the full structure (with answers) of a specific version.
+func (s *Service) GetVersion(ctx context.Context, id, versionID uuid.UUID) (Test, error) {
+	return s.repository.GetVersion(ctx, id, versionID)
+}
+
+// GetVersionPublic returns the public structure (without answers) of a
+// specific version.
+func (s *Service) GetVersionPublic(ctx context.Context, id, versionID uuid.UUID) (PublicTest, error) {
+	item, err := s.repository.GetVersion(ctx, id, versionID)
+	if err != nil {
+		return PublicTest{}, err
+	}
+	return publicTest(item), nil
+}
+
+// PublishedVersionID returns the published version of a PUBLISHED test.
+func (s *Service) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	return s.repository.PublishedVersionID(ctx, id)
+}
+
 func (s *Service) Create(ctx context.Context, actorID uuid.UUID, input SaveInput) (Test, map[string]string, error) {
 	input = normalize(input)
 	if input.Slug == "" {

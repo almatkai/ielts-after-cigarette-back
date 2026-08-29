@@ -43,6 +43,28 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, material)
 }
 
+func (h *Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
+	items, err := h.service.ListPublic(r.Context())
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) GetPublic(w http.ResponseWriter, r *http.Request) {
+	materialID, ok := h.materialID(w, r)
+	if !ok {
+		return
+	}
+	material, err := h.service.GetPublic(r.Context(), materialID)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, material)
+}
+
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var input SaveInput
 	if err := httpx.DecodeJSON(w, r, h.maxRequestBody, &input); err != nil {

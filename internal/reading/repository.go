@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -66,6 +67,94 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID) (Material, e
 		return Material{}, err
 	}
 	return material, nil
+}
+
+// ListPublished returns published materials without the passage body and
+// questions, joined to the published version for the title.
+func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSummary, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT m.id, m.slug, m.exam_type, m.difficulty, v.title, v.description, m.published_at
+		FROM reading_materials m
+		JOIN reading_material_versions v ON v.id = m.published_version_id
+		WHERE m.status = 'PUBLISHED'
+		ORDER BY m.published_at DESC, m.id`)
+	if err != nil {
+		return nil, fmt.Errorf("list published reading materials: %w", err)
+	}
+	defer rows.Close()
+	items := []MaterialSummary{}
+	for rows.Next() {
+		var item MaterialSummary
+		if err := rows.Scan(&item.ID, &item.Slug, &item.ExamType, &item.Difficulty,
+			&item.Title, &item.Description, &item.PublishedAt); err != nil {
+			return nil, fmt.Errorf("scan published reading material: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate published reading materials: %w", err)
+	}
+	return items, nil
+}
+
+// GetPublished returns a published material with the structure of its
+// published version.
+func (r *PostgresRepository) GetPublished(ctx context.Context, id uuid.UUID) (Material, error) {
+	query := strings.Replace(materialSelect,
+		"v.id = m.current_version_id", "v.id = m.published_version_id", 1) +
+		` WHERE m.id = $1 AND m.status = 'PUBLISHED'`
+	material, err := scanMaterial(r.pool.QueryRow(ctx, query, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Material{}, ErrNotFound
+	}
+	if err != nil {
+		return Material{}, fmt.Errorf("get published reading material: %w", err)
+	}
+	material.QuestionGroups, err = r.questionGroups(ctx, material.ID, material.CurrentVersionNumber)
+	if err != nil {
+		return Material{}, err
+	}
+	return material, nil
+}
+
+// GetVersion returns the material with the structure of a specific version,
+// regardless of its status. Used by attempts grading, which is pinned to the
+// version the attempt was started on.
+func (r *PostgresRepository) GetVersion(ctx context.Context, id, versionID uuid.UUID) (Material, error) {
+	query := strings.Replace(materialSelect,
+		"v.id = m.current_version_id", "v.id = $2 AND v.material_id = m.id", 1) +
+		` WHERE m.id = $1`
+	material, err := scanMaterial(r.pool.QueryRow(ctx, query, id, versionID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Material{}, ErrNotFound
+	}
+	if err != nil {
+		return Material{}, fmt.Errorf("get reading material version: %w", err)
+	}
+	// CurrentVersionNumber here holds the number of the joined version, so
+	// questionGroups loads exactly that version's structure.
+	material.QuestionGroups, err = r.questionGroups(ctx, material.ID, material.CurrentVersionNumber)
+	if err != nil {
+		return Material{}, err
+	}
+	return material, nil
+}
+
+// PublishedVersionID returns the published version of a PUBLISHED material.
+func (r *PostgresRepository) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	var versionID *uuid.UUID
+	err := r.pool.QueryRow(ctx, `SELECT published_version_id FROM reading_materials
+		WHERE id=$1 AND status='PUBLISHED'`, id).Scan(&versionID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get published reading version: %w", err)
+	}
+	if versionID == nil {
+		return uuid.Nil, ErrNotFound
+	}
+	return *versionID, nil
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, actorID uuid.UUID, input SaveInput) (Material, error) {

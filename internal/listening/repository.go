@@ -15,6 +15,8 @@ import (
 type Repository interface {
 	List(context.Context, bool) ([]Test, error)
 	Get(context.Context, uuid.UUID, bool) (Test, error)
+	GetVersion(context.Context, uuid.UUID, uuid.UUID) (Test, error)
+	PublishedVersionID(context.Context, uuid.UUID) (uuid.UUID, error)
 	Create(context.Context, uuid.UUID, SaveInput) (Test, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Test, error)
 	Publish(context.Context, uuid.UUID, uuid.UUID, int64) (Test, error)
@@ -84,6 +86,48 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID, published bo
 	}
 	item.Parts, err = r.parts(ctx, id)
 	return item, err
+}
+
+// GetVersion returns the test with the structure of a specific version,
+// regardless of its status. Used by attempts grading, which is pinned to
+// the version the attempt was started on.
+func (r *PostgresRepository) GetVersion(ctx context.Context, id, versionID uuid.UUID) (Test, error) {
+	var item Test
+	err := r.pool.QueryRow(ctx, `
+		SELECT t.id, t.slug, t.exam_type, t.status, t.revision,
+			v.title, v.description, v.duration_minutes, v.version_number,
+			(t.published_version_id IS NULL OR t.current_version_id <> t.published_version_id), t.published_at, t.created_at, t.updated_at
+		FROM listening_tests t JOIN listening_test_versions v ON v.id = $2 AND v.test_id = t.id
+		WHERE t.id = $1`, id, versionID).Scan(
+		&item.ID, &item.Slug, &item.ExamType, &item.Status, &item.Revision,
+		&item.Title, &item.Description, &item.DurationMinutes, &item.CurrentVersionNumber,
+		&item.HasUnpublishedChanges, &item.PublishedAt, &item.CreatedAt, &item.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Test{}, ErrNotFound
+	}
+	if err != nil {
+		return Test{}, fmt.Errorf("get listening test version: %w", err)
+	}
+	item.Parts, err = r.parts(ctx, versionID)
+	return item, err
+}
+
+// PublishedVersionID returns the published version of a PUBLISHED test.
+func (r *PostgresRepository) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	var versionID *uuid.UUID
+	err := r.pool.QueryRow(ctx, `SELECT published_version_id FROM listening_tests
+		WHERE id=$1 AND status='PUBLISHED'`, id).Scan(&versionID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get published listening version: %w", err)
+	}
+	if versionID == nil {
+		return uuid.Nil, ErrNotFound
+	}
+	return *versionID, nil
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, actorID uuid.UUID, input SaveInput) (Test, error) {
