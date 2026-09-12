@@ -12,6 +12,9 @@ var (
 	ErrMaterialNotFound    = errors.New("material not found or not published")
 	ErrUnsupportedMaterial = errors.New("unsupported material type")
 	ErrAlreadySubmitted    = errors.New("attempt already submitted")
+	ErrWritingIncomplete   = errors.New("both writing tasks need an answer")
+	ErrAIUnavailable       = errors.New("AI evaluation is not configured")
+	ErrAIEvaluationFailed  = errors.New("AI evaluation failed")
 )
 
 const (
@@ -20,6 +23,7 @@ const (
 
 	MaterialListening = "listening"
 	MaterialReading   = "reading"
+	MaterialWriting   = "writing"
 )
 
 type Attempt struct {
@@ -66,8 +70,46 @@ type GradingQuestion struct {
 }
 
 type GradingMaterial struct {
-	ExamType  string
-	Questions []GradingQuestion
+	ExamType     string
+	Questions    []GradingQuestion
+	WritingTasks []WritingTask
+}
+
+type WritingTask struct {
+	ID           uuid.UUID
+	Position     int
+	Type         string
+	Prompt       string
+	MinimumWords int
+}
+
+type WritingCriterion struct {
+	Band     float64 `json:"band"`
+	Feedback string  `json:"feedback"`
+}
+
+type WritingCriteria struct {
+	TaskResponse    WritingCriterion `json:"taskResponse"`
+	Coherence       WritingCriterion `json:"coherence"`
+	LexicalResource WritingCriterion `json:"lexicalResource"`
+	Grammar         WritingCriterion `json:"grammar"`
+}
+
+type WritingTaskFeedback struct {
+	TaskID       uuid.UUID `json:"taskId"`
+	Feedback     string    `json:"feedback"`
+	Strengths    []string  `json:"strengths"`
+	Improvements []string  `json:"improvements"`
+}
+
+type WritingEvaluation struct {
+	AttemptID   uuid.UUID             `json:"-"`
+	Model       string                `json:"model"`
+	OverallBand float64               `json:"overallBand"`
+	Criteria    WritingCriteria       `json:"criteria"`
+	Summary     string                `json:"summary"`
+	Tasks       []WritingTaskFeedback `json:"tasks"`
+	EvaluatedAt time.Time             `json:"evaluatedAt"`
 }
 
 type Summary struct {
@@ -89,6 +131,7 @@ type ReviewAnswer struct {
 
 type Detail struct {
 	Attempt
-	Answers []Answer       `json:"answers,omitempty"`
-	Review  []ReviewAnswer `json:"review,omitempty"`
+	Answers           []Answer           `json:"answers,omitempty"`
+	Review            []ReviewAnswer     `json:"review,omitempty"`
+	WritingEvaluation *WritingEvaluation `json:"writingEvaluation,omitempty"`
 }

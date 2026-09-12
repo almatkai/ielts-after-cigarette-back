@@ -6,6 +6,7 @@ import (
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
 	"github.com/google/uuid"
 )
 
@@ -110,4 +111,46 @@ func (p readingProvider) GradingStructure(ctx context.Context, materialID, versi
 		}
 	}
 	return GradingMaterial{ExamType: material.ExamType, Questions: questions}, nil
+}
+
+type writingProvider struct {
+	service *writing.Service
+}
+
+func NewWritingProvider(service *writing.Service) MaterialProvider {
+	return writingProvider{service: service}
+}
+
+func (p writingProvider) PublishedVersionID(ctx context.Context, materialID uuid.UUID) (uuid.UUID, error) {
+	versionID, err := p.service.PublishedVersionID(ctx, materialID)
+	if errors.Is(err, writing.ErrNotFound) {
+		return uuid.Nil, ErrMaterialNotFound
+	}
+	return versionID, err
+}
+
+func (p writingProvider) PublicStructure(ctx context.Context, materialID, versionID uuid.UUID) (any, error) {
+	material, err := p.service.GetVersionPublic(ctx, materialID, versionID)
+	if errors.Is(err, writing.ErrNotFound) {
+		return nil, ErrMaterialNotFound
+	}
+	return material, err
+}
+
+func (p writingProvider) GradingStructure(ctx context.Context, materialID, versionID uuid.UUID) (GradingMaterial, error) {
+	material, err := p.service.GetVersion(ctx, materialID, versionID)
+	if errors.Is(err, writing.ErrNotFound) {
+		return GradingMaterial{}, ErrMaterialNotFound
+	}
+	if err != nil {
+		return GradingMaterial{}, err
+	}
+	tasks := make([]WritingTask, 0, len(material.Tasks))
+	for _, task := range material.Tasks {
+		tasks = append(tasks, WritingTask{
+			ID: task.ID, Position: task.Position, Type: task.Type,
+			Prompt: task.Prompt, MinimumWords: task.MinimumWords,
+		})
+	}
+	return GradingMaterial{ExamType: material.ExamType, WritingTasks: tasks}, nil
 }

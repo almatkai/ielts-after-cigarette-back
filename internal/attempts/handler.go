@@ -31,6 +31,10 @@ func (h *Handler) StartReading(w http.ResponseWriter, r *http.Request) {
 	h.start(w, r, MaterialReading, "materialID", "Material ID", "material")
 }
 
+func (h *Handler) StartWriting(w http.ResponseWriter, r *http.Request) {
+	h.start(w, r, MaterialWriting, "materialID", "Material ID", "material")
+}
+
 func (h *Handler) start(w http.ResponseWriter, r *http.Request, materialType, param, paramName, responseKey string) {
 	materialID, err := uuid.Parse(chi.URLParam(r, param))
 	if err != nil {
@@ -87,9 +91,9 @@ func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	materialType := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("materialType")))
-	if materialType != "" && materialType != MaterialListening && materialType != MaterialReading {
+	if materialType != "" && materialType != MaterialListening && materialType != MaterialReading && materialType != MaterialWriting {
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed",
-			map[string]string{"materialType": "must be listening or reading"})
+			map[string]string{"materialType": "must be listening, reading, or writing"})
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
@@ -157,7 +161,13 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		httpx.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "Material was not found or is not published", nil)
 	case errors.Is(err, ErrUnsupportedMaterial):
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed",
-			map[string]string{"materialType": "must be listening or reading"})
+			map[string]string{"materialType": "must be listening, reading, or writing"})
+	case errors.Is(err, ErrWritingIncomplete):
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "WRITING_INCOMPLETE", "Both Writing tasks need an answer before submission", nil)
+	case errors.Is(err, ErrAIUnavailable):
+		httpx.WriteError(w, r, http.StatusServiceUnavailable, "AI_NOT_CONFIGURED", "AI assessment is not configured", nil)
+	case errors.Is(err, ErrAIEvaluationFailed):
+		httpx.WriteError(w, r, http.StatusBadGateway, "AI_EVALUATION_FAILED", "AI assessment could not be completed", nil)
 	case errors.Is(err, ErrAlreadySubmitted):
 		httpx.WriteError(w, r, http.StatusConflict, "ATTEMPT_ALREADY_SUBMITTED", "Attempt was already submitted", nil)
 	default:

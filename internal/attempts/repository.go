@@ -15,14 +15,15 @@ const attemptColumns = `id, user_id, material_type, material_id, material_versio
 	status, score, max_score, band::double precision, started_at, submitted_at`
 
 type SubmitResult struct {
-	AttemptID uuid.UUID
-	UserID    uuid.UUID
-	Skill     string
-	Answers   []Answer
-	Score     int
-	MaxScore  int
-	Band      float64
-	Accuracy  float64
+	AttemptID         uuid.UUID
+	UserID            uuid.UUID
+	Skill             string
+	Answers           []Answer
+	Score             int
+	MaxScore          int
+	Band              float64
+	Accuracy          float64
+	WritingEvaluation *WritingEvaluation
 }
 
 type Repository interface {
@@ -91,12 +92,14 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, m
 	rows, err := r.pool.Query(ctx, `SELECT a.id, a.user_id, a.material_type, a.material_id,
 		a.material_version_id, a.status, a.score, a.max_score, a.band::double precision,
 		a.started_at, a.submitted_at,
-		COALESCE(lv.title, rv.title, ''), COALESCE(lt.slug, rm.slug, '')
+		COALESCE(lv.title, rv.title, wv.title, ''), COALESCE(lt.slug, rm.slug, wm.slug, '')
 		FROM attempts a
 		LEFT JOIN listening_tests lt ON lt.id = a.material_id AND a.material_type = 'listening'
 		LEFT JOIN listening_test_versions lv ON lv.id = a.material_version_id AND a.material_type = 'listening'
 		LEFT JOIN reading_materials rm ON rm.id = a.material_id AND a.material_type = 'reading'
 		LEFT JOIN reading_material_versions rv ON rv.id = a.material_version_id AND a.material_type = 'reading'
+		LEFT JOIN writing_materials wm ON wm.id = a.material_id AND a.material_type = 'writing'
+		LEFT JOIN writing_material_versions wv ON wv.id = a.material_version_id AND a.material_type = 'writing'
 		WHERE a.user_id = $1 AND ($2 = '' OR a.material_type = $2)
 		ORDER BY a.started_at DESC`, userID, materialType)
 	if err != nil {
@@ -197,5 +200,62 @@ func (r *PostgresRepository) Submit(ctx context.Context, result SubmitResult) er
 		uuid.New(), result.UserID, result.Skill, result.Band, result.Accuracy); err != nil {
 		return fmt.Errorf("update skill progress: %w", err)
 	}
+	if result.WritingEvaluation != nil {
+		feedback, err := json.Marshal(struct {
+			Summary  string                `json:"summary"`
+			Criteria WritingCriteria       `json:"criteria"`
+			Tasks    []WritingTaskFeedback `json:"tasks"`
+		}{
+			Summary: result.WritingEvaluation.Summary, Criteria: result.WritingEvaluation.Criteria,
+			Tasks: result.WritingEvaluation.Tasks,
+		})
+		if err != nil {
+			return fmt.Errorf("encode writing evaluation: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO writing_evaluations
+			(attempt_id, model, overall_band, task_response_band, coherence_band, lexical_resource_band, grammar_band, feedback)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`,
+			result.AttemptID, result.WritingEvaluation.Model, result.WritingEvaluation.OverallBand,
+			result.WritingEvaluation.Criteria.TaskResponse.Band, result.WritingEvaluation.Criteria.Coherence.Band,
+			result.WritingEvaluation.Criteria.LexicalResource.Band, result.WritingEvaluation.Criteria.Grammar.Band,
+			feedback); err != nil {
+			return fmt.Errorf("save writing evaluation: %w", err)
+		}
+	}
 	return tx.Commit(ctx)
+}
+
+func (r *PostgresRepository) GetWritingEvaluation(ctx context.Context, attemptID uuid.UUID) (WritingEvaluation, error) {
+	var evaluation WritingEvaluation
+	var feedback []byte
+	err := r.pool.QueryRow(ctx, `SELECT model, overall_band::double precision,
+		task_response_band::double precision, coherence_band::double precision,
+		lexical_resource_band::double precision, grammar_band::double precision,
+		feedback, evaluated_at
+		FROM writing_evaluations WHERE attempt_id=$1`, attemptID).Scan(
+		&evaluation.Model, &evaluation.OverallBand, &evaluation.Criteria.TaskResponse.Band,
+		&evaluation.Criteria.Coherence.Band, &evaluation.Criteria.LexicalResource.Band,
+		&evaluation.Criteria.Grammar.Band, &feedback, &evaluation.EvaluatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return WritingEvaluation{}, ErrNotFound
+	}
+	if err != nil {
+		return WritingEvaluation{}, fmt.Errorf("get writing evaluation: %w", err)
+	}
+	var stored struct {
+		Summary  string                `json:"summary"`
+		Criteria WritingCriteria       `json:"criteria"`
+		Tasks    []WritingTaskFeedback `json:"tasks"`
+	}
+	if err := json.Unmarshal(feedback, &stored); err != nil {
+		return WritingEvaluation{}, fmt.Errorf("decode writing evaluation: %w", err)
+	}
+	evaluation.AttemptID = attemptID
+	evaluation.Summary = stored.Summary
+	evaluation.Tasks = stored.Tasks
+	evaluation.Criteria.TaskResponse.Feedback = stored.Criteria.TaskResponse.Feedback
+	evaluation.Criteria.Coherence.Feedback = stored.Criteria.Coherence.Feedback
+	evaluation.Criteria.LexicalResource.Feedback = stored.Criteria.LexicalResource.Feedback
+	evaluation.Criteria.Grammar.Feedback = stored.Criteria.Grammar.Feedback
+	return evaluation, nil
 }

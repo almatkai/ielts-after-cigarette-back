@@ -79,6 +79,9 @@ docs/API.md            REST-контракт и примеры
 | `INFOBIP_ENABLED` | включает реальную отправку через Infobip |
 | `INFOBIP_BASE_URL`, `INFOBIP_API_KEY` | API endpoint и ключ Infobip |
 | `INFOBIP_WHATSAPP_*` | sender, approved template и язык WhatsApp |
+| `OPENROUTER_API_KEY` | API key для AI-проверки Writing через OpenRouter |
+| `OPENROUTER_MODEL` | модель проверки; по умолчанию `openrouter/free` |
+| `OPENROUTER_TIMEOUT` | предел ожидания ответа AI; по умолчанию `45s` |
 
 `.env` исключён из Git. Значения по умолчанию в Compose предназначены только для
 локальной разработки и должны быть переопределены в любом общем окружении.

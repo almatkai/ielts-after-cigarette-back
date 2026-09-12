@@ -23,6 +23,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -74,6 +75,9 @@ func New(
 	readingRepository := reading.NewPostgresRepository(pool)
 	readingService := reading.NewService(readingRepository)
 	readingHandler := reading.NewHandler(readingService, logger, cfg.MaxRequestBody)
+	writingRepository := writing.NewPostgresRepository(pool)
+	writingService := writing.NewService(writingRepository)
+	writingHandler := writing.NewHandler(writingService, logger, cfg.MaxRequestBody)
 	listeningRepository := listening.NewPostgresRepository(pool)
 	listeningService := listening.NewService(listeningRepository, cfg.ListeningMediaDir)
 	listeningHandler := listening.NewHandler(listeningService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
@@ -81,7 +85,8 @@ func New(
 	attemptsHandler := attempts.NewHandler(attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
-	}), logger, cfg.MaxRequestBody)
+		attempts.MaterialWriting:   attempts.NewWritingProvider(writingService),
+	}, attempts.NewOpenRouterEvaluator(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, &http.Client{Timeout: cfg.OpenRouterTimeout})), logger, cfg.MaxRequestBody)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
 	infobipAPIKey := cfg.InfobipAPIKey
@@ -151,6 +156,9 @@ func New(
 			protected.Get("/reading/materials", readingHandler.ListPublic)
 			protected.Get("/reading/materials/{materialID}", readingHandler.GetPublic)
 			protected.Post("/reading/materials/{materialID}/attempts", attemptsHandler.StartReading)
+			protected.Get("/writing/materials", writingHandler.ListPublic)
+			protected.Get("/writing/materials/{materialID}", writingHandler.GetPublic)
+			protected.Post("/writing/materials/{materialID}/attempts", attemptsHandler.StartWriting)
 			protected.Put("/attempts/{attemptID}/answers", attemptsHandler.SaveAnswers)
 			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)
 			protected.Get("/attempts", attemptsHandler.List)
@@ -170,6 +178,13 @@ func New(
 				adminRouter.Get("/reading/materials/{materialID}", readingHandler.Get)
 				adminRouter.Put("/reading/materials/{materialID}", readingHandler.Update)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/publish", readingHandler.Publish)
+				adminRouter.Get("/writing/materials", writingHandler.List)
+				adminRouter.Post("/writing/materials", writingHandler.Create)
+				adminRouter.Post("/writing/import/parse", writingHandler.ParseImport)
+				adminRouter.Post("/writing/import", writingHandler.BulkImport)
+				adminRouter.Get("/writing/materials/{materialID}", writingHandler.Get)
+				adminRouter.Put("/writing/materials/{materialID}", writingHandler.Update)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/writing/materials/{materialID}/publish", writingHandler.Publish)
 				adminRouter.Get("/listening/tests", listeningHandler.ListAdmin)
 				adminRouter.Post("/listening/tests", listeningHandler.Create)
 				adminRouter.Get("/listening/tests/{testID}", listeningHandler.GetAdmin)

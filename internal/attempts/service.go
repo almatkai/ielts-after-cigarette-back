@@ -12,10 +12,15 @@ import (
 type Service struct {
 	repository Repository
 	providers  map[string]MaterialProvider
+	evaluator  WritingEvaluator
 }
 
-func NewService(repository Repository, providers map[string]MaterialProvider) *Service {
-	return &Service{repository: repository, providers: providers}
+func NewService(repository Repository, providers map[string]MaterialProvider, evaluators ...WritingEvaluator) *Service {
+	service := &Service{repository: repository, providers: providers}
+	if len(evaluators) > 0 {
+		service.evaluator = evaluators[0]
+	}
+	return service
 }
 
 func (s *Service) provider(materialType string) (MaterialProvider, error) {
@@ -81,6 +86,9 @@ func (s *Service) Submit(ctx context.Context, userID, attemptID uuid.UUID, input
 	if attempt.Status != StatusInProgress {
 		return Attempt{}, ErrAlreadySubmitted
 	}
+	if attempt.MaterialType == MaterialWriting {
+		return s.submitWriting(ctx, attempt, input)
+	}
 	provider, err := s.provider(attempt.MaterialType)
 	if err != nil {
 		return Attempt{}, err
@@ -141,6 +149,58 @@ func (s *Service) Submit(ctx context.Context, userID, attemptID uuid.UUID, input
 	return s.repository.Get(ctx, attemptID)
 }
 
+func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input SaveAnswersInput) (Attempt, error) {
+	provider, err := s.provider(attempt.MaterialType)
+	if err != nil {
+		return Attempt{}, err
+	}
+	material, err := provider.GradingStructure(ctx, attempt.MaterialID, attempt.MaterialVersionID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	saved, err := s.repository.ListAnswers(ctx, attempt.ID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	given := make(map[uuid.UUID]map[string]any, len(saved)+len(input.Answers))
+	for _, item := range saved {
+		given[item.QuestionID] = item.Answer
+	}
+	for _, item := range input.Answers {
+		given[item.QuestionID] = item.Answer
+	}
+	request := WritingEvaluationRequest{ExamType: material.ExamType, Tasks: make([]WritingTaskAnswer, 0, len(material.WritingTasks))}
+	answers := make([]Answer, 0, len(material.WritingTasks))
+	for _, task := range material.WritingTasks {
+		answer := given[task.ID]
+		text, _ := answer["value"].(string)
+		if len(strings.TrimSpace(text)) == 0 || len([]rune(text)) > 15000 {
+			return Attempt{}, ErrWritingIncomplete
+		}
+		request.Tasks = append(request.Tasks, WritingTaskAnswer{Task: task, Text: text})
+		answers = append(answers, Answer{QuestionID: task.ID, Answer: map[string]any{"value": text}})
+	}
+	if s.evaluator == nil {
+		return Attempt{}, ErrAIUnavailable
+	}
+	evaluation, err := s.evaluator.Evaluate(ctx, request)
+	if err != nil {
+		return Attempt{}, err
+	}
+	evaluation.AttemptID = attempt.ID
+	band := evaluation.OverallBand
+	score := int(math.Round(band * 10))
+	accuracy := math.Round(band/9*10000) / 100
+	if err := s.repository.Submit(ctx, SubmitResult{
+		AttemptID: attempt.ID, UserID: attempt.UserID, Skill: MaterialWriting,
+		Answers: answers, Score: score, MaxScore: 90, Band: band, Accuracy: accuracy,
+		WritingEvaluation: &evaluation,
+	}); err != nil {
+		return Attempt{}, err
+	}
+	return s.repository.Get(ctx, attempt.ID)
+}
+
 func (s *Service) List(ctx context.Context, userID uuid.UUID, materialType string) ([]Summary, error) {
 	return s.repository.ListByUser(ctx, userID, materialType)
 }
@@ -159,6 +219,19 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 	}
 	if attempt.Status == StatusInProgress {
 		return Detail{Attempt: attempt, Answers: saved}, nil
+	}
+	if attempt.MaterialType == MaterialWriting {
+		repository, ok := s.repository.(interface {
+			GetWritingEvaluation(context.Context, uuid.UUID) (WritingEvaluation, error)
+		})
+		if !ok {
+			return Detail{}, ErrNotFound
+		}
+		evaluation, err := repository.GetWritingEvaluation(ctx, attemptID)
+		if err != nil {
+			return Detail{}, err
+		}
+		return Detail{Attempt: attempt, Answers: saved, WritingEvaluation: &evaluation}, nil
 	}
 	provider, err := s.provider(attempt.MaterialType)
 	if err != nil {

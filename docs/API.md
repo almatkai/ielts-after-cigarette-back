@@ -571,7 +571,7 @@ revision возвращает `409 REVISION_CONFLICT`, повторяющийс�
 
 Попытки прохождения тестов студентами. Все endpoint'ы требуют Bearer token и
 доступны только владельцу попытки (чужая попытка даёт `404 NOT_FOUND`).
-Поддерживаются `materialType: "listening"` и `"reading"`. Попытка привязана к
+Поддерживаются `materialType: "listening"`, `"reading"` и `"writing"`. Попытка привязана к
 конкретной версии материала (`materialVersionId`): грейдинг и разбор всегда
 идут по той версии, на которой попытка была начата.
 
@@ -652,6 +652,30 @@ revision возвращает `409 REVISION_CONFLICT`, повторяющийс�
   }
 }
 ```
+
+### `POST /writing/materials/{materialId}/attempts`
+
+Стартует Writing-попытку по опубликованному материалу. Ответ содержит
+`attempt` и `material` с двумя заданиями (`tasks`): Task 1 и Task 2. Для
+Academic Task 1 материал содержит `visualType` и может содержать `visualUrl`;
+для General Task 1 — `letterTone`. В черновиках каждого задания используется
+идентификатор `tasks[].id` и текстовый ответ:
+
+```json
+{
+  "answers": [
+    {"questionId": "task-uuid", "answer": {"value": "My essay in English..."}}
+  ]
+}
+```
+
+При `POST /attempts/{attemptId}/submit` оба задания обязательны. Backend
+отправляет их в OpenRouter и возвращает попытку с итоговым band. Если
+`OPENROUTER_API_KEY` не настроен, ответ — `503 AI_NOT_CONFIGURED`; при ошибке
+провайдера — `502 AI_EVALUATION_FAILED`. Детали сданной Writing-попытки
+(`GET /attempts/{attemptId}`) включают `writingEvaluation`: four criteria
+`taskResponse`, `coherence`, `lexicalResource`, `grammar`, их band и feedback,
+а также summary и рекомендации по каждой задаче.
 
 ### `PUT /attempts/{attemptId}/answers`
 

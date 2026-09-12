@@ -44,6 +44,9 @@ type Config struct {
 	InfobipTimeout          time.Duration
 	GoogleClientID          string
 	SuperAdminEmails        []string
+	OpenRouterAPIKey        string
+	OpenRouterModel         string
+	OpenRouterTimeout       time.Duration
 }
 
 func Load() (Config, error) {
@@ -67,6 +70,8 @@ func Load() (Config, error) {
 		GoogleClientID:          env("GOOGLE_CLIENT_ID", "525971866611-vk1derapc3opreb82i2ba2edeldsev8l.apps.googleusercontent.com"),
 		SuperAdminEmails:        splitCSV(os.Getenv("SUPER_ADMIN_EMAILS")),
 		ListeningMediaDir:       env("LISTENING_MEDIA_DIR", "./var/listening-media"),
+		OpenRouterAPIKey:        os.Getenv("OPENROUTER_API_KEY"),
+		OpenRouterModel:         env("OPENROUTER_MODEL", "openrouter/free"),
 	}
 
 	var err error
@@ -95,6 +100,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.InfobipTimeout, err = durationEnv("INFOBIP_TIMEOUT", 10*time.Second); err != nil {
+		return Config{}, err
+	}
+	if cfg.OpenRouterTimeout, err = durationEnv("OPENROUTER_TIMEOUT", 45*time.Second); err != nil {
 		return Config{}, err
 	}
 	if cfg.MaxRequestBody, err = int64Env("MAX_REQUEST_BODY_BYTES", 1<<20); err != nil {
@@ -200,6 +208,14 @@ func (c Config) Validate() error {
 	}
 	if c.InfobipTimeout <= 0 {
 		problems = append(problems, "INFOBIP_TIMEOUT must be positive")
+	}
+	if strings.TrimSpace(c.OpenRouterAPIKey) != "" {
+		if c.OpenRouterTimeout <= 0 {
+			problems = append(problems, "OPENROUTER_TIMEOUT must be positive")
+		}
+		if strings.TrimSpace(c.OpenRouterModel) == "" {
+			problems = append(problems, "OPENROUTER_MODEL is required when OPENROUTER_API_KEY is configured")
+		}
 	}
 	if len(problems) > 0 {
 		return errors.New(strings.Join(problems, "; "))
