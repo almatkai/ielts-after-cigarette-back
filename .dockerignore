@@ -1,6 +1,10 @@
 .git
 .gitignore
 .env
+.env.dev
+.env.dev.local
+.local-backups
+.local-demo-media
 bin
 coverage.out
 README.md

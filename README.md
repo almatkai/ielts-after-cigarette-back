@@ -1,5 +1,8 @@
 # IELTS preparation API
 
+Общая dev-БД и запуск: [docs/SHARED_DEV_DATABASE.md](docs/SHARED_DEV_DATABASE.md).
+Ревизия текущего dev и известные проблемы: [docs/DEV_REVIEW.md](docs/DEV_REVIEW.md).
+
 Reading bulk import format: [docs/READING_IMPORT_FORMAT.md](docs/READING_IMPORT_FORMAT.md).
 Listening bulk import format: [docs/LISTENING_IMPORT_FORMAT.md](docs/LISTENING_IMPORT_FORMAT.md).
 Reusable AI conversion prompt: [docs/AI_IMPORT_PROMPT.md](docs/AI_IMPORT_PROMPT.md).
