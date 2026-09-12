@@ -571,7 +571,7 @@ revision возвращает `409 REVISION_CONFLICT`, повторяющийс�
 
 Попытки прохождения тестов студентами. Все endpoint'ы требуют Bearer token и
 доступны только владельцу попытки (чужая попытка даёт `404 NOT_FOUND`).
-Поддерживаются `materialType: "listening"`, `"reading"` и `"writing"`. Попытка привязана к
+Поддерживаются `materialType: "listening"`, `"reading"`, `"writing"` и `"speaking"`. Попытка привязана к
 конкретной версии материала (`materialVersionId`): грейдинг и разбор всегда
 идут по той версии, на которой попытка была начата.
 
@@ -676,6 +676,71 @@ Academic Task 1 материал содержит `visualType` и может с�
 (`GET /attempts/{attemptId}`) включают `writingEvaluation`: four criteria
 `taskResponse`, `coherence`, `lexicalResource`, `grammar`, их band и feedback,
 а также summary и рекомендации по каждой задаче.
+
+### `GET /speaking/materials` и `GET /speaking/materials/{materialId}`
+
+Возвращают опубликованные Speaking-материалы и их полную структуру. Материал
+состоит ровно из трёх частей: `part1`, `part2`, `part3`. В Part 1 и Part 3
+заданы вопросы (`questions`); в Part 2 — cue card (`cueCard`), время на
+подготовку и ответ (`preparationSeconds`, `responseSeconds`).
+
+### `POST /speaking/materials/{materialId}/attempts`
+
+Стартует Speaking-попытку по опубликованному материалу. Повторный вызов для
+незавершённой попытки возвращает её с `200`, новая попытка создаётся с `201`.
+Ответ содержит `attempt` и `material` с тремя частями Speaking.
+
+### `POST /attempts/{attemptId}/recordings`
+
+Сохраняет либо заменяет аудиозапись одной части Speaking. Запрос
+`multipart/form-data`: поле `partId` содержит UUID части, `recording` — аудио
+`webm`, `ogg`, `wav`, `mp3`, `m4a` или `aac`. Максимальный размер одной записи
+— 12 MiB. Ответ `201` содержит метаданные записи; файл доступен владельцу по
+`GET /attempts/{attemptId}/recordings/{partId}`.
+
+### Speaking submit и результат
+
+Для Speaking `POST /attempts/{attemptId}/submit` требует запись или текстовую
+расшифровку для каждой из трёх частей. Записи передаются аудио-совместимой
+модели OpenRouter для расшифровки и учебной оценки. Детали сданной попытки
+(`GET /attempts/{attemptId}`) содержат `speakingEvaluation`: общий band,
+`fluency`, `lexicalResource`, `grammar`, `pronunciation`, `summary`, а также
+расшифровку и рекомендации по каждой части. Если AI не настроен —
+`503 AI_NOT_CONFIGURED`; если оценка не была получена —
+`502 AI_EVALUATION_FAILED`.
+
+## Full Mock Test
+
+Full Mock объединяет четыре независимые попытки в одну экзаменационную сессию:
+`listening → reading → writing → speaking`. Каждая дочерняя попытка закрепляется
+за опубликованной версией материала при старте сессии; она не переиспользует
+отдельную практическую попытку пользователя.
+
+### `GET /full-mocks`, `GET /full-mocks/{mockId}`
+
+Возвращают опубликованные наборы Full Mock. Набор содержит четыре ID материалов,
+тип экзамена и общий лимит `durationMinutes`.
+
+### `POST /full-mocks/{mockId}/sessions`
+
+Создаёт Full Mock-сессию либо возвращает незавершённую сессию пользователя для
+того же набора. Ответ содержит четыре секции, их дочерние attempts,
+`currentSection` и фиксированный `deadlineAt` для общего таймера.
+
+### `GET /full-mock-sessions/{sessionId}` и `POST /full-mock-sessions/{sessionId}/advance`
+
+Получение сессии доступно только владельцу. `advance` разрешён только после
+сдачи текущей секции; обратного перехода API не предоставляет. После Speaking
+сессия получает статус `SUBMITTED`, а ответ содержит band каждой секции и
+`overallBand` — среднее четырёх band с округлением до 0,5.
+
+### Управление наборами Full Mock
+
+`EDITOR` и `ADMIN` могут использовать `GET/POST/PUT /admin/full-mocks` и
+`GET /admin/full-mocks/{mockId}`. Публикация
+`POST /admin/full-mocks/{mockId}/publish` требует `ADMIN`. В body задаются
+`listeningMaterialId`, `readingMaterialId`, `writingMaterialId`,
+`speakingMaterialId`, `examType`, `durationMinutes`, `slug` и `title`.
 
 ### `PUT /attempts/{attemptId}/answers`
 

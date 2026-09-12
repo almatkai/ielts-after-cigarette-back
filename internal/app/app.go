@@ -16,11 +16,13 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/dashboard"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/fullmock"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/health"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
@@ -78,15 +80,28 @@ func New(
 	writingRepository := writing.NewPostgresRepository(pool)
 	writingService := writing.NewService(writingRepository)
 	writingHandler := writing.NewHandler(writingService, logger, cfg.MaxRequestBody)
+	speakingRepository := speaking.NewPostgresRepository(pool)
+	speakingService := speaking.NewService(speakingRepository)
+	speakingHandler := speaking.NewHandler(speakingService, logger, cfg.MaxRequestBody)
 	listeningRepository := listening.NewPostgresRepository(pool)
 	listeningService := listening.NewService(listeningRepository, cfg.ListeningMediaDir)
 	listeningHandler := listening.NewHandler(listeningService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 	attemptsRepository := attempts.NewPostgresRepository(pool)
-	attemptsHandler := attempts.NewHandler(attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
+	speakingMediaLimit := cfg.MaxMediaUploadBytes
+	if speakingMediaLimit < 1 || speakingMediaLimit > 12<<20 {
+		speakingMediaLimit = 12 << 20
+	}
+	openRouterEvaluator := attempts.NewOpenRouterEvaluator(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, &http.Client{Timeout: cfg.OpenRouterTimeout}).
+		WithSpeakingModel(cfg.OpenRouterSpeakingModel)
+	attemptsService := attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
 		attempts.MaterialWriting:   attempts.NewWritingProvider(writingService),
-	}, attempts.NewOpenRouterEvaluator(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, &http.Client{Timeout: cfg.OpenRouterTimeout})), logger, cfg.MaxRequestBody)
+		attempts.MaterialSpeaking:  attempts.NewSpeakingProvider(speakingService),
+	}, openRouterEvaluator).WithSpeakingRecordingStore(cfg.SpeakingMediaDir, speakingMediaLimit, openRouterEvaluator)
+	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
+	fullMockRepository := fullmock.NewPostgresRepository(pool)
+	fullMockHandler := fullmock.NewHandler(fullmock.NewService(fullMockRepository, attemptsService), logger, cfg.MaxRequestBody)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
 	infobipAPIKey := cfg.InfobipAPIKey
@@ -149,6 +164,11 @@ func New(
 
 		api.Group(func(protected chi.Router) {
 			protected.Use(auth.Authenticate(tokens))
+			protected.Get("/full-mocks", fullMockHandler.ListPublic)
+			protected.Get("/full-mocks/{mockID}", fullMockHandler.GetPublic)
+			protected.Post("/full-mocks/{mockID}/sessions", fullMockHandler.Start)
+			protected.Get("/full-mock-sessions/{sessionID}", fullMockHandler.GetSession)
+			protected.Post("/full-mock-sessions/{sessionID}/advance", fullMockHandler.Advance)
 			protected.Get("/listening/tests", listeningHandler.ListPublic)
 			protected.Get("/listening/tests/{testID}", listeningHandler.GetPublic)
 			protected.Get("/listening/media/{mediaID}", listeningHandler.Media)
@@ -159,7 +179,12 @@ func New(
 			protected.Get("/writing/materials", writingHandler.ListPublic)
 			protected.Get("/writing/materials/{materialID}", writingHandler.GetPublic)
 			protected.Post("/writing/materials/{materialID}/attempts", attemptsHandler.StartWriting)
+			protected.Get("/speaking/materials", speakingHandler.ListPublic)
+			protected.Get("/speaking/materials/{materialID}", speakingHandler.GetPublic)
+			protected.Post("/speaking/materials/{materialID}/attempts", attemptsHandler.StartSpeaking)
 			protected.Put("/attempts/{attemptID}/answers", attemptsHandler.SaveAnswers)
+			protected.Post("/attempts/{attemptID}/recordings", attemptsHandler.UploadSpeakingRecording)
+			protected.Get("/attempts/{attemptID}/recordings/{partID}", attemptsHandler.SpeakingRecording)
 			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)
 			protected.Get("/attempts", attemptsHandler.List)
 			protected.Get("/attempts/{attemptID}", attemptsHandler.Get)
@@ -171,6 +196,11 @@ func New(
 			protected.Route("/admin", func(adminRouter chi.Router) {
 				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
 				adminRouter.Get("/access", adminHandler.Access)
+				adminRouter.Get("/full-mocks", fullMockHandler.List)
+				adminRouter.Post("/full-mocks", fullMockHandler.Create)
+				adminRouter.Get("/full-mocks/{mockID}", fullMockHandler.Get)
+				adminRouter.Put("/full-mocks/{mockID}", fullMockHandler.Update)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/full-mocks/{mockID}/publish", fullMockHandler.Publish)
 				adminRouter.Get("/reading/materials", readingHandler.List)
 				adminRouter.Post("/reading/materials", readingHandler.Create)
 				adminRouter.Post("/reading/import/parse", readingHandler.ParseImport)
@@ -185,6 +215,11 @@ func New(
 				adminRouter.Get("/writing/materials/{materialID}", writingHandler.Get)
 				adminRouter.Put("/writing/materials/{materialID}", writingHandler.Update)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/writing/materials/{materialID}/publish", writingHandler.Publish)
+				adminRouter.Get("/speaking/materials", speakingHandler.List)
+				adminRouter.Post("/speaking/materials", speakingHandler.Create)
+				adminRouter.Get("/speaking/materials/{materialID}", speakingHandler.Get)
+				adminRouter.Put("/speaking/materials/{materialID}", speakingHandler.Update)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/speaking/materials/{materialID}/publish", speakingHandler.Publish)
 				adminRouter.Get("/listening/tests", listeningHandler.ListAdmin)
 				adminRouter.Post("/listening/tests", listeningHandler.Create)
 				adminRouter.Get("/listening/tests/{testID}", listeningHandler.GetAdmin)

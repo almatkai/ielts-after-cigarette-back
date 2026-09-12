@@ -6,6 +6,7 @@ import (
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
 	"github.com/google/uuid"
 )
@@ -153,4 +154,52 @@ func (p writingProvider) GradingStructure(ctx context.Context, materialID, versi
 		})
 	}
 	return GradingMaterial{ExamType: material.ExamType, WritingTasks: tasks}, nil
+}
+
+type speakingProvider struct {
+	service *speaking.Service
+}
+
+func NewSpeakingProvider(service *speaking.Service) MaterialProvider {
+	return speakingProvider{service: service}
+}
+
+func (p speakingProvider) PublishedVersionID(ctx context.Context, materialID uuid.UUID) (uuid.UUID, error) {
+	versionID, err := p.service.PublishedVersionID(ctx, materialID)
+	if errors.Is(err, speaking.ErrNotFound) {
+		return uuid.Nil, ErrMaterialNotFound
+	}
+	return versionID, err
+}
+
+func (p speakingProvider) PublicStructure(ctx context.Context, materialID, versionID uuid.UUID) (any, error) {
+	material, err := p.service.GetVersionPublic(ctx, materialID, versionID)
+	if errors.Is(err, speaking.ErrNotFound) {
+		return nil, ErrMaterialNotFound
+	}
+	return material, err
+}
+
+func (p speakingProvider) GradingStructure(ctx context.Context, materialID, versionID uuid.UUID) (GradingMaterial, error) {
+	material, err := p.service.GetVersion(ctx, materialID, versionID)
+	if errors.Is(err, speaking.ErrNotFound) {
+		return GradingMaterial{}, ErrMaterialNotFound
+	}
+	if err != nil {
+		return GradingMaterial{}, err
+	}
+	parts := make([]SpeakingPart, 0, len(material.Parts))
+	for _, part := range material.Parts {
+		questions := make([]string, 0, len(part.Questions))
+		for _, question := range part.Questions {
+			questions = append(questions, question.Prompt)
+		}
+		parts = append(parts, SpeakingPart{
+			ID: part.ID, Position: part.Position, Type: part.Type, Title: part.Title,
+			Instructions: part.Instructions, CueCard: part.CueCard,
+			PreparationSeconds: part.PreparationSeconds, ResponseSeconds: part.ResponseSeconds,
+			Questions: questions,
+		})
+	}
+	return GradingMaterial{ExamType: material.ExamType, SpeakingParts: parts}, nil
 }

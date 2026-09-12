@@ -15,15 +15,16 @@ const attemptColumns = `id, user_id, material_type, material_id, material_versio
 	status, score, max_score, band::double precision, started_at, submitted_at`
 
 type SubmitResult struct {
-	AttemptID         uuid.UUID
-	UserID            uuid.UUID
-	Skill             string
-	Answers           []Answer
-	Score             int
-	MaxScore          int
-	Band              float64
-	Accuracy          float64
-	WritingEvaluation *WritingEvaluation
+	AttemptID          uuid.UUID
+	UserID             uuid.UUID
+	Skill              string
+	Answers            []Answer
+	Score              int
+	MaxScore           int
+	Band               float64
+	Accuracy           float64
+	WritingEvaluation  *WritingEvaluation
+	SpeakingEvaluation *SpeakingEvaluation
 }
 
 type Repository interface {
@@ -92,7 +93,7 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, m
 	rows, err := r.pool.Query(ctx, `SELECT a.id, a.user_id, a.material_type, a.material_id,
 		a.material_version_id, a.status, a.score, a.max_score, a.band::double precision,
 		a.started_at, a.submitted_at,
-		COALESCE(lv.title, rv.title, wv.title, ''), COALESCE(lt.slug, rm.slug, wm.slug, '')
+		COALESCE(lv.title, rv.title, wv.title, sv.title, ''), COALESCE(lt.slug, rm.slug, wm.slug, sm.slug, '')
 		FROM attempts a
 		LEFT JOIN listening_tests lt ON lt.id = a.material_id AND a.material_type = 'listening'
 		LEFT JOIN listening_test_versions lv ON lv.id = a.material_version_id AND a.material_type = 'listening'
@@ -100,6 +101,8 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, m
 		LEFT JOIN reading_material_versions rv ON rv.id = a.material_version_id AND a.material_type = 'reading'
 		LEFT JOIN writing_materials wm ON wm.id = a.material_id AND a.material_type = 'writing'
 		LEFT JOIN writing_material_versions wv ON wv.id = a.material_version_id AND a.material_type = 'writing'
+		LEFT JOIN speaking_materials sm ON sm.id = a.material_id AND a.material_type = 'speaking'
+		LEFT JOIN speaking_material_versions sv ON sv.id = a.material_version_id AND a.material_type = 'speaking'
 		WHERE a.user_id = $1 AND ($2 = '' OR a.material_type = $2)
 		ORDER BY a.started_at DESC`, userID, materialType)
 	if err != nil {
@@ -222,6 +225,28 @@ func (r *PostgresRepository) Submit(ctx context.Context, result SubmitResult) er
 			return fmt.Errorf("save writing evaluation: %w", err)
 		}
 	}
+	if result.SpeakingEvaluation != nil {
+		feedback, err := json.Marshal(struct {
+			Summary  string                 `json:"summary"`
+			Criteria SpeakingCriteria       `json:"criteria"`
+			Parts    []SpeakingPartFeedback `json:"parts"`
+		}{
+			Summary: result.SpeakingEvaluation.Summary, Criteria: result.SpeakingEvaluation.Criteria,
+			Parts: result.SpeakingEvaluation.Parts,
+		})
+		if err != nil {
+			return fmt.Errorf("encode speaking evaluation: %w", err)
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO speaking_evaluations
+			(attempt_id, model, overall_band, fluency_band, lexical_resource_band, grammar_band, pronunciation_band, feedback)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`,
+			result.AttemptID, result.SpeakingEvaluation.Model, result.SpeakingEvaluation.OverallBand,
+			result.SpeakingEvaluation.Criteria.Fluency.Band, result.SpeakingEvaluation.Criteria.LexicalResource.Band,
+			result.SpeakingEvaluation.Criteria.Grammar.Band, result.SpeakingEvaluation.Criteria.Pronunciation.Band,
+			feedback); err != nil {
+			return fmt.Errorf("save speaking evaluation: %w", err)
+		}
+	}
 	return tx.Commit(ctx)
 }
 
@@ -258,4 +283,106 @@ func (r *PostgresRepository) GetWritingEvaluation(ctx context.Context, attemptID
 	evaluation.Criteria.LexicalResource.Feedback = stored.Criteria.LexicalResource.Feedback
 	evaluation.Criteria.Grammar.Feedback = stored.Criteria.Grammar.Feedback
 	return evaluation, nil
+}
+
+func (r *PostgresRepository) GetSpeakingEvaluation(ctx context.Context, attemptID uuid.UUID) (SpeakingEvaluation, error) {
+	var evaluation SpeakingEvaluation
+	var feedback []byte
+	err := r.pool.QueryRow(ctx, `SELECT model, overall_band::double precision,
+		fluency_band::double precision, lexical_resource_band::double precision,
+		grammar_band::double precision, pronunciation_band::double precision,
+		feedback, evaluated_at
+		FROM speaking_evaluations WHERE attempt_id=$1`, attemptID).Scan(
+		&evaluation.Model, &evaluation.OverallBand, &evaluation.Criteria.Fluency.Band,
+		&evaluation.Criteria.LexicalResource.Band, &evaluation.Criteria.Grammar.Band,
+		&evaluation.Criteria.Pronunciation.Band, &feedback, &evaluation.EvaluatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return SpeakingEvaluation{}, ErrNotFound
+	}
+	if err != nil {
+		return SpeakingEvaluation{}, fmt.Errorf("get speaking evaluation: %w", err)
+	}
+	var stored struct {
+		Summary  string                 `json:"summary"`
+		Criteria SpeakingCriteria       `json:"criteria"`
+		Parts    []SpeakingPartFeedback `json:"parts"`
+	}
+	if err := json.Unmarshal(feedback, &stored); err != nil {
+		return SpeakingEvaluation{}, fmt.Errorf("decode speaking evaluation: %w", err)
+	}
+	evaluation.AttemptID = attemptID
+	evaluation.Summary = stored.Summary
+	evaluation.Parts = stored.Parts
+	evaluation.Criteria.Fluency.Feedback = stored.Criteria.Fluency.Feedback
+	evaluation.Criteria.LexicalResource.Feedback = stored.Criteria.LexicalResource.Feedback
+	evaluation.Criteria.Grammar.Feedback = stored.Criteria.Grammar.Feedback
+	evaluation.Criteria.Pronunciation.Feedback = stored.Criteria.Pronunciation.Feedback
+	return evaluation, nil
+}
+
+func (r *PostgresRepository) UpsertSpeakingRecording(ctx context.Context, recording SpeakingRecording) (SpeakingRecording, string, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return SpeakingRecording{}, "", err
+	}
+	defer tx.Rollback(ctx)
+	var previousKey string
+	err = tx.QueryRow(ctx, `SELECT storage_key FROM speaking_recordings
+		WHERE attempt_id=$1 AND part_id=$2 FOR UPDATE`, recording.AttemptID, recording.PartID).Scan(&previousKey)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return SpeakingRecording{}, "", fmt.Errorf("find existing speaking recording: %w", err)
+	}
+	err = tx.QueryRow(ctx, `INSERT INTO speaking_recordings
+		(id, attempt_id, part_id, original_name, mime_type, storage_key, byte_size)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		ON CONFLICT (attempt_id, part_id) DO UPDATE SET
+			id=EXCLUDED.id, original_name=EXCLUDED.original_name, mime_type=EXCLUDED.mime_type,
+			storage_key=EXCLUDED.storage_key, byte_size=EXCLUDED.byte_size, updated_at=CURRENT_TIMESTAMP
+		RETURNING id, created_at, updated_at`,
+		recording.ID, recording.AttemptID, recording.PartID, recording.OriginalName,
+		recording.MimeType, recording.StorageKey, recording.ByteSize).Scan(
+		&recording.ID, &recording.CreatedAt, &recording.UpdatedAt)
+	if err != nil {
+		return SpeakingRecording{}, "", fmt.Errorf("save speaking recording: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return SpeakingRecording{}, "", fmt.Errorf("commit speaking recording: %w", err)
+	}
+	return recording, previousKey, nil
+}
+
+func (r *PostgresRepository) ListSpeakingRecordings(ctx context.Context, attemptID uuid.UUID) ([]SpeakingRecording, error) {
+	rows, err := r.pool.Query(ctx, `SELECT id, attempt_id, part_id, original_name, mime_type,
+		storage_key, byte_size, created_at, updated_at
+		FROM speaking_recordings WHERE attempt_id=$1 ORDER BY created_at`, attemptID)
+	if err != nil {
+		return nil, fmt.Errorf("list speaking recordings: %w", err)
+	}
+	defer rows.Close()
+	items := []SpeakingRecording{}
+	for rows.Next() {
+		var item SpeakingRecording
+		if err := rows.Scan(&item.ID, &item.AttemptID, &item.PartID, &item.OriginalName,
+			&item.MimeType, &item.StorageKey, &item.ByteSize, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan speaking recording: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (r *PostgresRepository) GetSpeakingRecording(ctx context.Context, attemptID, partID uuid.UUID) (SpeakingRecording, error) {
+	var item SpeakingRecording
+	err := r.pool.QueryRow(ctx, `SELECT id, attempt_id, part_id, original_name, mime_type,
+		storage_key, byte_size, created_at, updated_at
+		FROM speaking_recordings WHERE attempt_id=$1 AND part_id=$2`, attemptID, partID).Scan(
+		&item.ID, &item.AttemptID, &item.PartID, &item.OriginalName,
+		&item.MimeType, &item.StorageKey, &item.ByteSize, &item.CreatedAt, &item.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return SpeakingRecording{}, ErrRecordingNotFound
+	}
+	if err != nil {
+		return SpeakingRecording{}, fmt.Errorf("get speaking recording: %w", err)
+	}
+	return item, nil
 }

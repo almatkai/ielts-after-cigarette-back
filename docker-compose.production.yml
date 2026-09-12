@@ -67,8 +67,11 @@ services:
       REFRESH_COOKIE_SAME_SITE: ${REFRESH_COOKIE_SAME_SITE}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT}
-      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-60s}
       MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES}
+      LISTENING_MEDIA_DIR: /data/listening-media
+      SPEAKING_MEDIA_DIR: /data/speaking-media
+      MAX_MEDIA_UPLOAD_BYTES: ${MAX_MEDIA_UPLOAD_BYTES:-52428800}
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT}
       AUTH_RATE_WINDOW: ${AUTH_RATE_WINDOW}
       PHONE_VERIFICATION_SECRET: ${PHONE_VERIFICATION_SECRET}
@@ -86,9 +89,13 @@ services:
       SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/free}
+      OPENROUTER_SPEAKING_MODEL: ${OPENROUTER_SPEAKING_MODEL:-thinkingmachines/inkling-small:free}
       OPENROUTER_TIMEOUT: ${OPENROUTER_TIMEOUT:-45s}
     ports:
       - "${BACKEND_PORT}:8080"
+    volumes:
+      - listening_media:/data/listening-media
+      - speaking_media:/data/speaking-media
     depends_on:
       postgres:
         condition: service_healthy
@@ -105,3 +112,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  listening_media:
+  speaking_media:

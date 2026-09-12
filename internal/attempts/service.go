@@ -10,9 +10,12 @@ import (
 )
 
 type Service struct {
-	repository Repository
-	providers  map[string]MaterialProvider
-	evaluator  WritingEvaluator
+	repository        Repository
+	providers         map[string]MaterialProvider
+	evaluator         WritingEvaluator
+	speakingEvaluator SpeakingEvaluator
+	speakingMediaDir  string
+	maxSpeakingMedia  int64
 }
 
 func NewService(repository Repository, providers map[string]MaterialProvider, evaluators ...WritingEvaluator) *Service {
@@ -21,6 +24,16 @@ func NewService(repository Repository, providers map[string]MaterialProvider, ev
 		service.evaluator = evaluators[0]
 	}
 	return service
+}
+
+// WithSpeakingRecordingStore enables authenticated recording storage for
+// Speaking attempts. The same OpenRouter client can implement both evaluator
+// interfaces, so it is accepted independently from the Writing evaluator.
+func (s *Service) WithSpeakingRecordingStore(mediaDir string, maxBytes int64, evaluator SpeakingEvaluator) *Service {
+	s.speakingMediaDir = strings.TrimSpace(mediaDir)
+	s.maxSpeakingMedia = maxBytes
+	s.speakingEvaluator = evaluator
+	return s
 }
 
 func (s *Service) provider(materialType string) (MaterialProvider, error) {
@@ -67,6 +80,28 @@ func (s *Service) Start(ctx context.Context, userID uuid.UUID, materialType stri
 	return attempt, material, created, nil
 }
 
+// StartForExamSession creates a new attempt pinned to the current published
+// version. Unlike Start it deliberately does not reuse a standalone practice
+// attempt, so a full mock keeps an independent exam record.
+func (s *Service) StartForExamSession(ctx context.Context, userID uuid.UUID, materialType string, materialID uuid.UUID) (Attempt, error) {
+	provider, err := s.provider(materialType)
+	if err != nil {
+		return Attempt{}, err
+	}
+	versionID, err := provider.PublishedVersionID(ctx, materialID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	return s.repository.Create(ctx, Attempt{
+		ID:                uuid.New(),
+		UserID:            userID,
+		MaterialType:      materialType,
+		MaterialID:        materialID,
+		MaterialVersionID: versionID,
+		Status:            StatusInProgress,
+	})
+}
+
 func (s *Service) SaveAnswers(ctx context.Context, userID, attemptID uuid.UUID, input SaveAnswersInput) error {
 	attempt, err := s.own(ctx, userID, attemptID)
 	if err != nil {
@@ -88,6 +123,9 @@ func (s *Service) Submit(ctx context.Context, userID, attemptID uuid.UUID, input
 	}
 	if attempt.MaterialType == MaterialWriting {
 		return s.submitWriting(ctx, attempt, input)
+	}
+	if attempt.MaterialType == MaterialSpeaking {
+		return s.submitSpeaking(ctx, attempt, input)
 	}
 	provider, err := s.provider(attempt.MaterialType)
 	if err != nil {
@@ -201,6 +239,87 @@ func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input Save
 	return s.repository.Get(ctx, attempt.ID)
 }
 
+func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input SaveAnswersInput) (Attempt, error) {
+	provider, err := s.provider(attempt.MaterialType)
+	if err != nil {
+		return Attempt{}, err
+	}
+	material, err := provider.GradingStructure(ctx, attempt.MaterialID, attempt.MaterialVersionID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	saved, err := s.repository.ListAnswers(ctx, attempt.ID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	given := make(map[uuid.UUID]map[string]any, len(saved)+len(input.Answers))
+	for _, item := range saved {
+		given[item.QuestionID] = item.Answer
+	}
+	for _, item := range input.Answers {
+		given[item.QuestionID] = item.Answer
+	}
+	recordings, err := s.speakingRecordings(ctx, attempt.ID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	recordingByPart := make(map[uuid.UUID]SpeakingRecording, len(recordings))
+	for _, recording := range recordings {
+		recordingByPart[recording.PartID] = recording
+	}
+	request := SpeakingEvaluationRequest{ExamType: material.ExamType, Parts: make([]SpeakingPartAnswer, 0, len(material.SpeakingParts))}
+	for _, part := range material.SpeakingParts {
+		answer := given[part.ID]
+		transcript, _ := answer["value"].(string)
+		transcript = strings.TrimSpace(transcript)
+		recording, hasRecording := recordingByPart[part.ID]
+		if transcript == "" && !hasRecording {
+			return Attempt{}, ErrSpeakingIncomplete
+		}
+		item := SpeakingPartAnswer{Part: part, Transcript: transcript}
+		if hasRecording {
+			audio, err := s.readSpeakingAudio(recording)
+			if err != nil {
+				return Attempt{}, err
+			}
+			item.Audio = audio
+		}
+		request.Parts = append(request.Parts, item)
+	}
+	if s.speakingEvaluator == nil {
+		return Attempt{}, ErrAIUnavailable
+	}
+	evaluation, err := s.speakingEvaluator.EvaluateSpeaking(ctx, request)
+	if err != nil {
+		return Attempt{}, err
+	}
+	evaluation.AttemptID = attempt.ID
+	feedbackByPart := make(map[uuid.UUID]SpeakingPartFeedback, len(evaluation.Parts))
+	for _, item := range evaluation.Parts {
+		feedbackByPart[item.PartID] = item
+	}
+	answers := make([]Answer, 0, len(material.SpeakingParts))
+	for _, part := range material.SpeakingParts {
+		transcript, _ := given[part.ID]["value"].(string)
+		transcript = strings.TrimSpace(transcript)
+		if feedback, ok := feedbackByPart[part.ID]; ok && strings.TrimSpace(feedback.Transcript) != "" {
+			transcript = strings.TrimSpace(feedback.Transcript)
+		}
+		answers = append(answers, Answer{QuestionID: part.ID, Answer: map[string]any{"value": transcript}})
+	}
+	band := evaluation.OverallBand
+	score := int(math.Round(band * 10))
+	accuracy := math.Round(band/9*10000) / 100
+	if err := s.repository.Submit(ctx, SubmitResult{
+		AttemptID: attempt.ID, UserID: attempt.UserID, Skill: MaterialSpeaking,
+		Answers: answers, Score: score, MaxScore: 90, Band: band, Accuracy: accuracy,
+		SpeakingEvaluation: &evaluation,
+	}); err != nil {
+		return Attempt{}, err
+	}
+	return s.repository.Get(ctx, attempt.ID)
+}
+
 func (s *Service) List(ctx context.Context, userID uuid.UUID, materialType string) ([]Summary, error) {
 	return s.repository.ListByUser(ctx, userID, materialType)
 }
@@ -216,6 +335,26 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 	}
 	if saved == nil {
 		saved = []Answer{}
+	}
+	if attempt.MaterialType == MaterialSpeaking {
+		recordings, err := s.speakingRecordings(ctx, attemptID)
+		if err != nil {
+			return Detail{}, err
+		}
+		if attempt.Status == StatusInProgress {
+			return Detail{Attempt: attempt, Answers: saved, Recordings: recordings}, nil
+		}
+		repository, ok := s.repository.(interface {
+			GetSpeakingEvaluation(context.Context, uuid.UUID) (SpeakingEvaluation, error)
+		})
+		if !ok {
+			return Detail{}, ErrNotFound
+		}
+		evaluation, err := repository.GetSpeakingEvaluation(ctx, attemptID)
+		if err != nil {
+			return Detail{}, err
+		}
+		return Detail{Attempt: attempt, Answers: saved, Recordings: recordings, SpeakingEvaluation: &evaluation}, nil
 	}
 	if attempt.Status == StatusInProgress {
 		return Detail{Attempt: attempt, Answers: saved}, nil

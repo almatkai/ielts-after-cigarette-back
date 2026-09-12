@@ -13,6 +13,9 @@ var (
 	ErrUnsupportedMaterial = errors.New("unsupported material type")
 	ErrAlreadySubmitted    = errors.New("attempt already submitted")
 	ErrWritingIncomplete   = errors.New("both writing tasks need an answer")
+	ErrSpeakingIncomplete  = errors.New("all speaking parts need a recording or transcript")
+	ErrRecordingNotFound   = errors.New("speaking recording not found")
+	ErrRecordingTooLarge   = errors.New("speaking recording is too large for AI assessment")
 	ErrAIUnavailable       = errors.New("AI evaluation is not configured")
 	ErrAIEvaluationFailed  = errors.New("AI evaluation failed")
 )
@@ -24,6 +27,7 @@ const (
 	MaterialListening = "listening"
 	MaterialReading   = "reading"
 	MaterialWriting   = "writing"
+	MaterialSpeaking  = "speaking"
 )
 
 type Attempt struct {
@@ -70,9 +74,10 @@ type GradingQuestion struct {
 }
 
 type GradingMaterial struct {
-	ExamType     string
-	Questions    []GradingQuestion
-	WritingTasks []WritingTask
+	ExamType      string
+	Questions     []GradingQuestion
+	WritingTasks  []WritingTask
+	SpeakingParts []SpeakingPart
 }
 
 type WritingTask struct {
@@ -112,6 +117,60 @@ type WritingEvaluation struct {
 	EvaluatedAt time.Time             `json:"evaluatedAt"`
 }
 
+type SpeakingPart struct {
+	ID                 uuid.UUID
+	Position           int
+	Type               string
+	Title              string
+	Instructions       string
+	CueCard            []string
+	PreparationSeconds int
+	ResponseSeconds    int
+	Questions          []string
+}
+
+type SpeakingCriterion struct {
+	Band     float64 `json:"band"`
+	Feedback string  `json:"feedback"`
+}
+
+type SpeakingCriteria struct {
+	Fluency         SpeakingCriterion `json:"fluency"`
+	LexicalResource SpeakingCriterion `json:"lexicalResource"`
+	Grammar         SpeakingCriterion `json:"grammar"`
+	Pronunciation   SpeakingCriterion `json:"pronunciation"`
+}
+
+type SpeakingPartFeedback struct {
+	PartID       uuid.UUID `json:"partId"`
+	Transcript   string    `json:"transcript"`
+	Feedback     string    `json:"feedback"`
+	Strengths    []string  `json:"strengths"`
+	Improvements []string  `json:"improvements"`
+}
+
+type SpeakingEvaluation struct {
+	AttemptID   uuid.UUID              `json:"-"`
+	Model       string                 `json:"model"`
+	OverallBand float64                `json:"overallBand"`
+	Criteria    SpeakingCriteria       `json:"criteria"`
+	Summary     string                 `json:"summary"`
+	Parts       []SpeakingPartFeedback `json:"parts"`
+	EvaluatedAt time.Time              `json:"evaluatedAt"`
+}
+
+type SpeakingRecording struct {
+	ID           uuid.UUID `json:"id"`
+	AttemptID    uuid.UUID `json:"-"`
+	PartID       uuid.UUID `json:"partId"`
+	OriginalName string    `json:"originalName"`
+	MimeType     string    `json:"mimeType"`
+	StorageKey   string    `json:"-"`
+	ByteSize     int64     `json:"byteSize"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
 type Summary struct {
 	Attempt
 	TestTitle string `json:"testTitle"`
@@ -131,7 +190,9 @@ type ReviewAnswer struct {
 
 type Detail struct {
 	Attempt
-	Answers           []Answer           `json:"answers,omitempty"`
-	Review            []ReviewAnswer     `json:"review,omitempty"`
-	WritingEvaluation *WritingEvaluation `json:"writingEvaluation,omitempty"`
+	Answers            []Answer            `json:"answers,omitempty"`
+	Review             []ReviewAnswer      `json:"review,omitempty"`
+	WritingEvaluation  *WritingEvaluation  `json:"writingEvaluation,omitempty"`
+	SpeakingEvaluation *SpeakingEvaluation `json:"speakingEvaluation,omitempty"`
+	Recordings         []SpeakingRecording `json:"recordings,omitempty"`
 }

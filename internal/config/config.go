@@ -27,6 +27,7 @@ type Config struct {
 	RequestTimeout          time.Duration
 	MaxRequestBody          int64
 	ListeningMediaDir       string
+	SpeakingMediaDir        string
 	MaxMediaUploadBytes     int64
 	AuthRateLimit           int64
 	AuthRateWindow          time.Duration
@@ -46,6 +47,7 @@ type Config struct {
 	SuperAdminEmails        []string
 	OpenRouterAPIKey        string
 	OpenRouterModel         string
+	OpenRouterSpeakingModel string
 	OpenRouterTimeout       time.Duration
 }
 
@@ -70,8 +72,10 @@ func Load() (Config, error) {
 		GoogleClientID:          env("GOOGLE_CLIENT_ID", "525971866611-vk1derapc3opreb82i2ba2edeldsev8l.apps.googleusercontent.com"),
 		SuperAdminEmails:        splitCSV(os.Getenv("SUPER_ADMIN_EMAILS")),
 		ListeningMediaDir:       env("LISTENING_MEDIA_DIR", "./var/listening-media"),
+		SpeakingMediaDir:        env("SPEAKING_MEDIA_DIR", "./var/speaking-media"),
 		OpenRouterAPIKey:        os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterModel:         env("OPENROUTER_MODEL", "openrouter/free"),
+		OpenRouterSpeakingModel: env("OPENROUTER_SPEAKING_MODEL", "thinkingmachines/inkling-small:free"),
 	}
 
 	var err error
@@ -84,7 +88,7 @@ func Load() (Config, error) {
 	if cfg.ShutdownTimeout, err = durationEnv("SHUTDOWN_TIMEOUT", 10*time.Second); err != nil {
 		return Config{}, err
 	}
-	if cfg.RequestTimeout, err = durationEnv("REQUEST_TIMEOUT", 15*time.Second); err != nil {
+	if cfg.RequestTimeout, err = durationEnv("REQUEST_TIMEOUT", 60*time.Second); err != nil {
 		return Config{}, err
 	}
 	if cfg.AuthRateWindow, err = durationEnv("AUTH_RATE_WINDOW", time.Minute); err != nil {
@@ -215,6 +219,9 @@ func (c Config) Validate() error {
 		}
 		if strings.TrimSpace(c.OpenRouterModel) == "" {
 			problems = append(problems, "OPENROUTER_MODEL is required when OPENROUTER_API_KEY is configured")
+		}
+		if strings.TrimSpace(c.OpenRouterSpeakingModel) == "" {
+			problems = append(problems, "OPENROUTER_SPEAKING_MODEL is required when OPENROUTER_API_KEY is configured")
 		}
 	}
 	if len(problems) > 0 {

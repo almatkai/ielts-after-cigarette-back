@@ -72,15 +72,17 @@ docs/API.md            REST-контракт и примеры
 | `AUTH_RATE_LIMIT`, `AUTH_RATE_WINDOW` | лимит публичных write endpoints |
 | `MAX_REQUEST_BODY_BYTES` | максимальный размер JSON body |
 | `LISTENING_MEDIA_DIR` | каталог аудио и изображений Listening; в Docker это отдельный volume |
-| `MAX_MEDIA_UPLOAD_BYTES` | максимальный размер одного Listening media-файла |
+| `SPEAKING_MEDIA_DIR` | каталог записей Speaking; в Docker это отдельный volume |
+| `MAX_MEDIA_UPLOAD_BYTES` | максимальный размер одного медиафайла; запись Speaking ограничена 12 MiB для AI-оценки |
 | `PHONE_VERIFICATION_SECRET` | отдельный HMAC-секрет для хеширования кодов |
 | `PHONE_CODE_TTL`, `PHONE_TOKEN_TTL` | срок кода и одноразового proof token |
 | `PHONE_RESEND_INTERVAL`, `PHONE_MAX_ATTEMPTS` | resend/attempt ограничения |
 | `INFOBIP_ENABLED` | включает реальную отправку через Infobip |
 | `INFOBIP_BASE_URL`, `INFOBIP_API_KEY` | API endpoint и ключ Infobip |
 | `INFOBIP_WHATSAPP_*` | sender, approved template и язык WhatsApp |
-| `OPENROUTER_API_KEY` | API key для AI-проверки Writing через OpenRouter |
-| `OPENROUTER_MODEL` | модель проверки; по умолчанию `openrouter/free` |
+| `OPENROUTER_API_KEY` | API key для AI-проверки Writing и Speaking через OpenRouter |
+| `OPENROUTER_MODEL` | текстовая модель Writing; по умолчанию `openrouter/free` |
+| `OPENROUTER_SPEAKING_MODEL` | бесплатная мультимодальная модель для расшифровки и оценки Speaking; по умолчанию `thinkingmachines/inkling-small:free` |
 | `OPENROUTER_TIMEOUT` | предел ожидания ответа AI; по умолчанию `45s` |
 
 `.env` исключён из Git. Значения по умолчанию в Compose предназначены только для

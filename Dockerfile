@@ -13,7 +13,7 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=build /out/api /app/api
 COPY --from=build /out/admin /app/admin
-RUN mkdir -p /data/listening-media && chown -R 65532:65532 /data
+RUN mkdir -p /data/listening-media /data/speaking-media && chown -R 65532:65532 /data
 EXPOSE 8080
 USER 65532:65532
 ENTRYPOINT ["/app/api"]
