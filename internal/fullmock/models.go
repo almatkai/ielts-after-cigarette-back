@@ -15,6 +15,7 @@ const (
 
 	SessionInProgress = "IN_PROGRESS"
 	SessionSubmitted  = "SUBMITTED"
+	SessionAbandoned  = "ABANDONED"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 	ErrSessionNotFound   = errors.New("full mock session not found")
 	ErrSectionIncomplete = errors.New("current full mock section is not submitted")
 	ErrSessionCompleted  = errors.New("full mock session is already completed")
+	ErrSectionLocked     = errors.New("full mock section is locked")
 	ErrRevisionConflict  = errors.New("full mock revision conflict")
 	ErrSlugExists        = errors.New("full mock slug already exists")
 )
@@ -59,6 +61,10 @@ type SaveInput struct {
 
 type PublishInput struct {
 	Revision int64 `json:"revision"`
+}
+
+type StartInput struct {
+	Restart bool `json:"restart"`
 }
 
 type SessionSection struct {

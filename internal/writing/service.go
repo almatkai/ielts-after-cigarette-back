@@ -25,6 +25,7 @@ type Repository interface {
 	CreateMany(context.Context, uuid.UUID, []SaveInput) ([]Material, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Material, error)
 	Publish(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
+	Archive(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
 }
 
 type Service struct{ repository Repository }
@@ -104,6 +105,14 @@ func (s *Service) Publish(ctx context.Context, id, actorID uuid.UUID, revision i
 	return material, nil, err
 }
 
+func (s *Service) Archive(ctx context.Context, id, actorID uuid.UUID, revision int64) (Material, map[string]string, error) {
+	if revision < 1 {
+		return Material{}, map[string]string{"revision": "must be a positive integer"}, nil
+	}
+	material, err := s.repository.Archive(ctx, id, actorID, revision)
+	return material, nil, err
+}
+
 func (s *Service) ParseImport(input ImportParseInput) ImportResult {
 	result := ImportResult{Materials: []SaveInput{}, Errors: []ImportIssue{}}
 	source := strings.TrimSpace(input.Source)
@@ -180,6 +189,9 @@ func normalizeInput(input SaveInput) SaveInput {
 	input.Difficulty = strings.ToLower(strings.TrimSpace(input.Difficulty))
 	input.Title = strings.TrimSpace(input.Title)
 	input.Description = strings.TrimSpace(input.Description)
+	if input.DurationMinutes == 0 {
+		input.DurationMinutes = 60
+	}
 	for index := range input.Tasks {
 		task := &input.Tasks[index]
 		if task.ID == uuid.Nil {
@@ -229,6 +241,9 @@ func validateInput(input SaveInput, requireRevision bool) map[string]string {
 	}
 	if utf8.RuneCountInString(input.Description) > 1000 {
 		details["description"] = "must contain at most 1000 characters"
+	}
+	if input.DurationMinutes < 5 || input.DurationMinutes > 180 {
+		details["durationMinutes"] = "must be between 5 and 180"
 	}
 	if requireRevision && input.Revision < 1 {
 		details["revision"] = "must be a positive integer"

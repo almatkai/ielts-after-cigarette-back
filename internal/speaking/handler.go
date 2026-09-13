@@ -103,6 +103,46 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 	h.writeSave(w, r, http.StatusOK, material, details, err)
 }
 
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.materialID(w, r)
+	if !ok {
+		return
+	}
+	var input PublishInput
+	if !h.decode(w, r, &input) {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	material, details, err := h.service.Archive(r.Context(), id, actor, input.Revision)
+	h.writeSave(w, r, http.StatusOK, material, details, err)
+}
+
+func (h *Handler) ParseImport(w http.ResponseWriter, r *http.Request) {
+	var input ImportParseInput
+	if !h.decode(w, r, &input) {
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, h.service.ParseImport(input))
+}
+
+func (h *Handler) BulkImport(w http.ResponseWriter, r *http.Request) {
+	var input BulkCreateInput
+	if !h.decode(w, r, &input) {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	items, details, err := h.service.BulkCreate(r.Context(), actor, input.Materials)
+	if len(details) > 0 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
+		return
+	}
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"items": items})
+}
+
 func (h *Handler) decode(w http.ResponseWriter, r *http.Request, target any) bool {
 	if err := httpx.DecodeJSON(w, r, h.maxBody, target); err != nil {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)

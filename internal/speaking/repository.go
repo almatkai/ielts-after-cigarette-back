@@ -118,6 +118,34 @@ func (r *PostgresRepository) Create(ctx context.Context, actorID uuid.UUID, inpu
 	return r.Get(ctx, id)
 }
 
+func (r *PostgresRepository) CreateMany(ctx context.Context, actorID uuid.UUID, inputs []SaveInput) ([]Material, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	ids := make([]uuid.UUID, 0, len(inputs))
+	for _, input := range inputs {
+		id, err := createMaterialInTx(ctx, tx, actorID, input)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit speaking import: %w", err)
+	}
+	items := make([]Material, 0, len(ids))
+	for _, id := range ids {
+		item, err := r.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
 func createMaterialInTx(ctx context.Context, tx pgx.Tx, actorID uuid.UUID, input SaveInput) (uuid.UUID, error) {
 	materialID, versionID := uuid.New(), uuid.New()
 	if _, err := tx.Exec(ctx, `INSERT INTO speaking_materials
@@ -196,6 +224,22 @@ func (r *PostgresRepository) Publish(ctx context.Context, id, _ uuid.UUID, expec
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Material{}, fmt.Errorf("commit speaking material publish: %w", err)
+	}
+	return r.Get(ctx, id)
+}
+
+func (r *PostgresRepository) Archive(ctx context.Context, id, _ uuid.UUID, expectedRevision int64) (Material, error) {
+	command, err := r.pool.Exec(ctx, `UPDATE speaking_materials SET status=$2,
+		revision=revision+1, updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND revision=$3`,
+		id, StatusArchived, expectedRevision)
+	if err != nil {
+		return Material{}, fmt.Errorf("archive speaking material: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		if _, err := r.Get(ctx, id); errors.Is(err, ErrNotFound) {
+			return Material{}, ErrNotFound
+		}
+		return Material{}, ErrRevisionConflict
 	}
 	return r.Get(ctx, id)
 }

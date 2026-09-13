@@ -182,6 +182,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (h *Handler) Mistakes(w http.ResponseWriter, r *http.Request) {
+	actor, _ := auth.UserID(r.Context())
+	items, err := h.service.Mistakes(r.Context(), actor)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	attemptID, ok := h.id(w, r)
 	if !ok {

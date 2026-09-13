@@ -102,6 +102,25 @@ func (s *Service) StartForExamSession(ctx context.Context, userID uuid.UUID, mat
 	})
 }
 
+// PublicMaterial returns the exact public material version pinned to an
+// existing attempt. Full Mock sessions use this instead of the normal Start
+// flow so opening a section can never create or reuse a standalone attempt.
+func (s *Service) PublicMaterial(ctx context.Context, userID, attemptID uuid.UUID) (Attempt, any, error) {
+	attempt, err := s.own(ctx, userID, attemptID)
+	if err != nil {
+		return Attempt{}, nil, err
+	}
+	provider, err := s.provider(attempt.MaterialType)
+	if err != nil {
+		return Attempt{}, nil, err
+	}
+	material, err := provider.PublicStructure(ctx, attempt.MaterialID, attempt.MaterialVersionID)
+	if err != nil {
+		return Attempt{}, nil, err
+	}
+	return attempt, material, nil
+}
+
 func (s *Service) SaveAnswers(ctx context.Context, userID, attemptID uuid.UUID, input SaveAnswersInput) error {
 	attempt, err := s.own(ctx, userID, attemptID)
 	if err != nil {
@@ -212,7 +231,8 @@ func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input Save
 	for _, task := range material.WritingTasks {
 		answer := given[task.ID]
 		text, _ := answer["value"].(string)
-		if len(strings.TrimSpace(text)) == 0 || len([]rune(text)) > 15000 {
+		wordCount := len(strings.Fields(text))
+		if wordCount < task.MinimumWords || len([]rune(text)) > 15000 {
 			return Attempt{}, ErrWritingIncomplete
 		}
 		request.Tasks = append(request.Tasks, WritingTaskAnswer{Task: task, Text: text})
@@ -322,6 +342,40 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 
 func (s *Service) List(ctx context.Context, userID uuid.UUID, materialType string) ([]Summary, error) {
 	return s.repository.ListByUser(ctx, userID, materialType)
+}
+
+// Mistakes returns all submitted attempts relevant to the mistakes page in
+// one API response. It keeps the detailed grading and AI feedback private to
+// the server, avoiding an HTTP request per historical attempt in the client.
+func (s *Service) Mistakes(ctx context.Context, userID uuid.UUID) ([]MistakeReport, error) {
+	attempts, err := s.repository.ListByUser(ctx, userID, "")
+	if err != nil {
+		return nil, err
+	}
+	reports := make([]MistakeReport, 0, len(attempts))
+	for _, attempt := range attempts {
+		if attempt.Status != StatusSubmitted {
+			continue
+		}
+		detail, err := s.Get(ctx, userID, attempt.ID)
+		if err != nil {
+			return nil, err
+		}
+		report := MistakeReport{
+			Attempt:            attempt,
+			WritingEvaluation:  detail.WritingEvaluation,
+			SpeakingEvaluation: detail.SpeakingEvaluation,
+		}
+		for _, item := range detail.Review {
+			if !item.IsCorrect {
+				report.Review = append(report.Review, item)
+			}
+		}
+		if len(report.Review) > 0 || report.WritingEvaluation != nil || report.SpeakingEvaluation != nil {
+			reports = append(reports, report)
+		}
+	}
+	return reports, nil
 }
 
 func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail, error) {

@@ -311,6 +311,24 @@ func (r *PostgresRepository) Publish(ctx context.Context, id, actorID uuid.UUID,
 	return r.Get(ctx, id)
 }
 
+func (r *PostgresRepository) Archive(ctx context.Context, id, actorID uuid.UUID, expectedRevision int64) (Material, error) {
+	command, err := r.pool.Exec(ctx, `
+		UPDATE reading_materials
+		SET status = $3, updated_by = $2, revision = revision + 1
+		WHERE id = $1 AND revision = $4
+	`, id, actorID, StatusArchived, expectedRevision)
+	if err != nil {
+		return Material{}, fmt.Errorf("archive reading material: %w", err)
+	}
+	if command.RowsAffected() == 0 {
+		if _, err := r.Get(ctx, id); errors.Is(err, ErrNotFound) {
+			return Material{}, ErrNotFound
+		}
+		return Material{}, ErrRevisionConflict
+	}
+	return r.Get(ctx, id)
+}
+
 type rowScanner interface {
 	Scan(...any) error
 }

@@ -12,7 +12,7 @@ var (
 	ErrMaterialNotFound    = errors.New("material not found or not published")
 	ErrUnsupportedMaterial = errors.New("unsupported material type")
 	ErrAlreadySubmitted    = errors.New("attempt already submitted")
-	ErrWritingIncomplete   = errors.New("both writing tasks need an answer")
+	ErrWritingIncomplete   = errors.New("each writing task must meet its minimum word count")
 	ErrSpeakingIncomplete  = errors.New("all speaking parts need a recording or transcript")
 	ErrRecordingNotFound   = errors.New("speaking recording not found")
 	ErrRecordingTooLarge   = errors.New("speaking recording is too large for AI assessment")
@@ -195,4 +195,14 @@ type Detail struct {
 	WritingEvaluation  *WritingEvaluation  `json:"writingEvaluation,omitempty"`
 	SpeakingEvaluation *SpeakingEvaluation `json:"speakingEvaluation,omitempty"`
 	Recordings         []SpeakingRecording `json:"recordings,omitempty"`
+}
+
+// MistakeReport combines a submitted attempt with the material needed by the
+// mistakes page. Objective skills contain only incorrect review items, while
+// Writing and Speaking contain their AI evaluation.
+type MistakeReport struct {
+	Attempt            Summary             `json:"attempt"`
+	Review             []ReviewAnswer      `json:"review,omitempty"`
+	WritingEvaluation  *WritingEvaluation  `json:"writingEvaluation,omitempty"`
+	SpeakingEvaluation *SpeakingEvaluation `json:"speakingEvaluation,omitempty"`
 }

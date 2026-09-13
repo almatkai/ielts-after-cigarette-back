@@ -100,6 +100,21 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 	item, details, err := h.service.Publish(r.Context(), id, actor, input.Revision)
 	h.writeSave(w, r, http.StatusOK, item, details, err)
 }
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	var input struct {
+		Revision int64 `json:"revision"`
+	}
+	if !h.decode(w, r, &input) {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	item, details, err := h.service.Archive(r.Context(), id, actor, input.Revision)
+	h.writeSave(w, r, http.StatusOK, item, details, err)
+}
 func (h *Handler) ParseImport(w http.ResponseWriter, r *http.Request) {
 	var input ImportParseInput
 	if !h.decode(w, r, &input) {

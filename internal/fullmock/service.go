@@ -62,10 +62,24 @@ func (s *Service) Publish(ctx context.Context, id uuid.UUID, revision int64) (Te
 	return item, nil, err
 }
 
-func (s *Service) Start(ctx context.Context, userID, testID uuid.UUID) (Session, bool, error) {
+func (s *Service) Archive(ctx context.Context, id uuid.UUID, revision int64) (Test, map[string]string, error) {
+	if revision < 1 {
+		return Test{}, map[string]string{"revision": "must be a positive integer"}, nil
+	}
+	item, err := s.repository.Archive(ctx, id, revision)
+	return item, nil, err
+}
+
+func (s *Service) Start(ctx context.Context, userID, testID uuid.UUID, restart bool) (Session, bool, error) {
 	if existing, err := s.repository.FindActiveSession(ctx, userID, testID); err == nil {
-		item, err := s.decorate(ctx, userID, existing)
-		return item, false, err
+		if restart {
+			if err := s.repository.Abandon(ctx, existing.ID); err != nil {
+				return Session{}, false, err
+			}
+		} else {
+			item, err := s.decorate(ctx, userID, existing)
+			return item, false, err
+		}
 	} else if !errors.Is(err, ErrSessionNotFound) {
 		return Session{}, false, err
 	}
@@ -143,6 +157,58 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 	return s.GetSession(ctx, userID, sessionID)
 }
 
+// Finish closes an in-progress Full Mock even if some sections are blank.
+// It intentionally leaves OverallBand empty unless all four sections have a
+// band, preserving the fact that this was an incomplete exam.
+func (s *Service) Finish(ctx context.Context, userID, sessionID uuid.UUID) (Session, error) {
+	session, err := s.repository.GetSession(ctx, sessionID)
+	if err != nil {
+		return Session{}, err
+	}
+	if session.UserID != userID {
+		return Session{}, ErrSessionNotFound
+	}
+	if session.Status != SessionInProgress {
+		return Session{}, ErrSessionCompleted
+	}
+	if err := s.repository.Finish(ctx, session.ID); err != nil {
+		return Session{}, err
+	}
+	return s.GetSession(ctx, userID, sessionID)
+}
+
+// GetSection grants access only to the current Full Mock section and returns
+// its already-created attempt plus the version pinned to that attempt.
+func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, position int) (SessionSection, any, error) {
+	session, err := s.repository.GetSession(ctx, sessionID)
+	if err != nil {
+		return SessionSection{}, nil, err
+	}
+	if session.UserID != userID {
+		return SessionSection{}, nil, ErrSessionNotFound
+	}
+	if session.Status != SessionInProgress || position != session.CurrentSection {
+		return SessionSection{}, nil, ErrSectionLocked
+	}
+	sections, err := s.repository.ListSessionSections(ctx, session.ID)
+	if err != nil {
+		return SessionSection{}, nil, err
+	}
+	if position < 1 || position > len(sections) {
+		return SessionSection{}, nil, ErrSectionLocked
+	}
+	section := sections[position-1]
+	if section.Position != position {
+		return SessionSection{}, nil, ErrSectionLocked
+	}
+	attempt, material, err := s.attempts.PublicMaterial(ctx, userID, section.Attempt.ID)
+	if err != nil {
+		return SessionSection{}, nil, err
+	}
+	section.Attempt = attempt
+	return section, material, nil
+}
+
 func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Session) (Session, error) {
 	test, err := s.repository.Get(ctx, session.MockTestID)
 	if err != nil {
@@ -159,7 +225,7 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 		bands := make([]float64, 0, len(sections))
 		for _, section := range sections {
 			if section.Attempt.Band == nil {
-				return Session{}, ErrSectionIncomplete
+				return session, nil
 			}
 			bands = append(bands, *section.Attempt.Band)
 		}

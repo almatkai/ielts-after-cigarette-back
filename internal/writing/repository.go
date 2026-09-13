@@ -19,7 +19,7 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 }
 
 const materialColumns = `m.id, m.slug, v.exam_type, v.difficulty, m.status, m.revision,
-	v.title, v.description, v.tasks, m.current_version_number, m.published_version_id,
+	v.title, v.description, v.duration_minutes, v.tasks, m.current_version_number, m.published_version_id,
 	(m.published_version_id IS DISTINCT FROM v.id), m.published_at, m.created_at, m.updated_at`
 
 func (r *PostgresRepository) List(ctx context.Context) ([]Material, error) {
@@ -52,7 +52,7 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID) (Material, e
 
 func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSummary, error) {
 	rows, err := r.pool.Query(ctx, `SELECT m.id, m.slug, v.exam_type, v.difficulty,
-		v.title, v.description, m.published_at
+		v.title, v.description, v.duration_minutes, m.published_at
 		FROM writing_materials m
 		JOIN writing_material_versions v ON v.id=m.published_version_id
 		WHERE m.status='PUBLISHED'
@@ -65,7 +65,7 @@ func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSumma
 	for rows.Next() {
 		var item MaterialSummary
 		if err := rows.Scan(&item.ID, &item.Slug, &item.ExamType, &item.Difficulty,
-			&item.Title, &item.Description, &item.PublishedAt); err != nil {
+			&item.Title, &item.Description, &item.DurationMinutes, &item.PublishedAt); err != nil {
 			return nil, fmt.Errorf("scan writing material summary: %w", err)
 		}
 		items = append(items, item)
@@ -228,16 +228,32 @@ func (r *PostgresRepository) Publish(ctx context.Context, id, _ uuid.UUID, expec
 	return r.Get(ctx, id)
 }
 
+func (r *PostgresRepository) Archive(ctx context.Context, id, _ uuid.UUID, expectedRevision int64) (Material, error) {
+	command, err := r.pool.Exec(ctx, `UPDATE writing_materials SET status=$2,
+		revision=revision+1, updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND revision=$3`,
+		id, StatusArchived, expectedRevision)
+	if err != nil {
+		return Material{}, fmt.Errorf("archive writing material: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		if _, err := r.Get(ctx, id); errors.Is(err, ErrNotFound) {
+			return Material{}, ErrNotFound
+		}
+		return Material{}, ErrRevisionConflict
+	}
+	return r.Get(ctx, id)
+}
+
 func insertVersion(ctx context.Context, tx pgx.Tx, versionID, materialID uuid.UUID, versionNumber int, actorID uuid.UUID, input SaveInput) error {
 	tasks, err := json.Marshal(input.Tasks)
 	if err != nil {
 		return fmt.Errorf("encode writing tasks: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO writing_material_versions
-		(id, material_id, version_number, exam_type, difficulty, title, description, tasks, created_by)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)`,
+		(id, material_id, version_number, exam_type, difficulty, title, description, duration_minutes, tasks, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)`,
 		versionID, materialID, versionNumber, input.ExamType, input.Difficulty,
-		input.Title, input.Description, tasks, actorID); err != nil {
+		input.Title, input.Description, input.DurationMinutes, tasks, actorID); err != nil {
 		return fmt.Errorf("insert writing material version: %w", err)
 	}
 	return nil
@@ -251,7 +267,7 @@ func scanMaterial(row rowScanner) (Material, error) {
 	var material Material
 	var tasks []byte
 	err := row.Scan(&material.ID, &material.Slug, &material.ExamType, &material.Difficulty,
-		&material.Status, &material.Revision, &material.Title, &material.Description, &tasks,
+		&material.Status, &material.Revision, &material.Title, &material.Description, &material.DurationMinutes, &tasks,
 		&material.CurrentVersionNumber, &material.PublishedVersionID, &material.HasUnpublishedChanges,
 		&material.PublishedAt, &material.CreatedAt, &material.UpdatedAt)
 	if err != nil {

@@ -16,6 +16,9 @@ var (
 const (
 	StatusDraft     = "DRAFT"
 	StatusPublished = "PUBLISHED"
+	StatusArchived  = "ARCHIVED"
+
+	ImportFormatV1 = "IELTS_SPEAKING_IMPORT_V1"
 
 	PartOne   = "part1"
 	PartTwo   = "part2"
@@ -92,4 +95,23 @@ type SaveInput struct {
 
 type PublishInput struct {
 	Revision int64 `json:"revision"`
+}
+
+type ImportParseInput struct {
+	Source string `json:"source"`
+}
+
+type ImportIssue struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Item    int    `json:"item,omitempty"`
+}
+
+type ImportResult struct {
+	Materials []SaveInput   `json:"materials"`
+	Errors    []ImportIssue `json:"errors"`
+}
+
+type BulkCreateInput struct {
+	Materials []SaveInput `json:"materials"`
 }

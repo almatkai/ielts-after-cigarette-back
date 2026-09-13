@@ -46,6 +46,9 @@ func (r *repositoryStub) Update(_ context.Context, _, _ uuid.UUID, input SaveInp
 func (r *repositoryStub) Publish(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error) {
 	return Material{Status: StatusPublished}, nil
 }
+func (r *repositoryStub) Archive(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error) {
+	return Material{Status: StatusArchived}, nil
+}
 
 func TestCreateMaterialNormalizesAndValidates(t *testing.T) {
 	t.Parallel()

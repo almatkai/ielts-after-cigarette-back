@@ -127,6 +127,28 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, material)
 }
 
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.materialID(w, r)
+	if !ok {
+		return
+	}
+	var input PublishInput
+	if !h.decode(w, r, &input) {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	material, details, err := h.service.Archive(r.Context(), id, actor, input.Revision)
+	if len(details) > 0 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
+		return
+	}
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, material)
+}
+
 func (h *Handler) ParseImport(w http.ResponseWriter, r *http.Request) {
 	var input ImportParseInput
 	if !h.decode(w, r, &input) {

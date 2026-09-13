@@ -17,6 +17,7 @@ var (
 const (
 	StatusDraft     = "DRAFT"
 	StatusPublished = "PUBLISHED"
+	StatusArchived  = "ARCHIVED"
 
 	TypeMultipleChoice     = "multiple_choice"
 	TypeMatching           = "matching"

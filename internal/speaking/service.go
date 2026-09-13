@@ -2,6 +2,7 @@ package speaking
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,8 +21,10 @@ type Repository interface {
 	GetVersion(context.Context, uuid.UUID, uuid.UUID) (Material, error)
 	PublishedVersionID(context.Context, uuid.UUID) (uuid.UUID, error)
 	Create(context.Context, uuid.UUID, SaveInput) (Material, error)
+	CreateMany(context.Context, uuid.UUID, []SaveInput) ([]Material, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Material, error)
 	Publish(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
+	Archive(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
 }
 
 type Service struct{ repository Repository }
@@ -99,6 +102,79 @@ func (s *Service) Publish(ctx context.Context, id, actorID uuid.UUID, revision i
 	}
 	material, err := s.repository.Publish(ctx, id, actorID, revision)
 	return material, nil, err
+}
+
+func (s *Service) Archive(ctx context.Context, id, actorID uuid.UUID, revision int64) (Material, map[string]string, error) {
+	if revision < 1 {
+		return Material{}, map[string]string{"revision": "must be a positive integer"}, nil
+	}
+	material, err := s.repository.Archive(ctx, id, actorID, revision)
+	return material, nil, err
+}
+
+// ParseImport validates the versioned IELTS_SPEAKING_IMPORT_V1 envelope but
+// deliberately does not write anything. Editors can inspect all errors before
+// confirming the import.
+func (s *Service) ParseImport(input ImportParseInput) ImportResult {
+	result := ImportResult{Materials: []SaveInput{}, Errors: []ImportIssue{}}
+	source := strings.TrimSpace(input.Source)
+	if source == "" {
+		result.Errors = append(result.Errors, ImportIssue{Code: "EMPTY_SOURCE", Message: "source is required"})
+		return result
+	}
+	var envelope struct {
+		Format    string      `json:"format"`
+		Materials []SaveInput `json:"materials"`
+	}
+	if err := json.Unmarshal([]byte(source), &envelope); err != nil {
+		result.Errors = append(result.Errors, ImportIssue{Code: "INVALID_JSON", Message: "source must be valid JSON"})
+		return result
+	}
+	if envelope.Format != ImportFormatV1 {
+		result.Errors = append(result.Errors, ImportIssue{Code: "INVALID_FORMAT", Message: "format must be " + ImportFormatV1})
+		return result
+	}
+	if len(envelope.Materials) == 0 {
+		result.Errors = append(result.Errors, ImportIssue{Code: "EMPTY_IMPORT", Message: "materials must contain at least one item"})
+		return result
+	}
+	for index, material := range envelope.Materials {
+		material = normalizeInput(material)
+		if material.Slug == "" {
+			material.Slug = "speaking-" + uuid.NewString()[:8]
+		}
+		if details := validateInput(material, false); len(details) > 0 {
+			for field, message := range details {
+				result.Errors = append(result.Errors, ImportIssue{Code: "VALIDATION_ERROR", Message: field + ": " + message, Item: index + 1})
+			}
+			continue
+		}
+		result.Materials = append(result.Materials, material)
+	}
+	return result
+}
+
+func (s *Service) BulkCreate(ctx context.Context, actorID uuid.UUID, inputs []SaveInput) ([]Material, map[string]string, error) {
+	if len(inputs) == 0 || len(inputs) > 20 {
+		return nil, map[string]string{"materials": "must contain between 1 and 20 materials"}, nil
+	}
+	normalized := make([]SaveInput, len(inputs))
+	for index, input := range inputs {
+		input = normalizeInput(input)
+		if input.Slug == "" {
+			input.Slug = "speaking-" + uuid.NewString()[:8]
+		}
+		if details := validateInput(input, false); len(details) > 0 {
+			prefixed := map[string]string{}
+			for field, message := range details {
+				prefixed["materials["+strconv.Itoa(index)+"]."+field] = message
+			}
+			return nil, prefixed, nil
+		}
+		normalized[index] = input
+	}
+	items, err := s.repository.CreateMany(ctx, actorID, normalized)
+	return items, nil, err
 }
 
 func publicMaterial(material Material) PublicMaterial {

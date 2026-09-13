@@ -159,6 +159,29 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, material)
 }
 
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	materialID, ok := h.materialID(w, r)
+	if !ok {
+		return
+	}
+	var input PublishInput
+	if err := httpx.DecodeJSON(w, r, h.maxRequestBody, &input); err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be a valid JSON object", nil)
+		return
+	}
+	actorID, _ := auth.UserID(r.Context())
+	material, details, err := h.service.Archive(r.Context(), materialID, actorID, input.Revision)
+	if len(details) > 0 {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", details)
+		return
+	}
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, material)
+}
+
 func (h *Handler) materialID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	id, err := uuid.Parse(chi.URLParam(r, "materialID"))
 	if err != nil {

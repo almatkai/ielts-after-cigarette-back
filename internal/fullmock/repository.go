@@ -125,6 +125,22 @@ func (r *Repository) Publish(ctx context.Context, id uuid.UUID, revision int64) 
 	return item, nil
 }
 
+func (r *Repository) Archive(ctx context.Context, id uuid.UUID, revision int64) (Test, error) {
+	item, err := scanTest(r.pool.QueryRow(ctx, `UPDATE full_mock_tests SET status=$2,
+		revision=revision+1, updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND revision=$3
+		RETURNING `+testColumns, id, StatusArchived, revision))
+	if errors.Is(err, pgx.ErrNoRows) {
+		if _, getErr := r.Get(ctx, id); errors.Is(getErr, ErrNotFound) {
+			return Test{}, ErrNotFound
+		}
+		return Test{}, ErrRevisionConflict
+	}
+	if err != nil {
+		return Test{}, fmt.Errorf("archive full mock: %w", err)
+	}
+	return item, nil
+}
+
 func (r *Repository) FindActiveSession(ctx context.Context, userID, testID uuid.UUID) (Session, error) {
 	return r.getSession(ctx, `SELECT id, mock_test_id, user_id, status, current_section, started_at, submitted_at
 		FROM full_mock_sessions WHERE user_id=$1 AND mock_test_id=$2 AND status=$3`, userID, testID, SessionInProgress)
@@ -207,6 +223,30 @@ func (r *Repository) Advance(ctx context.Context, id uuid.UUID, nextSection int,
 	result, err := r.pool.Exec(ctx, `UPDATE full_mock_sessions SET current_section=$2 WHERE id=$1 AND status=$3`, id, nextSection, SessionInProgress)
 	if err != nil {
 		return fmt.Errorf("advance full mock: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return ErrSessionCompleted
+	}
+	return nil
+}
+
+func (r *Repository) Finish(ctx context.Context, id uuid.UUID) error {
+	result, err := r.pool.Exec(ctx, `UPDATE full_mock_sessions SET current_section=5, status=$2,
+		submitted_at=CURRENT_TIMESTAMP WHERE id=$1 AND status=$3`, id, SessionSubmitted, SessionInProgress)
+	if err != nil {
+		return fmt.Errorf("finish full mock: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return ErrSessionCompleted
+	}
+	return nil
+}
+
+func (r *Repository) Abandon(ctx context.Context, id uuid.UUID) error {
+	result, err := r.pool.Exec(ctx, `UPDATE full_mock_sessions SET status=$2,
+		submitted_at=CURRENT_TIMESTAMP WHERE id=$1 AND status=$3`, id, SessionAbandoned, SessionInProgress)
+	if err != nil {
+		return fmt.Errorf("abandon full mock: %w", err)
 	}
 	if result.RowsAffected() == 0 {
 		return ErrSessionCompleted

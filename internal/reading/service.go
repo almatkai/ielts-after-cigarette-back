@@ -24,6 +24,7 @@ type Repository interface {
 	CreateMany(context.Context, uuid.UUID, []SaveInput) ([]Material, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Material, error)
 	Publish(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
+	Archive(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
 }
 
 func (s *Service) ParseImport(input ImportParseInput) ImportResult {
@@ -158,6 +159,14 @@ func (s *Service) Publish(ctx context.Context, id, actorID uuid.UUID, revision i
 		return Material{}, map[string]string{"revision": "must be a positive integer"}, nil
 	}
 	material, err := s.repository.Publish(ctx, id, actorID, revision)
+	return material, nil, err
+}
+
+func (s *Service) Archive(ctx context.Context, id, actorID uuid.UUID, revision int64) (Material, map[string]string, error) {
+	if revision < 1 {
+		return Material{}, map[string]string{"revision": "must be a positive integer"}, nil
+	}
+	material, err := s.repository.Archive(ctx, id, actorID, revision)
 	return material, nil, err
 }
 

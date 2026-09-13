@@ -16,6 +16,7 @@ var (
 const (
 	StatusDraft     = "DRAFT"
 	StatusPublished = "PUBLISHED"
+	StatusArchived  = "ARCHIVED"
 	TaskOne         = "task1"
 	TaskTwo         = "task2"
 )
@@ -40,6 +41,7 @@ type Material struct {
 	Revision              int64      `json:"revision"`
 	Title                 string     `json:"title"`
 	Description           string     `json:"description"`
+	DurationMinutes       int        `json:"durationMinutes"`
 	Tasks                 []Task     `json:"tasks"`
 	CurrentVersionNumber  int        `json:"currentVersionNumber"`
 	PublishedVersionID    *uuid.UUID `json:"publishedVersionId"`
@@ -50,33 +52,36 @@ type Material struct {
 }
 
 type MaterialSummary struct {
-	ID          uuid.UUID  `json:"id"`
-	Slug        string     `json:"slug"`
-	ExamType    string     `json:"examType"`
-	Difficulty  string     `json:"difficulty"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	PublishedAt *time.Time `json:"publishedAt"`
+	ID              uuid.UUID  `json:"id"`
+	Slug            string     `json:"slug"`
+	ExamType        string     `json:"examType"`
+	Difficulty      string     `json:"difficulty"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	DurationMinutes int        `json:"durationMinutes"`
+	PublishedAt     *time.Time `json:"publishedAt"`
 }
 
 type PublicMaterial struct {
-	ID          uuid.UUID `json:"id"`
-	Slug        string    `json:"slug"`
-	ExamType    string    `json:"examType"`
-	Difficulty  string    `json:"difficulty"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Tasks       []Task    `json:"tasks"`
+	ID              uuid.UUID `json:"id"`
+	Slug            string    `json:"slug"`
+	ExamType        string    `json:"examType"`
+	Difficulty      string    `json:"difficulty"`
+	Title           string    `json:"title"`
+	Description     string    `json:"description"`
+	DurationMinutes int       `json:"durationMinutes"`
+	Tasks           []Task    `json:"tasks"`
 }
 
 type SaveInput struct {
-	Slug        string `json:"slug"`
-	ExamType    string `json:"examType"`
-	Difficulty  string `json:"difficulty"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Tasks       []Task `json:"tasks"`
-	Revision    int64  `json:"revision,omitempty"`
+	Slug            string `json:"slug"`
+	ExamType        string `json:"examType"`
+	Difficulty      string `json:"difficulty"`
+	Title           string `json:"title"`
+	Description     string `json:"description"`
+	DurationMinutes int    `json:"durationMinutes"`
+	Tasks           []Task `json:"tasks"`
+	Revision        int64  `json:"revision,omitempty"`
 }
 
 type PublishInput struct {

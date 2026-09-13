@@ -20,6 +20,7 @@ type Repository interface {
 	Create(context.Context, uuid.UUID, SaveInput) (Test, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Test, error)
 	Publish(context.Context, uuid.UUID, uuid.UUID, int64) (Test, error)
+	Archive(context.Context, uuid.UUID, uuid.UUID, int64) (Test, error)
 	CreateMedia(context.Context, uuid.UUID, Media) (Media, error)
 	GetMedia(context.Context, uuid.UUID, bool) (Media, error)
 }
@@ -204,6 +205,22 @@ func (r *PostgresRepository) Publish(ctx context.Context, id, actorID uuid.UUID,
 			return Test{}, err
 		}
 		if !exists {
+			return Test{}, ErrNotFound
+		}
+		return Test{}, ErrRevisionConflict
+	}
+	return r.Get(ctx, id, false)
+}
+
+func (r *PostgresRepository) Archive(ctx context.Context, id, actorID uuid.UUID, revision int64) (Test, error) {
+	command, err := r.pool.Exec(ctx, `UPDATE listening_tests SET status=$3,
+		revision=revision+1, updated_by=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND revision=$2`,
+		id, revision, StatusArchived, actorID)
+	if err != nil {
+		return Test{}, fmt.Errorf("archive listening test: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		if _, err := r.Get(ctx, id, false); errors.Is(err, ErrNotFound) {
 			return Test{}, ErrNotFound
 		}
 		return Test{}, ErrRevisionConflict

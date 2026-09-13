@@ -96,6 +96,13 @@ func (s *Service) Publish(ctx context.Context, id, actorID uuid.UUID, revision i
 	item, err := s.repository.Publish(ctx, id, actorID, revision)
 	return item, nil, err
 }
+func (s *Service) Archive(ctx context.Context, id, actorID uuid.UUID, revision int64) (Test, map[string]string, error) {
+	if revision < 1 {
+		return Test{}, map[string]string{"revision": "must be positive"}, nil
+	}
+	item, err := s.repository.Archive(ctx, id, actorID, revision)
+	return item, nil, err
+}
 
 func normalize(input SaveInput) SaveInput {
 	input.Slug = strings.ToLower(strings.TrimSpace(input.Slug))

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
@@ -49,8 +50,14 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	var input StartInput
+	// Keep the original empty-body start request compatible; restart is
+	// optional and only decoded when the client supplies it.
+	if r.ContentLength != 0 && !h.decode(w, r, &input) {
+		return
+	}
 	userID, _ := auth.UserID(r.Context())
-	session, created, err := h.service.Start(r.Context(), userID, id)
+	session, created, err := h.service.Start(r.Context(), userID, id, input.Restart)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -60,6 +67,30 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusCreated
 	}
 	httpx.WriteJSON(w, status, session)
+}
+
+func (h *Handler) Section(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r, "sessionID")
+	if !ok {
+		return
+	}
+	position, err := strconv.Atoi(chi.URLParam(r, "sectionPosition"))
+	if err != nil || position < 1 || position > 4 {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_SECTION", "Section position must be between 1 and 4", nil)
+		return
+	}
+	userID, _ := auth.UserID(r.Context())
+	section, material, err := h.service.GetSection(r.Context(), userID, id, position)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"position": section.Position,
+		"skill":    section.Skill,
+		"attempt":  section.Attempt,
+		"material": material,
+	})
 }
 
 func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
@@ -83,6 +114,20 @@ func (h *Handler) Advance(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, _ := auth.UserID(r.Context())
 	session, err := h.service.Advance(r.Context(), userID, id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, session)
+}
+
+func (h *Handler) Finish(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r, "sessionID")
+	if !ok {
+		return
+	}
+	userID, _ := auth.UserID(r.Context())
+	session, err := h.service.Finish(r.Context(), userID, id)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -147,6 +192,19 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 	h.writeSave(w, r, http.StatusOK, item, details, err)
 }
 
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r, "mockID")
+	if !ok {
+		return
+	}
+	var input PublishInput
+	if !h.decode(w, r, &input) {
+		return
+	}
+	item, details, err := h.service.Archive(r.Context(), id, input.Revision)
+	h.writeSave(w, r, http.StatusOK, item, details, err)
+}
+
 func (h *Handler) decode(w http.ResponseWriter, r *http.Request, target any) bool {
 	if err := httpx.DecodeJSON(w, r, h.maxBody, target); err != nil {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
@@ -184,6 +242,8 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_SECTION_INCOMPLETE", "Submit the current section before continuing", nil)
 	case errors.Is(err, ErrSessionCompleted):
 		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_COMPLETED", "Full mock session was already completed", nil)
+	case errors.Is(err, ErrSectionLocked):
+		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_SECTION_LOCKED", "This full mock section is not available yet", nil)
 	case errors.Is(err, ErrRevisionConflict):
 		httpx.WriteError(w, r, http.StatusConflict, "REVISION_CONFLICT", "Full mock was changed by another editor", nil)
 	case errors.Is(err, ErrSlugExists):

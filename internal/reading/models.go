@@ -16,6 +16,7 @@ var (
 const (
 	StatusDraft     = "DRAFT"
 	StatusPublished = "PUBLISHED"
+	StatusArchived  = "ARCHIVED"
 )
 
 // IELTS Reading question types. Groups contain one type of question, which
