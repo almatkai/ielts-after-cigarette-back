@@ -1,4 +1,7 @@
 .env
+.env.dev
+.env.dev.local
+.local-backups/
 .idea/
 .vscode/
 bin/
