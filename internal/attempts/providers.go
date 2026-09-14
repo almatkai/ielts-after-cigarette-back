@@ -61,7 +61,7 @@ func (p listeningProvider) GradingStructure(ctx context.Context, materialID, ver
 			for _, question := range group.Questions {
 				questions = append(questions, GradingQuestion{
 					ID: question.ID, Number: question.Number, Prompt: question.Prompt,
-					Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
+					Content: question.Content, Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
 				})
 			}
 		}
@@ -104,14 +104,28 @@ func (p readingProvider) GradingStructure(ctx context.Context, materialID, versi
 	questions := []GradingQuestion{}
 	for _, group := range material.QuestionGroups {
 		for _, question := range group.Questions {
+			number := question.Position
+			if contentNumber, ok := numericInt(question.Content["number"]); ok {
+				number = contentNumber
+			}
 			questions = append(questions, GradingQuestion{
-				// Reading questions have no number; position identifies them.
-				ID: question.ID, Number: question.Position, Prompt: question.Prompt,
+				ID: question.ID, Number: number, Prompt: question.Prompt, Content: question.Content,
 				Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
 			})
 		}
 	}
 	return GradingMaterial{ExamType: material.ExamType, Questions: questions}, nil
+}
+
+func numericInt(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case float64:
+		return int(typed), typed == float64(int(typed))
+	default:
+		return 0, false
+	}
 }
 
 type writingProvider struct {

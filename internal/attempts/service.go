@@ -172,12 +172,9 @@ func (s *Service) Submit(ctx context.Context, userID, attemptID uuid.UUID, input
 		if answer == nil {
 			answer = map[string]any{}
 		}
-		correct := gradeAnswer(question.Answer, answer)
-		points := 0
-		if correct {
-			points = question.Points
-			score += question.Points
-		}
+		points := gradePoints(question, answer)
+		correct := points == question.Points
+		score += points
 		maxScore += question.Points
 		graded = append(graded, Answer{
 			QuestionID:    question.ID,
@@ -527,6 +524,39 @@ func gradeAnswer(correct, given map[string]any) bool {
 		}
 	}
 	return false
+}
+
+func gradePoints(question GradingQuestion, given map[string]any) int {
+	if question.Points <= 1 || question.Answer["optionIds"] == nil {
+		if gradeAnswer(question.Answer, given) {
+			return question.Points
+		}
+		return 0
+	}
+	expected := stringList(question.Answer["optionIds"])
+	actual := stringList(given["optionIds"])
+	if len(expected) == 0 || len(actual) == 0 || len(actual) > len(expected) {
+		return 0
+	}
+	wanted := make(map[string]bool, len(expected))
+	for _, value := range expected {
+		wanted[value] = true
+	}
+	seen := make(map[string]bool, len(actual))
+	points := 0
+	for _, value := range actual {
+		if seen[value] {
+			continue
+		}
+		seen[value] = true
+		if wanted[value] {
+			points++
+		}
+	}
+	if points > question.Points {
+		return question.Points
+	}
+	return points
 }
 
 func normalizeText(value string) string {

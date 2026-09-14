@@ -68,6 +68,7 @@ Canonical type values are the uppercase forms of the existing domain IDs:
 | Import value | Stored ID |
 |---|---|
 | `MULTIPLE_CHOICE` | `multiple_choice` |
+| `MULTIPLE_SELECT` | `multiple_choice` (one scored range) |
 | `TRUE_FALSE_NOT_GIVEN` | `true_false_not_given` |
 | `YES_NO_NOT_GIVEN` | `yes_no_not_given` |
 | `MATCHING_INFORMATION` | `matching_information` |
@@ -139,6 +140,41 @@ D: Nothing changed
 For a question with multiple correct choices, separate IDs with `|` in the
 answer key, such as `4: A | C`.
 
+For the common IELTS form “Choose FIVE letters” where one prompt represents
+several numbered marks, use `MULTIPLE_SELECT`. Do not invent five duplicate
+question sentences:
+
+```text
+### GROUP 5
+range: 18-22
+type: MULTIPLE_SELECT
+instruction:
+Choose FIVE letters A-J.
+Which FIVE claims are made by the writer?
+options:
+A: First claim
+B: Second claim
+C: Third claim
+D: Fourth claim
+E: Fifth claim
+F: Sixth claim
+G: Seventh claim
+H: Eighth claim
+I: Ninth claim
+J: Tenth claim
+
+## ANSWERS
+18: A
+19: C
+20: E
+21: F
+22: J
+```
+
+This is stored as one question worth five marks. The student selects five
+options, and each correctly selected option earns one mark regardless of
+order. Selecting more options than allowed earns no marks for the group.
+
 ## Matching and sentence endings
 
 Shared options are placed before the numbered questions:
@@ -184,6 +220,9 @@ The parser checks that every completion question has exactly its own numbered
 placeholder and converts it to the constructor representation `{{answer}}`.
 Duplicate placeholders and placeholders outside the group range are errors.
 
+Copied source notation such as `(8) ...`, `(8) …` and `(8) ____` is accepted
+and normalized to `{{8}}`. A line may contain several numbered blanks.
+
 A shared block is also supported:
 
 ```text
@@ -195,6 +234,32 @@ Research notes
 
 Each line containing a placeholder becomes an existing question. The complete
 block is retained as `question.content.context`.
+
+Summary, note, table and flow-chart completion can use a word bank. Add an
+`options:` block and put option IDs in `ANSWERS`; `answer_limit` is then not
+required:
+
+```text
+type: SUMMARY_COMPLETION
+instruction:
+Complete the summary using the words A-D.
+The report names (8) … before describing (9) ….
+options:
+A: climate
+B: funding
+C: soil
+D: transport
+```
+
+For diagram-label questions an HTTPS image can be attached to the group:
+
+```text
+image:
+https://cdn.example.com/reading/diagram.png
+```
+
+The same syntax also accepts `image: https://...` on one line. The student
+screen renders the image once above that group.
 
 Supported keyword limits:
 
@@ -324,4 +389,3 @@ The missing word in the passage is "bird".
 ### 6
 The text is a synthetic import example.
 ```
-

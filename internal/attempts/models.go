@@ -68,6 +68,7 @@ type GradingQuestion struct {
 	ID          uuid.UUID
 	Number      int
 	Prompt      string
+	Content     map[string]any
 	Answer      map[string]any
 	Explanation string
 	Points      int

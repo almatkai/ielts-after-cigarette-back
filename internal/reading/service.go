@@ -278,14 +278,30 @@ func validateInput(input SaveInput, requireRevision bool) map[string]string {
 }
 
 func validateQuestion(questionType string, question Question) string {
+	if imageURL, ok := question.Content["imageUrl"].(string); ok && strings.TrimSpace(imageURL) != "" {
+		parsed, err := url.Parse(imageURL)
+		if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+			return "content.imageUrl must be a valid https URL"
+		}
+	}
 	if questionType == QuestionMultipleChoice {
 		options, ok := question.Content["options"].([]any)
 		if !ok || len(options) < 2 {
 			return "multiple choice needs at least two content.options"
 		}
-		if _, ok := question.Answer["optionId"]; !ok {
+		if optionID, ok := question.Answer["optionId"].(string); ok {
+			if message := validateOptionAnswers(options, []string{optionID}); message != "" {
+				return message
+			}
+		} else {
 			if ids, multiple := question.Answer["optionIds"].([]any); !multiple || len(ids) == 0 {
 				return "answer needs optionId or optionIds"
+			} else if values := answerStrings(ids); values == nil {
+				return "answer.optionIds must contain strings"
+			} else if message := validateOptionAnswers(options, values); message != "" {
+				return message
+			} else if question.Points > 1 && len(values) != question.Points {
+				return "multi-select needs one correct option per point"
 			}
 		}
 	}
@@ -296,16 +312,40 @@ func validateQuestion(questionType string, question Question) string {
 		}
 	}
 	if strings.HasPrefix(questionType, "matching_") {
-		if _, ok := question.Answer["optionId"]; !ok {
+		optionID, ok := question.Answer["optionId"].(string)
+		if !ok {
 			return "matching question needs answer.optionId"
+		}
+		if message := validateOptionAnswers(question.Content["options"], []string{optionID}); message != "" {
+			return message
 		}
 	}
 	if strings.HasSuffix(questionType, "completion") || questionType == QuestionShortAnswer {
-		if accepted, ok := question.Answer["accepted"].([]any); !ok || len(accepted) == 0 {
+		if options, hasOptions := question.Content["options"].([]any); hasOptions && len(options) > 0 {
+			optionID, ok := question.Answer["optionId"].(string)
+			if !ok {
+				return "completion with options needs answer.optionId"
+			}
+			if message := validateOptionAnswers(options, []string{optionID}); message != "" {
+				return message
+			}
+		} else if accepted, ok := question.Answer["accepted"].([]any); !ok || len(accepted) == 0 {
 			return "answer.accepted must be a non-empty array"
 		}
 	}
 	return ""
+}
+
+func answerStrings(values []any) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		text, ok := value.(string)
+		if !ok || strings.TrimSpace(text) == "" {
+			return nil
+		}
+		result = append(result, text)
+	}
+	return result
 }
 
 func oneOf(value string, values ...string) bool {

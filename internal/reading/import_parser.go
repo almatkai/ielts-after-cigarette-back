@@ -424,6 +424,17 @@ func setImportedAnswer(questionType string, question *Question, raw string) stri
 		question.Answer = map[string]any{"optionId": values[0]}
 		return validateOptionAnswers(question.Content["options"], values)
 	}
+	if isCompletionType(questionType) {
+		if options, ok := question.Content["options"].([]any); ok && len(options) > 0 {
+			values := parseAnswerValues(raw)
+			if len(values) != 1 {
+				return "Completion with an option bank needs exactly one option"
+			}
+			value := strings.ToUpper(values[0])
+			question.Answer = map[string]any{"optionId": value}
+			return validateOptionAnswers(question.Content["options"], []string{value})
+		}
+	}
 	values := parseAnswerValues(raw)
 	if len(values) == 0 {
 		return "Answer is empty"

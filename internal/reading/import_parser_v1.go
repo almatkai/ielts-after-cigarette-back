@@ -2,6 +2,7 @@ package reading
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,11 +12,12 @@ import (
 const importFormatV1 = "IELTS_READING_IMPORT_V1"
 
 var (
-	v1PassagePattern     = regexp.MustCompile(`(?i)^##\s+PASSAGE\s+(\d+)\s*$`)
-	v1GroupPattern       = regexp.MustCompile(`(?i)^###\s+GROUP\s+(\d+)\s*$`)
-	v1ExplanationPattern = regexp.MustCompile(`^###\s+(\d+)\s*$`)
-	v1RangePattern       = regexp.MustCompile(`^(\d+)\s*[-\x{2013}]\s*(\d+)$`)
-	v1PlaceholderPattern = regexp.MustCompile(`\{\{(\d+)\}\}`)
+	v1PassagePattern      = regexp.MustCompile(`(?i)^##\s+PASSAGE\s+(\d+)\s*$`)
+	v1GroupPattern        = regexp.MustCompile(`(?i)^###\s+GROUP\s+(\d+)\s*$`)
+	v1ExplanationPattern  = regexp.MustCompile(`^###\s+(\d+)\s*$`)
+	v1RangePattern        = regexp.MustCompile(`^(\d+)\s*[-\x{2013}]\s*(\d+)$`)
+	v1PlaceholderPattern  = regexp.MustCompile(`\{\{(\d+)\}\}`)
+	v1NaturalBlankPattern = regexp.MustCompile(`\((\d+)\)\s*(?:\x{2026}+|\.{3,}|_{2,})`)
 )
 
 type v1QuestionBuilder struct {
@@ -26,21 +28,24 @@ type v1QuestionBuilder struct {
 }
 
 type v1GroupBuilder struct {
-	passage          int
-	number           int
-	line             int
-	rangeStart       int
-	rangeEnd         int
-	typeID           string
-	instructions     []string
-	answerLimit      string
-	answerLimitWords int
-	answerLimitNum   *bool
-	reuseOptions     bool
-	sharedOptions    []any
-	questions        []v1QuestionBuilder
-	contentLines     []string
-	contentLineStart int
+	passage            int
+	number             int
+	line               int
+	rangeStart         int
+	rangeEnd           int
+	typeID             string
+	multipleSelect     bool
+	instructions       []string
+	answerLimit        string
+	answerLimitWords   int
+	answerLimitNum     *bool
+	reuseOptions       bool
+	sharedOptions      []any
+	questions          []v1QuestionBuilder
+	contentLines       []string
+	contentLineNumbers []int
+	contentLineStart   int
+	imageURL           string
 }
 
 type v1Explanation struct {
@@ -95,6 +100,7 @@ func parseImportV1(input ImportParseInput) ImportResult {
 			case "content":
 				if currentGroup >= 0 && len(groups[currentGroup].contentLines) > 0 {
 					groups[currentGroup].contentLines = append(groups[currentGroup].contentLines, "")
+					groups[currentGroup].contentLineNumbers = append(groups[currentGroup].contentLineNumbers, lineNumber)
 				}
 			case "explanation":
 				entry := explanations[currentExplanation]
@@ -196,6 +202,11 @@ func parseImportV1(input ImportParseInput) ImportResult {
 
 		if currentGroup >= 0 {
 			group := &groups[currentGroup]
+			if mode == "image" {
+				group.imageURL = line
+				mode = "group"
+				continue
+			}
 			if value, ok := v1Field(line, "range"); ok {
 				match := v1RangePattern.FindStringSubmatch(value)
 				if match == nil {
@@ -208,7 +219,7 @@ func parseImportV1(input ImportParseInput) ImportResult {
 				continue
 			}
 			if value, ok := v1Field(line, "type"); ok {
-				group.typeID = strings.ToLower(strings.TrimSpace(value))
+				group.typeID, group.multipleSelect = canonicalV1QuestionType(value)
 				if !containsQuestionType(group.typeID) {
 					result.Errors = append(result.Errors, issue("UNKNOWN_QUESTION_TYPE", "Unknown canonical question type: "+value, lineNumber, result.Passages[group.passage].Number, 0))
 				}
@@ -275,6 +286,15 @@ func parseImportV1(input ImportParseInput) ImportResult {
 				group.contentLineStart = lineNumber + 1
 				continue
 			}
+			if value, ok := v1Field(line, "image"); ok {
+				group.imageURL = strings.TrimSpace(value)
+				if group.imageURL == "" {
+					mode = "image"
+				} else {
+					mode = "group"
+				}
+				continue
+			}
 			if match := questionLinePattern.FindStringSubmatch(line); match != nil {
 				number, _ := strconv.Atoi(match[1])
 				group.questions = append(group.questions, v1QuestionBuilder{number: number, prompt: match[2], line: lineNumber})
@@ -294,9 +314,15 @@ func parseImportV1(input ImportParseInput) ImportResult {
 			}
 			switch mode {
 			case "instruction":
-				group.instructions = append(group.instructions, raw)
+				if v1NaturalBlankPattern.MatchString(raw) {
+					group.contentLines = append(group.contentLines, normalizeV1NaturalBlanks(raw))
+					group.contentLineNumbers = append(group.contentLineNumbers, lineNumber)
+				} else {
+					group.instructions = append(group.instructions, raw)
+				}
 			case "content":
 				group.contentLines = append(group.contentLines, raw)
+				group.contentLineNumbers = append(group.contentLineNumbers, lineNumber)
 			default:
 				result.Errors = append(result.Errors, issue("UNRECOGNIZED_GROUP_LINE", "Unrecognized line inside question group", lineNumber, result.Passages[group.passage].Number, 0))
 			}
@@ -352,6 +378,12 @@ func buildV1Groups(result *ImportResult, builders []v1GroupBuilder) map[int]impo
 		if builder.typeID == "" {
 			result.Errors = append(result.Errors, issue("GROUP_TYPE_MISSING", "Every V1 group needs a type", builder.line, passageNumber, 0))
 		}
+		if builder.imageURL != "" {
+			parsed, err := url.Parse(builder.imageURL)
+			if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+				result.Errors = append(result.Errors, issue("INVALID_IMAGE_URL", "image must be a valid https URL", builder.line, passageNumber, 0))
+			}
+		}
 		questions := append([]v1QuestionBuilder{}, builder.questions...)
 		contextText := strings.TrimSpace(strings.Join(builder.contentLines, "\n"))
 		placeholderLines := map[int]int{}
@@ -360,12 +392,26 @@ func buildV1Groups(result *ImportResult, builders []v1GroupBuilder) map[int]impo
 			for _, match := range matches {
 				number, _ := strconv.Atoi(match[1])
 				lineNumber := builder.contentLineStart + lineOffset
+				if lineOffset < len(builder.contentLineNumbers) {
+					lineNumber = builder.contentLineNumbers[lineOffset]
+				}
 				if previous, exists := placeholderLines[number]; exists {
 					result.Errors = append(result.Errors, issue("DUPLICATE_PLACEHOLDER", fmt.Sprintf("Placeholder {{%d}} was first declared on line %d", number, previous), lineNumber, passageNumber, number))
 				}
 				placeholderLines[number] = lineNumber
-				questions = append(questions, v1QuestionBuilder{number: number, prompt: strings.TrimSpace(contentLine), line: lineNumber})
+				prompt := strings.TrimSpace(contentLine)
+				if len(matches) > 1 {
+					prompt = fmt.Sprintf("Question %d: {{%d}}", number, number)
+				}
+				questions = append(questions, v1QuestionBuilder{number: number, prompt: prompt, line: lineNumber})
 			}
+		}
+		if builder.multipleSelect && len(questions) == 0 && builder.rangeStart > 0 && builder.rangeEnd >= builder.rangeStart {
+			prompt := lastNonEmptyLine(builder.instructions)
+			if prompt == "" {
+				prompt = fmt.Sprintf("Choose the correct options for questions %d-%d", builder.rangeStart, builder.rangeEnd)
+			}
+			questions = append(questions, v1QuestionBuilder{number: builder.rangeStart, prompt: prompt, line: builder.line})
 		}
 		sort.SliceStable(questions, func(i, j int) bool { return questions[i].number < questions[j].number })
 
@@ -375,11 +421,11 @@ func buildV1Groups(result *ImportResult, builders []v1GroupBuilder) map[int]impo
 			maxWords, allowNumber, limitOK = builder.answerLimitWords, *builder.answerLimitNum, true
 		}
 		hasAnswerLimit := builder.answerLimit != "" || builder.answerLimitWords > 0 || builder.answerLimitNum != nil
-		if isCompletionType(builder.typeID) && !hasAnswerLimit {
+		if isCompletionType(builder.typeID) && !hasAnswerLimit && len(builder.sharedOptions) == 0 {
 			result.Warnings = append(result.Warnings, issue("ANSWER_LIMIT_MISSING", "Completion group has no answer_limit", builder.line, passageNumber, 0))
 		} else if isCompletionType(builder.typeID) && (builder.answerLimitWords == 0) != (builder.answerLimitNum == nil) {
 			result.Errors = append(result.Errors, issue("INVALID_ANSWER_LIMIT", "Structured answer_limit needs max_words and allow_number", builder.line, passageNumber, 0))
-		} else if isCompletionType(builder.typeID) && !limitOK {
+		} else if isCompletionType(builder.typeID) && hasAnswerLimit && !limitOK {
 			result.Errors = append(result.Errors, issue("INVALID_ANSWER_LIMIT", "Unsupported answer_limit: "+builder.answerLimit, builder.line, passageNumber, 0))
 		} else if builder.answerLimit != "" && !isCompletionType(builder.typeID) {
 			result.Warnings = append(result.Warnings, issue("ANSWER_LIMIT_IGNORED", "answer_limit is only used by completion groups", builder.line, passageNumber, 0))
@@ -406,6 +452,18 @@ func buildV1Groups(result *ImportResult, builders []v1GroupBuilder) map[int]impo
 			if contextText != "" {
 				content["context"] = contextText
 			}
+			if builder.imageURL != "" {
+				content["imageUrl"] = builder.imageURL
+			}
+			points := 1
+			if builder.multipleSelect {
+				points = builder.rangeEnd - builder.rangeStart + 1
+				content["numberEnd"] = builder.rangeEnd
+				content["selectionLimit"] = points
+				for number := builder.rangeStart; number <= builder.rangeEnd; number++ {
+					actualNumbers[number] = true
+				}
+			}
 			prompt := built.prompt
 			if isCompletionType(builder.typeID) {
 				matches := v1PlaceholderPattern.FindAllStringSubmatch(prompt, -1)
@@ -423,8 +481,15 @@ func buildV1Groups(result *ImportResult, builders []v1GroupBuilder) map[int]impo
 					content["completionRule"] = map[string]any{"maxWords": maxWords, "allowNumber": allowNumber}
 				}
 			}
-			group.Questions = append(group.Questions, Question{Position: len(group.Questions) + 1, Prompt: prompt, Content: content, Answer: map[string]any{}, Points: 1})
-			refs[built.number] = importQuestionRef{passage: builder.passage, group: len(result.Passages[builder.passage].Material.QuestionGroups), question: len(group.Questions) - 1, line: built.line}
+			group.Questions = append(group.Questions, Question{Position: len(group.Questions) + 1, Prompt: prompt, Content: content, Answer: map[string]any{}, Points: points})
+			ref := importQuestionRef{passage: builder.passage, group: len(result.Passages[builder.passage].Material.QuestionGroups), question: len(group.Questions) - 1, line: built.line}
+			if builder.multipleSelect {
+				for number := builder.rangeStart; number <= builder.rangeEnd; number++ {
+					refs[number] = ref
+				}
+			} else {
+				refs[built.number] = ref
+			}
 		}
 		if builder.rangeStart > 0 && builder.rangeEnd >= builder.rangeStart {
 			for number := builder.rangeStart; number <= builder.rangeEnd; number++ {
@@ -445,6 +510,7 @@ func buildV1Groups(result *ImportResult, builders []v1GroupBuilder) map[int]impo
 
 func applyV1AnswersAndExplanations(result *ImportResult, refs map[int]importQuestionRef, answers map[int]importAnswer, explanations map[int]v1Explanation) {
 	answerNumbers := sortedImportNumbers(answers)
+	aggregated := map[string][]string{}
 	for _, number := range answerNumbers {
 		answer := answers[number]
 		ref, exists := refs[number]
@@ -454,6 +520,22 @@ func applyV1AnswersAndExplanations(result *ImportResult, refs map[int]importQues
 		}
 		group := &result.Passages[ref.passage].Material.QuestionGroups[ref.group]
 		question := &group.Questions[ref.question]
+		if numberEnd, ok := intContentValue(question.Content["numberEnd"]); ok && numberEnd >= number {
+			values := parseAnswerValues(answer.raw)
+			if len(values) != 1 {
+				result.Errors = append(result.Errors, issue("INVALID_ANSWER", "Each MULTIPLE_SELECT answer line must contain exactly one option", answer.line, result.Passages[ref.passage].Number, number))
+				continue
+			}
+			value := strings.ToUpper(values[0])
+			if message := validateOptionAnswers(question.Content["options"], []string{value}); message != "" {
+				result.Errors = append(result.Errors, issue("INVALID_ANSWER", message, answer.line, result.Passages[ref.passage].Number, number))
+				continue
+			}
+			key := fmt.Sprintf("%d:%d:%d", ref.passage, ref.group, ref.question)
+			aggregated[key] = append(aggregated[key], value)
+			question.Answer = map[string]any{"optionIds": stringsToAny(aggregated[key])}
+			continue
+		}
 		if message := setImportedAnswer(group.Type, question, answer.raw); message != "" {
 			result.Errors = append(result.Errors, issue("INVALID_ANSWER", message, answer.line, result.Passages[ref.passage].Number, number))
 		} else if group.Type == QuestionMultipleChoice {
@@ -478,7 +560,12 @@ func applyV1AnswersAndExplanations(result *ImportResult, refs map[int]importQues
 			result.Errors = append(result.Errors, issue("ANSWER_MISSING", "No answer provided", ref.line, result.Passages[ref.passage].Number, number))
 		}
 		if explanation, exists := explanations[number]; exists {
-			result.Passages[ref.passage].Material.QuestionGroups[ref.group].Questions[ref.question].Explanation = strings.TrimSpace(strings.Join(explanation.lines, "\n"))
+			question := &result.Passages[ref.passage].Material.QuestionGroups[ref.group].Questions[ref.question]
+			text := strings.TrimSpace(strings.Join(explanation.lines, "\n"))
+			if question.Explanation != "" && text != "" {
+				question.Explanation += "\n\n"
+			}
+			question.Explanation += text
 		}
 	}
 	for number, explanation := range explanations {
@@ -491,6 +578,8 @@ func applyV1AnswersAndExplanations(result *ImportResult, refs map[int]importQues
 func multipleChoiceAnswerCount(instruction string) int {
 	upper := strings.ToUpper(instruction)
 	switch {
+	case strings.Contains(upper, "CHOOSE FIVE"):
+		return 5
 	case strings.Contains(upper, "CHOOSE FOUR"):
 		return 4
 	case strings.Contains(upper, "CHOOSE THREE"):
@@ -518,13 +607,21 @@ func finalizeV1Result(result *ImportResult) {
 		}
 		totalGroups += len(passage.Material.QuestionGroups)
 		for _, group := range passage.Material.QuestionGroups {
-			totalQuestions += len(group.Questions)
+			for _, question := range group.Questions {
+				totalQuestions += question.Points
+			}
 			for _, question := range group.Questions {
 				if question.Explanation != "" {
-					totalExplanations++
+					totalExplanations += question.Points
 				}
 				if number, ok := question.Content["number"].(int); ok {
-					allNumbers = append(allNumbers, number)
+					numberEnd := number
+					if parsed, exists := intContentValue(question.Content["numberEnd"]); exists {
+						numberEnd = parsed
+					}
+					for current := number; current <= numberEnd; current++ {
+						allNumbers = append(allNumbers, current)
+					}
 				}
 			}
 		}
@@ -588,4 +685,36 @@ func v1Field(line, name string) (string, bool) {
 		return "", false
 	}
 	return strings.TrimSpace(line[len(prefix):]), true
+}
+
+func canonicalV1QuestionType(value string) (string, bool) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == "MULTIPLE_SELECT" {
+		return QuestionMultipleChoice, true
+	}
+	return strings.ToLower(normalized), false
+}
+
+func normalizeV1NaturalBlanks(value string) string {
+	return v1NaturalBlankPattern.ReplaceAllString(value, `{{$1}}`)
+}
+
+func lastNonEmptyLine(lines []string) string {
+	for index := len(lines) - 1; index >= 0; index-- {
+		if value := strings.TrimSpace(lines[index]); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func intContentValue(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case float64:
+		return int(typed), typed == float64(int(typed))
+	default:
+		return 0, false
+	}
 }

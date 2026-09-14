@@ -155,6 +155,71 @@ func TestParseImportV1ExplanationIsOptional(t *testing.T) {
 	}
 }
 
+func TestParseImportV1NaturalBlanksWordBankMultipleSelectAndImage(t *testing.T) {
+	t.Parallel()
+	source := `# IELTS_READING_IMPORT_V1
+title: Synthetic advanced groups
+exam_type: ACADEMIC
+## PASSAGE 1
+title: Synthetic passage
+### TEXT
+This original synthetic passage is deliberately longer than fifty characters and exists only to exercise advanced import groups.
+### GROUP 1
+range: 1-2
+type: SUMMARY_COMPLETION
+instruction:
+Complete the summary using the options below.
+The report names (1) … and then mentions (2) ____.
+options:
+A: Alpha
+B: Beta
+C: Gamma
+### GROUP 2
+range: 3-5
+type: MULTIPLE_SELECT
+instruction:
+Choose THREE letters A-E.
+Which THREE claims are made by the writer?
+options:
+A: First claim
+B: Second claim
+C: Third claim
+D: Fourth claim
+E: Fifth claim
+### GROUP 3
+range: 6-6
+type: DIAGRAM_LABEL_COMPLETION
+answer_limit: ONE_WORD_ONLY
+instruction:
+Label the diagram.
+image:
+https://example.com/diagram.png
+6. Part {{6}}
+## ANSWERS
+1: A
+2: C
+3: A
+4: C
+5: E
+6: wing`
+	result := ParseImport(ImportParseInput{Source: source})
+	if len(result.Errors) != 0 {
+		t.Fatalf("errors = %#v", result.Errors)
+	}
+	q1 := v1Question(t, result, 1)
+	if q1.Answer["optionId"] != "A" || !strings.Contains(q1.Content["context"].(string), "{{1}}") {
+		t.Fatalf("word-bank question = %#v", q1)
+	}
+	q3 := v1Question(t, result, 3)
+	if q3.Points != 3 || q3.Content["numberEnd"] != 5 || len(q3.Answer["optionIds"].([]any)) != 3 {
+		t.Fatalf("multiple select = %#v", q3)
+	}
+	q6 := v1Question(t, result, 6)
+	if q6.Content["imageUrl"] != "https://example.com/diagram.png" {
+		t.Fatalf("diagram question = %#v", q6)
+	}
+}
+
 func TestParseImportV1Validation(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

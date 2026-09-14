@@ -268,6 +268,20 @@ func TestGradeOptionIDs(t *testing.T) {
 	}
 }
 
+func TestGradePointsMultipleSelectAwardsEachCorrectChoice(t *testing.T) {
+	t.Parallel()
+	question := GradingQuestion{
+		Points: 3,
+		Answer: map[string]any{"optionIds": []any{"A", "C", "E"}},
+	}
+	if points := gradePoints(question, map[string]any{"optionIds": []any{"E", "A", "B"}}); points != 2 {
+		t.Fatalf("points = %d, want 2", points)
+	}
+	if points := gradePoints(question, map[string]any{"optionIds": []any{"A", "B", "C", "D"}}); points != 0 {
+		t.Fatalf("over-selection points = %d, want 0", points)
+	}
+}
+
 func TestGradeValue(t *testing.T) {
 	correct := map[string]any{"value": "NOT_GIVEN"}
 	if !gradeAnswer(correct, map[string]any{"value": "NOT_GIVEN"}) {
