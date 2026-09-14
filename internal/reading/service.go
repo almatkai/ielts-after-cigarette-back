@@ -31,27 +31,58 @@ func (s *Service) ParseImport(input ImportParseInput) ImportResult {
 	return ParseImport(input)
 }
 
-func (s *Service) BulkCreate(ctx context.Context, actorID uuid.UUID, inputs []SaveInput) ([]Material, map[string]string, error) {
-	if len(inputs) == 0 || len(inputs) > 20 {
+func (s *Service) BulkCreate(ctx context.Context, actorID uuid.UUID, input BulkCreateInput) ([]Material, map[string]string, error) {
+	if len(input.Passages) == 0 || len(input.Passages) > 20 {
 		return nil, map[string]string{"passages": "must contain between 1 and 20 passages"}, nil
 	}
-	normalized := make([]SaveInput, len(inputs))
-	for index, input := range inputs {
-		input = normalizeInput(input)
-		if input.Slug == "" {
-			input.Slug = "reading-" + uuid.NewString()[:8]
+	if input.DurationMinutes == 0 {
+		input.DurationMinutes = 60
+	}
+	if input.DurationMinutes < 1 || input.DurationMinutes > 300 {
+		return nil, map[string]string{"durationMinutes": "must be between 1 and 300"}, nil
+	}
+	normalized := make([]SaveInput, 0, len(input.Passages)+1)
+	passages := make([]SaveInput, len(input.Passages))
+	for index, passage := range input.Passages {
+		passage.Kind = KindPassage
+		passage = normalizeInput(passage)
+		if passage.Slug == "" {
+			passage.Slug = "reading-passage-" + uuid.NewString()[:8]
 		}
-		if details := validateInput(input, false); len(details) > 0 {
+		if details := validateInput(passage, false); len(details) > 0 {
 			prefixed := map[string]string{}
 			for field, message := range details {
 				prefixed["passages["+strconv.Itoa(index)+"]."+field] = message
 			}
 			return nil, prefixed, nil
 		}
-		normalized[index] = input
+		passages[index] = passage
 	}
+	title := strings.TrimSpace(input.Title)
+	if title == "" {
+		title = "IELTS Reading Test"
+	}
+	duration := input.DurationMinutes
+	bodyParts := make([]string, 0, len(passages))
+	for index, passage := range passages {
+		bodyParts = append(bodyParts, "PASSAGE "+strconv.Itoa(index+1)+" — "+passage.Title+"\n\n"+passage.Body)
+	}
+	parent := normalizeInput(SaveInput{
+		Kind: KindTest, Slug: "reading-test-" + uuid.NewString()[:8],
+		ExamType: passages[0].ExamType, Difficulty: passages[0].Difficulty,
+		Title: title, Description: "Complete IELTS Reading test",
+		Body: strings.Join(bodyParts, "\n\n"), DurationMinutes: &duration,
+	})
+	if details := validateInput(parent, false); len(details) > 0 {
+		return nil, details, nil
+	}
+	normalized = append(normalized, parent)
+	normalized = append(normalized, passages...)
 	items, err := s.repository.CreateMany(ctx, actorID, normalized)
-	return items, nil, err
+	if err != nil || len(items) == 0 {
+		return nil, nil, err
+	}
+	return items[:1], nil, nil
 }
 
 type Service struct {
@@ -113,9 +144,10 @@ func (s *Service) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UU
 func publicMaterial(material Material) PublicMaterial {
 	result := PublicMaterial{
 		ID: material.ID, Slug: material.Slug, ExamType: material.ExamType,
-		Difficulty: material.Difficulty, Title: material.Title,
+		Difficulty: material.Difficulty, Kind: material.Kind, Title: material.Title,
 		Description: material.Description, Body: material.Body,
-		QuestionGroups: []PublicQuestionGroup{},
+		DurationMinutes: material.DurationMinutes,
+		QuestionGroups:  []PublicQuestionGroup{}, Passages: []PublicMaterial{},
 	}
 	for _, group := range material.QuestionGroups {
 		publicGroup := PublicQuestionGroup{
@@ -129,6 +161,9 @@ func publicMaterial(material Material) PublicMaterial {
 			})
 		}
 		result.QuestionGroups = append(result.QuestionGroups, publicGroup)
+	}
+	for _, passage := range material.Passages {
+		result.Passages = append(result.Passages, publicMaterial(passage))
 	}
 	return result
 }
@@ -171,6 +206,10 @@ func (s *Service) Archive(ctx context.Context, id, actorID uuid.UUID, revision i
 }
 
 func normalizeInput(input SaveInput) SaveInput {
+	input.Kind = strings.ToUpper(strings.TrimSpace(input.Kind))
+	if input.Kind == "" {
+		input.Kind = KindPassage
+	}
 	input.Slug = strings.ToLower(strings.TrimSpace(input.Slug))
 	input.ExamType = strings.ToLower(strings.TrimSpace(input.ExamType))
 	input.Difficulty = strings.ToLower(strings.TrimSpace(input.Difficulty))
@@ -218,6 +257,9 @@ func normalizedOptional(value *string) *string {
 
 func validateInput(input SaveInput, requireRevision bool) map[string]string {
 	details := map[string]string{}
+	if input.Kind != KindPassage && input.Kind != KindTest {
+		details["kind"] = "must be PASSAGE or TEST"
+	}
 	if len(input.Slug) > 160 || !slugPattern.MatchString(input.Slug) {
 		details["slug"] = "must contain lowercase Latin letters, numbers, and single hyphens"
 	}

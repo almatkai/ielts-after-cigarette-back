@@ -19,6 +19,11 @@ const (
 	StatusArchived  = "ARCHIVED"
 )
 
+const (
+	KindPassage = "PASSAGE"
+	KindTest    = "TEST"
+)
+
 // IELTS Reading question types. Groups contain one type of question, which
 // mirrors the official test layout and keeps rendering/grading deterministic.
 const (
@@ -70,43 +75,51 @@ type Material struct {
 	ExamType              string          `json:"examType"`
 	Difficulty            string          `json:"difficulty"`
 	Status                string          `json:"status"`
+	Kind                  string          `json:"kind"`
 	Revision              int64           `json:"revision"`
 	Title                 string          `json:"title"`
 	Description           string          `json:"description"`
 	Body                  string          `json:"body"`
+	DurationMinutes       *int            `json:"durationMinutes"`
 	SourceTitle           *string         `json:"sourceTitle"`
 	SourceURL             *string         `json:"sourceUrl"`
 	CurrentVersionNumber  int             `json:"currentVersionNumber"`
+	CurrentVersionID      uuid.UUID       `json:"currentVersionId"`
 	PublishedVersionID    *uuid.UUID      `json:"publishedVersionId"`
 	HasUnpublishedChanges bool            `json:"hasUnpublishedChanges"`
 	PublishedAt           *time.Time      `json:"publishedAt"`
 	CreatedAt             time.Time       `json:"createdAt"`
 	UpdatedAt             time.Time       `json:"updatedAt"`
 	QuestionGroups        []QuestionGroup `json:"questionGroups,omitempty"`
+	Passages              []Material      `json:"passages,omitempty"`
 }
 
 type SaveInput struct {
-	Slug           string          `json:"slug"`
-	ExamType       string          `json:"examType"`
-	Difficulty     string          `json:"difficulty"`
-	Title          string          `json:"title"`
-	Description    string          `json:"description"`
-	Body           string          `json:"body"`
-	SourceTitle    *string         `json:"sourceTitle"`
-	SourceURL      *string         `json:"sourceUrl"`
-	QuestionGroups []QuestionGroup `json:"questionGroups,omitempty"`
-	Revision       int64           `json:"revision,omitempty"`
+	Kind            string          `json:"kind,omitempty"`
+	Slug            string          `json:"slug"`
+	ExamType        string          `json:"examType"`
+	Difficulty      string          `json:"difficulty"`
+	Title           string          `json:"title"`
+	Description     string          `json:"description"`
+	Body            string          `json:"body"`
+	DurationMinutes *int            `json:"durationMinutes,omitempty"`
+	SourceTitle     *string         `json:"sourceTitle"`
+	SourceURL       *string         `json:"sourceUrl"`
+	QuestionGroups  []QuestionGroup `json:"questionGroups,omitempty"`
+	Revision        int64           `json:"revision,omitempty"`
 }
 
 // MaterialSummary is the public list shape: no passage body, no questions.
 type MaterialSummary struct {
-	ID          uuid.UUID  `json:"id"`
-	Slug        string     `json:"slug"`
-	ExamType    string     `json:"examType"`
-	Difficulty  string     `json:"difficulty"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	PublishedAt *time.Time `json:"publishedAt"`
+	ID              uuid.UUID  `json:"id"`
+	Slug            string     `json:"slug"`
+	ExamType        string     `json:"examType"`
+	Difficulty      string     `json:"difficulty"`
+	Kind            string     `json:"kind"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	PublishedAt     *time.Time `json:"publishedAt"`
+	DurationMinutes *int       `json:"durationMinutes"`
 }
 
 // Public* types mirror Material without correct answers and explanations.
@@ -127,14 +140,17 @@ type PublicQuestionGroup struct {
 }
 
 type PublicMaterial struct {
-	ID             uuid.UUID             `json:"id"`
-	Slug           string                `json:"slug"`
-	ExamType       string                `json:"examType"`
-	Difficulty     string                `json:"difficulty"`
-	Title          string                `json:"title"`
-	Description    string                `json:"description"`
-	Body           string                `json:"body"`
-	QuestionGroups []PublicQuestionGroup `json:"questionGroups"`
+	ID              uuid.UUID             `json:"id"`
+	Slug            string                `json:"slug"`
+	ExamType        string                `json:"examType"`
+	Difficulty      string                `json:"difficulty"`
+	Kind            string                `json:"kind"`
+	Title           string                `json:"title"`
+	Description     string                `json:"description"`
+	Body            string                `json:"body"`
+	DurationMinutes *int                  `json:"durationMinutes"`
+	QuestionGroups  []PublicQuestionGroup `json:"questionGroups"`
+	Passages        []PublicMaterial      `json:"passages,omitempty"`
 }
 
 type PublishInput struct {
@@ -171,7 +187,9 @@ type ImportResult struct {
 }
 
 type BulkCreateInput struct {
-	Passages []SaveInput `json:"passages"`
+	Title           string      `json:"title"`
+	DurationMinutes int         `json:"durationMinutes"`
+	Passages        []SaveInput `json:"passages"`
 }
 
 type BulkCreateResult struct {

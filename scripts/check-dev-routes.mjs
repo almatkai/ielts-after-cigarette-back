@@ -21,10 +21,13 @@ async function realApi(path) {
   return response.json();
 }
 const catalog = await realApi('reading/materials');
-const summary = catalog.items.find(item => item.slug === 'reading-kakapo-elms-stress-40');
-assert(summary, 'Published Reading fixture not found');
+const summary = catalog.items.find(item => item.kind === 'TEST') ??
+  catalog.items.find(item => item.slug === 'reading-kakapo-elms-stress-40');
+assert(summary, 'Published Reading test fixture not found');
 const material = await realApi('reading/materials/' + summary.id);
-assert.equal(material.questionGroups.flatMap(g => g.questions).length, 40);
+const readingQuestions = (material.passages?.length ? material.passages : [material])
+  .flatMap(passage => passage.questionGroups).flatMap(group => group.questions);
+assert.equal(readingQuestions.reduce((sum, question) => sum + question.points, 0), 40);
 const time = new Date().toISOString();
 const attempt = { id: randomUUID(), userId, materialType: 'reading', materialId: material.id,
   materialVersionId: randomUUID(), status: 'IN_PROGRESS', score: null, maxScore: null,
@@ -113,11 +116,11 @@ try {
   await call('Page.navigate', { url: 'http://localhost:3000/app/dashboard/reading' });
   await until(`Array.from(document.querySelectorAll('a')).some(a => a.textContent.includes('Открыть текст'))`);
   await evaluate(`Array.from(document.querySelectorAll('a')).find(a => a.textContent.includes('Открыть текст')).click()`);
-  await until(`document.body.innerText.includes('world’s only flightless parrot') && document.body.innerText.includes('Вопрос 1 из 40') && document.querySelectorAll('input').length >= 3`);
+  await until(`document.body.innerText.includes('Вопрос 1 из 40') && document.querySelectorAll('input').length >= 3`);
   await evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Далее').click()`);
-  await until(`document.body.innerText.includes('Вопрос 2 из 40') && document.body.innerText.includes('Adult kakapo produce chicks every year')`);
+  await until(`document.body.innerText.includes('Вопрос 2 из 40')`);
   console.log(JSON.stringify({ readingOpens: true, url: await evaluate('location.pathname'), questions: 40,
-    actualReadingText: true, attemptIsFixture: true }));
+    passages: material.passages?.length || 1, attemptIsFixture: true }));
 
   await call('Page.navigate', { url: 'http://localhost:3000/app/dashboard/full-mocks/' + mock.id });
   await until(`document.body.innerText.includes('Browser-only Full Mock')`);

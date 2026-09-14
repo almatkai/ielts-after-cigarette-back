@@ -102,16 +102,19 @@ func (p readingProvider) GradingStructure(ctx context.Context, materialID, versi
 		return GradingMaterial{}, err
 	}
 	questions := []GradingQuestion{}
-	for _, group := range material.QuestionGroups {
-		for _, question := range group.Questions {
-			number := question.Position
-			if contentNumber, ok := numericInt(question.Content["number"]); ok {
-				number = contentNumber
+	materials := append([]reading.Material{material}, material.Passages...)
+	for _, current := range materials {
+		for _, group := range current.QuestionGroups {
+			for _, question := range group.Questions {
+				number := question.Position
+				if contentNumber, ok := numericInt(question.Content["number"]); ok {
+					number = contentNumber
+				}
+				questions = append(questions, GradingQuestion{
+					ID: question.ID, Number: number, Prompt: question.Prompt, Content: question.Content,
+					Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
+				})
 			}
-			questions = append(questions, GradingQuestion{
-				ID: question.ID, Number: number, Prompt: question.Prompt, Content: question.Content,
-				Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
-			})
 		}
 	}
 	return GradingMaterial{ExamType: material.ExamType, Questions: questions}, nil

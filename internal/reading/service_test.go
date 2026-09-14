@@ -8,8 +8,9 @@ import (
 )
 
 type repositoryStub struct {
-	created SaveInput
-	updated SaveInput
+	created     SaveInput
+	createdMany []SaveInput
+	updated     SaveInput
 }
 
 func (r *repositoryStub) List(context.Context) ([]Material, error) { return nil, nil }
@@ -33,11 +34,35 @@ func (r *repositoryStub) Create(_ context.Context, _ uuid.UUID, input SaveInput)
 	return Material{Slug: input.Slug}, nil
 }
 func (r *repositoryStub) CreateMany(_ context.Context, _ uuid.UUID, inputs []SaveInput) ([]Material, error) {
+	r.createdMany = inputs
 	items := make([]Material, len(inputs))
 	for index, input := range inputs {
 		items[index] = Material{Title: input.Title}
 	}
 	return items, nil
+}
+
+func TestBulkCreateWrapsPassagesInOneVersionedTest(t *testing.T) {
+	t.Parallel()
+	repository := &repositoryStub{}
+	service := NewService(repository)
+	body := "A sufficiently long synthetic passage used to verify the complete reading test workflow."
+	items, details, err := service.BulkCreate(context.Background(), uuid.New(), BulkCreateInput{
+		Title: "Complete Reading", DurationMinutes: 60,
+		Passages: []SaveInput{
+			{ExamType: "academic", Difficulty: "intermediate", Title: "Passage one", Body: body},
+			{ExamType: "academic", Difficulty: "intermediate", Title: "Passage two", Body: body},
+		},
+	})
+	if err != nil || len(details) > 0 || len(items) != 1 {
+		t.Fatalf("items=%#v details=%v err=%v", items, details, err)
+	}
+	if len(repository.createdMany) != 3 || repository.createdMany[0].Kind != KindTest || repository.createdMany[1].Kind != KindPassage {
+		t.Fatalf("created inputs = %#v", repository.createdMany)
+	}
+	if repository.createdMany[0].DurationMinutes == nil || *repository.createdMany[0].DurationMinutes != 60 {
+		t.Fatalf("test duration = %#v", repository.createdMany[0].DurationMinutes)
+	}
 }
 func (r *repositoryStub) Update(_ context.Context, _, _ uuid.UUID, input SaveInput) (Material, error) {
 	r.updated = input

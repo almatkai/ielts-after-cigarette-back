@@ -4,7 +4,7 @@ This document is the source of truth for deterministic bulk Reading imports.
 The format is an authoring representation: imported data is converted into the
 existing versioned material, question-group, question, answer and explanation
 model. Parsing never writes to the database; the separate confirmation request
-creates draft materials atomically.
+atomically creates one versioned Reading test with its passage snapshots.
 
 ## Version and metadata
 
@@ -30,7 +30,9 @@ duration_minutes: 60
 
 ## Passages
 
-One or more passages may be supplied. There is no three-passage assumption.
+One or more passages may be supplied. A normal full IELTS Reading import has
+three passages and 40 scored question numbers. Confirmation creates one parent
+test; passage versions remain reusable for a future standalone practice mode.
 
 ```text
 ## PASSAGE 1

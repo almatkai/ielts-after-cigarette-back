@@ -101,7 +101,7 @@ func (h *Handler) BulkImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actorID, _ := auth.UserID(r.Context())
-	items, details, err := h.service.BulkCreate(r.Context(), actorID, input.Passages)
+	items, details, err := h.service.BulkCreate(r.Context(), actorID, input)
 	if len(details) > 0 {
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Imported passages failed validation", details)
 		return

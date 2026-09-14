@@ -16,9 +16,9 @@ import (
 
 const materialSelect = `
 	SELECT
-		m.id, m.slug, m.exam_type, m.difficulty, m.status, m.revision,
-		v.title, v.description, v.body, v.source_title, v.source_url,
-		v.version_number, m.published_version_id,
+		m.id, m.slug, m.exam_type, m.difficulty, m.status, m.material_kind, m.revision,
+		v.title, v.description, v.body, v.duration_minutes, v.source_title, v.source_url,
+		v.version_number, m.current_version_id, m.published_version_id,
 		(m.published_version_id IS DISTINCT FROM m.current_version_id),
 		m.published_at, m.created_at, m.updated_at
 	FROM reading_materials m
@@ -34,7 +34,11 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]Material, error) {
-	rows, err := r.pool.Query(ctx, materialSelect+` ORDER BY m.updated_at DESC, m.id`)
+	rows, err := r.pool.Query(ctx, materialSelect+`
+		WHERE NOT EXISTS (
+			SELECT 1 FROM reading_test_passages tp WHERE tp.passage_material_id = m.id
+		)
+		ORDER BY m.updated_at DESC, m.id`)
 	if err != nil {
 		return nil, fmt.Errorf("list reading materials: %w", err)
 	}
@@ -66,17 +70,22 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID) (Material, e
 	if err != nil {
 		return Material{}, err
 	}
-	return material, nil
+	material.Passages, err = r.testPassages(ctx, material.CurrentVersionID)
+	return material, err
 }
 
 // ListPublished returns published materials without the passage body and
 // questions, joined to the published version for the title.
 func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSummary, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT m.id, m.slug, m.exam_type, m.difficulty, v.title, v.description, m.published_at
+		SELECT m.id, m.slug, m.exam_type, m.difficulty, m.material_kind,
+			v.title, v.description, m.published_at, v.duration_minutes
 		FROM reading_materials m
 		JOIN reading_material_versions v ON v.id = m.published_version_id
 		WHERE m.status = 'PUBLISHED'
+		  AND NOT EXISTS (
+			SELECT 1 FROM reading_test_passages tp WHERE tp.passage_material_id = m.id
+		  )
 		ORDER BY m.published_at DESC, m.id`)
 	if err != nil {
 		return nil, fmt.Errorf("list published reading materials: %w", err)
@@ -85,8 +94,8 @@ func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSumma
 	items := []MaterialSummary{}
 	for rows.Next() {
 		var item MaterialSummary
-		if err := rows.Scan(&item.ID, &item.Slug, &item.ExamType, &item.Difficulty,
-			&item.Title, &item.Description, &item.PublishedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Slug, &item.ExamType, &item.Difficulty, &item.Kind,
+			&item.Title, &item.Description, &item.PublishedAt, &item.DurationMinutes); err != nil {
 			return nil, fmt.Errorf("scan published reading material: %w", err)
 		}
 		items = append(items, item)
@@ -114,7 +123,8 @@ func (r *PostgresRepository) GetPublished(ctx context.Context, id uuid.UUID) (Ma
 	if err != nil {
 		return Material{}, err
 	}
-	return material, nil
+	material.Passages, err = r.testPassages(ctx, *material.PublishedVersionID)
+	return material, err
 }
 
 // GetVersion returns the material with the structure of a specific version,
@@ -137,7 +147,8 @@ func (r *PostgresRepository) GetVersion(ctx context.Context, id, versionID uuid.
 	if err != nil {
 		return Material{}, err
 	}
-	return material, nil
+	material.Passages, err = r.testPassages(ctx, versionID)
+	return material, err
 }
 
 // PublishedVersionID returns the published version of a PUBLISHED material.
@@ -181,12 +192,29 @@ func (r *PostgresRepository) CreateMany(ctx context.Context, actorID uuid.UUID, 
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	ids := make([]uuid.UUID, 0, len(inputs))
+	versionIDs := make([]uuid.UUID, 0, len(inputs))
 	for _, input := range inputs {
 		id, err := createMaterialInTx(ctx, tx, actorID, input)
 		if err != nil {
 			return nil, err
 		}
 		ids = append(ids, id)
+		var versionID uuid.UUID
+		if err := tx.QueryRow(ctx, `SELECT current_version_id FROM reading_materials WHERE id=$1`, id).Scan(&versionID); err != nil {
+			return nil, fmt.Errorf("read created reading version: %w", err)
+		}
+		versionIDs = append(versionIDs, versionID)
+	}
+	if len(inputs) > 1 && inputs[0].Kind == KindTest {
+		for index := 1; index < len(inputs); index++ {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO reading_test_passages (
+					test_material_version_id, position, passage_material_id, passage_material_version_id
+				) VALUES ($1, $2, $3, $4)
+			`, versionIDs[0], index, ids[index], versionIDs[index]); err != nil {
+				return nil, fmt.Errorf("link reading test passage: %w", err)
+			}
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit reading material bulk create: %w", err)
@@ -216,15 +244,15 @@ func createMaterialInTx(ctx context.Context, tx pgx.Tx, actorID uuid.UUID, input
 	_, err = tx.Exec(ctx, `
 		INSERT INTO reading_material_versions (
 			id, material_id, version_number, title, description, body,
-			source_title, source_url, created_by
-		) VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8)
-	`, versionID, materialID, input.Title, input.Description, input.Body, input.SourceTitle, input.SourceURL, actorID)
+			duration_minutes, source_title, source_url, created_by
+		) VALUES ($1, $2, 1, $3, $4, $5, $6, $7, $8, $9)
+	`, versionID, materialID, input.Title, input.Description, input.Body, input.DurationMinutes, input.SourceTitle, input.SourceURL, actorID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("insert reading material version: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
-		UPDATE reading_materials SET current_version_id = $2 WHERE id = $1
-	`, materialID, versionID); err != nil {
+		UPDATE reading_materials SET current_version_id = $2, material_kind = $3 WHERE id = $1
+	`, materialID, versionID, input.Kind); err != nil {
 		return uuid.Nil, fmt.Errorf("link current reading material version: %w", err)
 	}
 	if err := insertQuestionGroups(ctx, tx, versionID, input.QuestionGroups, actorID); err != nil {
@@ -263,21 +291,35 @@ func (r *PostgresRepository) Update(ctx context.Context, id, actorID uuid.UUID, 
 	_, err = tx.Exec(ctx, `
 		INSERT INTO reading_material_versions (
 			id, material_id, version_number, title, description, body,
-			source_title, source_url, created_by
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`, versionID, id, nextVersion, input.Title, input.Description, input.Body, input.SourceTitle, input.SourceURL, actorID)
+			duration_minutes, source_title, source_url, created_by
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, versionID, id, nextVersion, input.Title, input.Description, input.Body, input.DurationMinutes, input.SourceTitle, input.SourceURL, actorID)
 	if err != nil {
 		return Material{}, fmt.Errorf("insert reading material version: %w", err)
 	}
 	if err := insertQuestionGroups(ctx, tx, versionID, input.QuestionGroups, actorID); err != nil {
 		return Material{}, err
 	}
+	if input.Kind == KindTest {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO reading_test_passages (
+				test_material_version_id, position, passage_material_id, passage_material_version_id
+			)
+			SELECT $1, position, passage_material_id, passage_material_version_id
+			FROM reading_test_passages
+			WHERE test_material_version_id = (
+				SELECT current_version_id FROM reading_materials WHERE id = $2
+			)
+		`, versionID, id); err != nil {
+			return Material{}, fmt.Errorf("copy reading test passages: %w", err)
+		}
+	}
 	_, err = tx.Exec(ctx, `
 		UPDATE reading_materials
-		SET slug = $2, exam_type = $3, difficulty = $4,
-			current_version_id = $5, updated_by = $6, revision = revision + 1
+		SET slug = $2, exam_type = $3, difficulty = $4, material_kind = $5,
+			current_version_id = $6, updated_by = $7, revision = revision + 1
 		WHERE id = $1
-	`, id, input.Slug, input.ExamType, input.Difficulty, versionID, actorID)
+	`, id, input.Slug, input.ExamType, input.Difficulty, input.Kind, versionID, actorID)
 	if err != nil {
 		return Material{}, mapWriteError(err)
 	}
@@ -341,13 +383,16 @@ func scanMaterial(row rowScanner) (Material, error) {
 		&material.ExamType,
 		&material.Difficulty,
 		&material.Status,
+		&material.Kind,
 		&material.Revision,
 		&material.Title,
 		&material.Description,
 		&material.Body,
+		&material.DurationMinutes,
 		&material.SourceTitle,
 		&material.SourceURL,
 		&material.CurrentVersionNumber,
+		&material.CurrentVersionID,
 		&material.PublishedVersionID,
 		&material.HasUnpublishedChanges,
 		&material.PublishedAt,
@@ -446,6 +491,42 @@ func (r *PostgresRepository) questionGroups(ctx context.Context, materialID uuid
 		return nil, fmt.Errorf("iterate reading question groups: %w", err)
 	}
 	return groups, nil
+}
+
+func (r *PostgresRepository) testPassages(ctx context.Context, testVersionID uuid.UUID) ([]Material, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT passage_material_id, passage_material_version_id
+		FROM reading_test_passages
+		WHERE test_material_version_id = $1
+		ORDER BY position
+	`, testVersionID)
+	if err != nil {
+		return nil, fmt.Errorf("list reading test passages: %w", err)
+	}
+	type passageRef struct{ materialID, versionID uuid.UUID }
+	refs := []passageRef{}
+	for rows.Next() {
+		var ref passageRef
+		if err := rows.Scan(&ref.materialID, &ref.versionID); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan reading test passage: %w", err)
+		}
+		refs = append(refs, ref)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterate reading test passages: %w", err)
+	}
+	rows.Close()
+	passages := make([]Material, 0, len(refs))
+	for _, ref := range refs {
+		passage, err := r.GetVersion(ctx, ref.materialID, ref.versionID)
+		if err != nil {
+			return nil, err
+		}
+		passages = append(passages, passage)
+	}
+	return passages, nil
 }
 
 func mapWriteError(err error) error {
