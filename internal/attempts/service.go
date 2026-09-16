@@ -16,6 +16,11 @@ type Service struct {
 	speakingEvaluator SpeakingEvaluator
 	speakingMediaDir  string
 	maxSpeakingMedia  int64
+	examGuard         ExamGuard
+}
+
+type ExamGuard interface {
+	ValidateAttemptAccess(ctx context.Context, userID, attemptID uuid.UUID) error
 }
 
 func NewService(repository Repository, providers map[string]MaterialProvider, evaluators ...WritingEvaluator) *Service {
@@ -24,6 +29,10 @@ func NewService(repository Repository, providers map[string]MaterialProvider, ev
 		service.evaluator = evaluators[0]
 	}
 	return service
+}
+
+func (s *Service) SetExamGuard(guard ExamGuard) {
+	s.examGuard = guard
 }
 
 // WithSpeakingRecordingStore enables authenticated recording storage for
@@ -80,6 +89,15 @@ func (s *Service) Start(ctx context.Context, userID uuid.UUID, materialType stri
 	return attempt, material, created, nil
 }
 
+// PublishedVersionID returns the ID of the current published version for a material.
+func (s *Service) PublishedVersionID(ctx context.Context, materialType string, materialID uuid.UUID) (uuid.UUID, error) {
+	provider, err := s.provider(materialType)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return provider.PublishedVersionID(ctx, materialID)
+}
+
 // StartForExamSession creates a new attempt pinned to the current published
 // version. Unlike Start it deliberately does not reuse a standalone practice
 // attempt, so a full mock keeps an independent exam record.
@@ -129,6 +147,11 @@ func (s *Service) SaveAnswers(ctx context.Context, userID, attemptID uuid.UUID, 
 	if attempt.Status != StatusInProgress {
 		return ErrAlreadySubmitted
 	}
+	if s.examGuard != nil {
+		if err := s.examGuard.ValidateAttemptAccess(ctx, userID, attemptID); err != nil {
+			return err
+		}
+	}
 	return s.repository.SaveAnswers(ctx, attemptID, input.Answers)
 }
 
@@ -139,6 +162,11 @@ func (s *Service) Submit(ctx context.Context, userID, attemptID uuid.UUID, input
 	}
 	if attempt.Status != StatusInProgress {
 		return Attempt{}, ErrAlreadySubmitted
+	}
+	if s.examGuard != nil {
+		if err := s.examGuard.ValidateAttemptAccess(ctx, userID, attemptID); err != nil {
+			return Attempt{}, err
+		}
 	}
 	if attempt.MaterialType == MaterialWriting {
 		return s.submitWriting(ctx, attempt, input)

@@ -101,7 +101,9 @@ func New(
 	}, openRouterEvaluator).WithSpeakingRecordingStore(cfg.SpeakingMediaDir, speakingMediaLimit, openRouterEvaluator)
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)
-	fullMockHandler := fullmock.NewHandler(fullmock.NewService(fullMockRepository, attemptsService), logger, cfg.MaxRequestBody)
+	fullMockService := fullmock.NewService(fullMockRepository, attemptsService)
+	attemptsService.SetExamGuard(fullMockService)
+	fullMockHandler := fullmock.NewHandler(fullMockService, logger, cfg.MaxRequestBody)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
 	infobipAPIKey := cfg.InfobipAPIKey

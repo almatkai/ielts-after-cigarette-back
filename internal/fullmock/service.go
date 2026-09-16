@@ -3,6 +3,7 @@ package fullmock
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -12,11 +13,11 @@ import (
 )
 
 type Service struct {
-	repository *Repository
+	repository Repository
 	attempts   *attempts.Service
 }
 
-func NewService(repository *Repository, attemptService *attempts.Service) *Service {
+func NewService(repository Repository, attemptService *attempts.Service) *Service {
 	return &Service{repository: repository, attempts: attemptService}
 }
 
@@ -58,8 +59,35 @@ func (s *Service) Publish(ctx context.Context, id uuid.UUID, revision int64) (Te
 	if revision < 1 {
 		return Test{}, map[string]string{"revision": "must be a positive integer"}, nil
 	}
+	test, err := s.repository.Get(ctx, id)
+	if err != nil {
+		return Test{}, nil, err
+	}
+	details := map[string]string{}
+	if err := s.validateMaterialsPublished(ctx, test); err != nil {
+		details["materials"] = err.Error()
+		return Test{}, details, nil
+	}
 	item, err := s.repository.Publish(ctx, id, revision)
 	return item, nil, err
+}
+
+func (s *Service) validateMaterialsPublished(ctx context.Context, test Test) error {
+	definitions := []struct {
+		skill string
+		id    uuid.UUID
+	}{
+		{attempts.MaterialListening, test.ListeningMaterialID},
+		{attempts.MaterialReading, test.ReadingMaterialID},
+		{attempts.MaterialWriting, test.WritingMaterialID},
+		{attempts.MaterialSpeaking, test.SpeakingMaterialID},
+	}
+	for _, def := range definitions {
+		if _, err := s.attempts.PublishedVersionID(ctx, def.skill, def.id); err != nil {
+			return fmt.Errorf("material %s (%s) is not published: %w", def.skill, def.id, err)
+		}
+	}
+	return nil
 }
 
 func (s *Service) Archive(ctx context.Context, id uuid.UUID, revision int64) (Test, map[string]string, error) {
@@ -99,11 +127,19 @@ func (s *Service) Start(ctx context.Context, userID, testID uuid.UUID, restart b
 	}
 	sections := make([]SessionSection, 0, len(definitions))
 	for _, definition := range definitions {
-		attempt, err := s.attempts.StartForExamSession(ctx, userID, definition.skill, definition.materialID)
+		versionID, err := s.attempts.PublishedVersionID(ctx, definition.skill, definition.materialID)
 		if err != nil {
 			return Session{}, false, err
 		}
-		sections = append(sections, SessionSection{Position: definition.position, Skill: definition.skill, Attempt: attempt})
+		att := attempts.Attempt{
+			ID:                uuid.New(),
+			UserID:            userID,
+			MaterialType:      definition.skill,
+			MaterialID:        definition.materialID,
+			MaterialVersionID: versionID,
+			Status:            attempts.StatusInProgress,
+		}
+		sections = append(sections, SessionSection{Position: definition.position, Skill: definition.skill, Attempt: att})
 	}
 	session := Session{ID: uuid.New(), MockTestID: testID, UserID: userID, MockTest: item}
 	if err := s.repository.CreateSession(ctx, session, sections); err != nil {
@@ -137,6 +173,15 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 		return Session{}, ErrSessionNotFound
 	}
 	if session.Status != SessionInProgress {
+		return Session{}, ErrSessionCompleted
+	}
+	test, err := s.repository.Get(ctx, session.MockTestID)
+	if err != nil {
+		return Session{}, err
+	}
+	deadline := session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)
+	if time.Now().After(deadline) {
+		_ = s.repository.Finish(ctx, session.ID)
 		return Session{}, ErrSessionCompleted
 	}
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
@@ -190,6 +235,15 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 	if session.Status != SessionInProgress || position != session.CurrentSection {
 		return SessionSection{}, nil, ErrSectionLocked
 	}
+	test, err := s.repository.Get(ctx, session.MockTestID)
+	if err != nil {
+		return SessionSection{}, nil, err
+	}
+	deadline := session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)
+	if time.Now().After(deadline) {
+		_ = s.repository.Finish(ctx, session.ID)
+		return SessionSection{}, nil, ErrSectionLocked
+	}
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
 	if err != nil {
 		return SessionSection{}, nil, err
@@ -207,6 +261,34 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 	}
 	section.Attempt = attempt
 	return section, material, nil
+}
+
+// ValidateAttemptAccess enforces exam session invariants:
+// 1. If the attempt belongs to an exam session, the session must be in progress and within its deadline.
+// 2. Only the current active section of the exam can be modified or submitted.
+func (s *Service) ValidateAttemptAccess(ctx context.Context, userID, attemptID uuid.UUID) error {
+	meta, err := s.repository.FindExamAttemptMeta(ctx, attemptID)
+	if err != nil {
+		return err
+	}
+	if meta == nil {
+		return nil
+	}
+	if meta.UserID != userID {
+		return attempts.ErrNotFound
+	}
+	if meta.SessionStatus != SessionInProgress {
+		return attempts.ErrAlreadySubmitted
+	}
+	deadline := meta.StartedAt.Add(time.Duration(meta.DurationMinutes) * time.Minute)
+	if time.Now().After(deadline) {
+		_ = s.repository.Finish(ctx, meta.SessionID)
+		return attempts.ErrExamDeadlineExceeded
+	}
+	if meta.SectionPosition != meta.CurrentSection {
+		return attempts.ErrSectionLocked
+	}
+	return nil
 }
 
 func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Session) (Session, error) {

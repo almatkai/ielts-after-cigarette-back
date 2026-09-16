@@ -33,6 +33,11 @@ func (s *Service) StoreSpeakingRecording(
 	if attempt.Status != StatusInProgress {
 		return SpeakingRecording{}, ErrAlreadySubmitted
 	}
+	if s.examGuard != nil {
+		if err := s.examGuard.ValidateAttemptAccess(ctx, userID, attemptID); err != nil {
+			return SpeakingRecording{}, err
+		}
+	}
 	if attempt.MaterialType != MaterialSpeaking {
 		return SpeakingRecording{}, ErrUnsupportedMaterial
 	}

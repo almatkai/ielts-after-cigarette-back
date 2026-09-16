@@ -28,21 +28,32 @@ var (
 )
 
 type stubRepository struct {
-	attempts  map[uuid.UUID]Attempt
-	answers   map[uuid.UUID][]Answer
-	submitted *SubmitResult
-	createErr error
+	attempts            map[uuid.UUID]Attempt
+	answers             map[uuid.UUID][]Answer
+	examAttempts        map[uuid.UUID]bool
+	writingEvaluations  map[uuid.UUID]WritingEvaluation
+	speakingEvaluations map[uuid.UUID]SpeakingEvaluation
+	recordings          map[uuid.UUID][]SpeakingRecording
+	submitted           *SubmitResult
+	createErr           error
 }
 
 func newStubRepository() *stubRepository {
 	return &stubRepository{
-		attempts: map[uuid.UUID]Attempt{},
-		answers:  map[uuid.UUID][]Answer{},
+		attempts:            map[uuid.UUID]Attempt{},
+		answers:             map[uuid.UUID][]Answer{},
+		examAttempts:        map[uuid.UUID]bool{},
+		writingEvaluations:  map[uuid.UUID]WritingEvaluation{},
+		speakingEvaluations: map[uuid.UUID]SpeakingEvaluation{},
+		recordings:          map[uuid.UUID][]SpeakingRecording{},
 	}
 }
 
 func (s *stubRepository) FindInProgress(_ context.Context, userID uuid.UUID, materialType string, materialID uuid.UUID) (Attempt, error) {
 	for _, attempt := range s.attempts {
+		if s.examAttempts[attempt.ID] {
+			continue
+		}
 		if attempt.UserID == userID && attempt.MaterialType == materialType &&
 			attempt.MaterialID == materialID && attempt.Status == StatusInProgress {
 			return attempt, nil
@@ -122,7 +133,47 @@ func (s *stubRepository) Submit(_ context.Context, result SubmitResult) error {
 	attempt.SubmittedAt = &now
 	s.attempts[attempt.ID] = attempt
 	s.answers[result.AttemptID] = result.Answers
+	if result.WritingEvaluation != nil {
+		s.writingEvaluations[result.AttemptID] = *result.WritingEvaluation
+	}
+	if result.SpeakingEvaluation != nil {
+		s.speakingEvaluations[result.AttemptID] = *result.SpeakingEvaluation
+	}
 	return nil
+}
+
+func (s *stubRepository) GetWritingEvaluation(_ context.Context, attemptID uuid.UUID) (WritingEvaluation, error) {
+	eval, ok := s.writingEvaluations[attemptID]
+	if !ok {
+		return WritingEvaluation{}, ErrNotFound
+	}
+	return eval, nil
+}
+
+func (s *stubRepository) GetSpeakingEvaluation(_ context.Context, attemptID uuid.UUID) (SpeakingEvaluation, error) {
+	eval, ok := s.speakingEvaluations[attemptID]
+	if !ok {
+		return SpeakingEvaluation{}, ErrNotFound
+	}
+	return eval, nil
+}
+
+func (s *stubRepository) UpsertSpeakingRecording(_ context.Context, rec SpeakingRecording) (SpeakingRecording, string, error) {
+	s.recordings[rec.AttemptID] = append(s.recordings[rec.AttemptID], rec)
+	return rec, "", nil
+}
+
+func (s *stubRepository) ListSpeakingRecordings(_ context.Context, attemptID uuid.UUID) ([]SpeakingRecording, error) {
+	return s.recordings[attemptID], nil
+}
+
+func (s *stubRepository) GetSpeakingRecording(_ context.Context, attemptID, partID uuid.UUID) (SpeakingRecording, error) {
+	for _, rec := range s.recordings[attemptID] {
+		if rec.PartID == partID {
+			return rec, nil
+		}
+	}
+	return SpeakingRecording{}, ErrNotFound
 }
 
 type stubProvider struct {
@@ -602,5 +653,263 @@ func TestReadingSubmitUsesGeneralBandTable(t *testing.T) {
 	}
 	if repository.submitted == nil || repository.submitted.Band != 6.0 {
 		t.Fatalf("expected general band 6.0, got %+v", repository.submitted)
+	}
+}
+
+type mockWritingEvaluator struct {
+	evaluation WritingEvaluation
+	err        error
+}
+
+func (m mockWritingEvaluator) Evaluate(_ context.Context, _ WritingEvaluationRequest) (WritingEvaluation, error) {
+	return m.evaluation, m.err
+}
+
+type mockSpeakingEvaluator struct {
+	evaluation SpeakingEvaluation
+	err        error
+}
+
+func (m mockSpeakingEvaluator) EvaluateSpeaking(_ context.Context, _ SpeakingEvaluationRequest) (SpeakingEvaluation, error) {
+	return m.evaluation, m.err
+}
+
+type mockExamGuard struct {
+	err error
+}
+
+func (m mockExamGuard) ValidateAttemptAccess(_ context.Context, _, _ uuid.UUID) error {
+	return m.err
+}
+
+func writingStubProvider() stubProvider {
+	return stubProvider{
+		publishedVersionID: testMaterialVersionID,
+		public:             map[string]any{"id": testMaterialID, "title": "Writing Test"},
+		grading: GradingMaterial{
+			ExamType: "academic",
+			WritingTasks: []WritingTask{
+				{
+					ID:           questionChoiceID,
+					Position:     1,
+					Type:         "task1",
+					Prompt:       "Describe the chart",
+					MinimumWords: 150,
+				},
+				{
+					ID:           questionMatchingID,
+					Position:     2,
+					Type:         "task2",
+					Prompt:       "Write an essay",
+					MinimumWords: 250,
+				},
+			},
+		},
+	}
+}
+
+func speakingStubProvider() stubProvider {
+	return stubProvider{
+		publishedVersionID: testMaterialVersionID,
+		public:             map[string]any{"id": testMaterialID, "title": "Speaking Test"},
+		grading: GradingMaterial{
+			ExamType: "academic",
+			SpeakingParts: []SpeakingPart{
+				{
+					ID:        questionChoiceID,
+					Position:  1,
+					Type:      "part1",
+					Title:     "Introduction",
+					Questions: []string{"What is your name?", "Where do you live?"},
+				},
+			},
+		},
+	}
+}
+
+func generateWords(n int) string {
+	res := ""
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			res += " "
+		}
+		res += "word"
+	}
+	return res
+}
+
+func TestWritingSubmitWithEvaluator(t *testing.T) {
+	repo := newStubRepository()
+	mockEval := mockWritingEvaluator{
+		evaluation: WritingEvaluation{
+			OverallBand: 7.0,
+			Summary:     "Strong essay",
+			Criteria: WritingCriteria{
+				TaskResponse:    WritingCriterion{Band: 7.0, Feedback: "Clear response"},
+				Coherence:       WritingCriterion{Band: 7.0, Feedback: "Well structured"},
+				LexicalResource: WritingCriterion{Band: 7.0, Feedback: "Good range"},
+				Grammar:         WritingCriterion{Band: 7.0, Feedback: "Accurate"},
+			},
+		},
+	}
+	svc := NewService(repo, map[string]MaterialProvider{
+		MaterialWriting: writingStubProvider(),
+	}, mockEval)
+
+	att, _, created, err := svc.Start(context.Background(), testUserID, MaterialWriting, testMaterialID)
+	if err != nil || !created {
+		t.Fatalf("start writing failed: %v", err)
+	}
+
+	// Submit with insufficient words (<150 words for task 1)
+	_, err = svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{
+		Answers: []AnswerInput{
+			{QuestionID: questionChoiceID, Answer: map[string]any{"value": "too short"}},
+			{QuestionID: questionMatchingID, Answer: map[string]any{"value": generateWords(260)}},
+		},
+	})
+	if !errors.Is(err, ErrWritingIncomplete) {
+		t.Fatalf("expected ErrWritingIncomplete, got: %v", err)
+	}
+
+	// Submit with sufficient words
+	submitted, err := svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{
+		Answers: []AnswerInput{
+			{QuestionID: questionChoiceID, Answer: map[string]any{"value": generateWords(160)}},
+			{QuestionID: questionMatchingID, Answer: map[string]any{"value": generateWords(260)}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("submit writing failed: %v", err)
+	}
+	if submitted.Status != StatusSubmitted {
+		t.Fatalf("expected status %s, got %s", StatusSubmitted, submitted.Status)
+	}
+	if submitted.Band == nil || *submitted.Band != 7.0 {
+		t.Fatalf("expected band 7.0, got %v", submitted.Band)
+	}
+
+	// Verify Get includes writing evaluation
+	detail, err := svc.Get(context.Background(), testUserID, att.ID)
+	if err != nil {
+		t.Fatalf("get writing attempt detail failed: %v", err)
+	}
+	if detail.WritingEvaluation == nil || detail.WritingEvaluation.OverallBand != 7.0 {
+		t.Fatalf("expected writing evaluation with overall band 7.0, got %+v", detail.WritingEvaluation)
+	}
+}
+
+func TestSpeakingSubmitWithEvaluator(t *testing.T) {
+	repo := newStubRepository()
+	mockEval := mockSpeakingEvaluator{
+		evaluation: SpeakingEvaluation{
+			OverallBand: 6.5,
+			Summary:     "Natural speech",
+			Criteria: SpeakingCriteria{
+				Fluency:         SpeakingCriterion{Band: 6.5, Feedback: "Fluent"},
+				Pronunciation:   SpeakingCriterion{Band: 6.5, Feedback: "Clear"},
+				LexicalResource: SpeakingCriterion{Band: 6.5, Feedback: "Adequate"},
+				Grammar:         SpeakingCriterion{Band: 6.5, Feedback: "Good"},
+			},
+		},
+	}
+	svc := NewService(repo, map[string]MaterialProvider{
+		MaterialSpeaking: speakingStubProvider(),
+	}).WithSpeakingRecordingStore("media", 10<<20, mockEval)
+
+	att, _, created, err := svc.Start(context.Background(), testUserID, MaterialSpeaking, testMaterialID)
+	if err != nil || !created {
+		t.Fatalf("start speaking failed: %v", err)
+	}
+
+	// Submit without transcript or recording fails
+	_, err = svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{})
+	if !errors.Is(err, ErrSpeakingIncomplete) {
+		t.Fatalf("expected ErrSpeakingIncomplete, got: %v", err)
+	}
+
+	// Submit with valid transcript
+	submitted, err := svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{
+		Answers: []AnswerInput{
+			{QuestionID: questionChoiceID, Answer: map[string]any{"value": "My name is John and I live in Almaty."}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("submit speaking failed: %v", err)
+	}
+	if submitted.Band == nil || *submitted.Band != 6.5 {
+		t.Fatalf("expected band 6.5, got %v", submitted.Band)
+	}
+
+	// Verify Get includes speaking evaluation
+	detail, err := svc.Get(context.Background(), testUserID, att.ID)
+	if err != nil {
+		t.Fatalf("get speaking detail failed: %v", err)
+	}
+	if detail.SpeakingEvaluation == nil || detail.SpeakingEvaluation.OverallBand != 6.5 {
+		t.Fatalf("expected speaking evaluation with overall band 6.5, got %+v", detail.SpeakingEvaluation)
+	}
+}
+
+func TestExamGuardRejection(t *testing.T) {
+	repo := newStubRepository()
+	svc := NewService(repo, map[string]MaterialProvider{
+		MaterialListening: listeningStubProvider(),
+	})
+
+	att := startForTest(t, svc, testUserID)
+
+	// Set ExamGuard that reports deadline exceeded
+	svc.SetExamGuard(mockExamGuard{err: ErrExamDeadlineExceeded})
+
+	// SaveAnswers rejected
+	err := svc.SaveAnswers(context.Background(), testUserID, att.ID, SaveAnswersInput{
+		Answers: []AnswerInput{{QuestionID: questionChoiceID, Answer: map[string]any{"optionId": "B"}}},
+	})
+	if !errors.Is(err, ErrExamDeadlineExceeded) {
+		t.Fatalf("expected ErrExamDeadlineExceeded on SaveAnswers, got: %v", err)
+	}
+
+	// Submit rejected
+	_, err = svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{})
+	if !errors.Is(err, ErrExamDeadlineExceeded) {
+		t.Fatalf("expected ErrExamDeadlineExceeded on Submit, got: %v", err)
+	}
+
+	// Set ExamGuard that reports section locked
+	svc.SetExamGuard(mockExamGuard{err: ErrSectionLocked})
+
+	err = svc.SaveAnswers(context.Background(), testUserID, att.ID, SaveAnswersInput{})
+	if !errors.Is(err, ErrSectionLocked) {
+		t.Fatalf("expected ErrSectionLocked on SaveAnswers, got: %v", err)
+	}
+
+	_, err = svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{})
+	if !errors.Is(err, ErrSectionLocked) {
+		t.Fatalf("expected ErrSectionLocked on Submit, got: %v", err)
+	}
+}
+
+func TestPracticeFindInProgressExcludesExamAttempts(t *testing.T) {
+	repo := newStubRepository()
+	svc := NewService(repo, map[string]MaterialProvider{
+		MaterialListening: listeningStubProvider(),
+	})
+
+	// Create an attempt that belongs to an exam session
+	examAttempt := startForTest(t, svc, testUserID)
+	repo.examAttempts[examAttempt.ID] = true
+
+	// A student now starts a practice attempt for the same material
+	// Since exam attempts are excluded by FindInProgress, a new attempt should be created
+	practiceAttempt, _, created, err := svc.Start(context.Background(), testUserID, MaterialListening, testTestID)
+	if err != nil {
+		t.Fatalf("practice start failed: %v", err)
+	}
+	if !created {
+		t.Fatalf("expected new practice attempt to be created")
+	}
+	if practiceAttempt.ID == examAttempt.ID {
+		t.Fatalf("practice attempt must have different ID than exam attempt")
 	}
 }

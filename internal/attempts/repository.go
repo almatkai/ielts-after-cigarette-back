@@ -47,6 +47,9 @@ func (r *PostgresRepository) FindInProgress(ctx context.Context, userID uuid.UUI
 	var attempt Attempt
 	err := r.pool.QueryRow(ctx, `SELECT `+attemptColumns+` FROM attempts
 		WHERE user_id=$1 AND material_type=$2 AND material_id=$3 AND status='IN_PROGRESS'
+		AND NOT EXISTS (
+			SELECT 1 FROM full_mock_session_sections fmss WHERE fmss.attempt_id = attempts.id
+		)
 		ORDER BY started_at DESC LIMIT 1`, userID, materialType, materialID).Scan(
 		&attempt.ID, &attempt.UserID, &attempt.MaterialType, &attempt.MaterialID,
 		&attempt.MaterialVersionID, &attempt.Status, &attempt.Score, &attempt.MaxScore,
@@ -129,8 +132,24 @@ func (r *PostgresRepository) SaveAnswers(ctx context.Context, attemptID uuid.UUI
 		return err
 	}
 	defer tx.Rollback(ctx)
+
+	var status string
+	err = tx.QueryRow(ctx, `SELECT status FROM attempts WHERE id=$1 FOR UPDATE`, attemptID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock attempt for saving answers: %w", err)
+	}
+	if status != StatusInProgress {
+		return ErrAlreadySubmitted
+	}
+
 	for _, item := range answers {
-		answer, _ := json.Marshal(item.Answer)
+		answer, err := json.Marshal(item.Answer)
+		if err != nil {
+			return fmt.Errorf("marshal answer: %w", err)
+		}
 		if _, err := tx.Exec(ctx, `INSERT INTO attempt_answers (attempt_id, question_id, answer)
 			VALUES ($1,$2,$3::jsonb)
 			ON CONFLICT (attempt_id, question_id) DO UPDATE SET answer = EXCLUDED.answer`,
@@ -170,6 +189,19 @@ func (r *PostgresRepository) Submit(ctx context.Context, result SubmitResult) er
 		return err
 	}
 	defer tx.Rollback(ctx)
+
+	var status string
+	err = tx.QueryRow(ctx, `SELECT status FROM attempts WHERE id=$1 FOR UPDATE`, result.AttemptID).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock attempt for submit: %w", err)
+	}
+	if status != StatusInProgress {
+		return ErrAlreadySubmitted
+	}
+
 	for _, item := range result.Answers {
 		answer, _ := json.Marshal(item.Answer)
 		if _, err := tx.Exec(ctx, `INSERT INTO attempt_answers

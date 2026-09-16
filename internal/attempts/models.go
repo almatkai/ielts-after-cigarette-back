@@ -18,11 +18,14 @@ var (
 	ErrRecordingTooLarge   = errors.New("speaking recording is too large for AI assessment")
 	ErrAIUnavailable       = errors.New("AI evaluation is not configured")
 	ErrAIEvaluationFailed  = errors.New("AI evaluation failed")
+	ErrExamDeadlineExceeded = errors.New("exam session deadline exceeded")
+	ErrSectionLocked       = errors.New("exam section is locked")
 )
 
 const (
 	StatusInProgress = "IN_PROGRESS"
 	StatusSubmitted  = "SUBMITTED"
+	StatusAbandoned  = "ABANDONED"
 
 	MaterialListening = "listening"
 	MaterialReading   = "reading"
