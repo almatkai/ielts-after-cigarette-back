@@ -28,6 +28,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.dev}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.dev}
       REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-60s}
+      MEDIA_UPLOAD_TIMEOUT: ${MEDIA_UPLOAD_TIMEOUT:-5m}
       LISTENING_MEDIA_DIR: /data/listening-media
       SPEAKING_MEDIA_DIR: /data/speaking-media
     ports:

@@ -25,6 +25,7 @@ type Config struct {
 	CORSAllowedOrigins      []string
 	ShutdownTimeout         time.Duration
 	RequestTimeout          time.Duration
+	MediaUploadTimeout      time.Duration
 	MaxRequestBody          int64
 	ListeningMediaDir       string
 	SpeakingMediaDir        string
@@ -105,6 +106,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.RequestTimeout, err = durationEnv("REQUEST_TIMEOUT", 60*time.Second); err != nil {
+		return Config{}, err
+	}
+	if cfg.MediaUploadTimeout, err = durationEnv("MEDIA_UPLOAD_TIMEOUT", 5*time.Minute); err != nil {
 		return Config{}, err
 	}
 	if cfg.AuthRateWindow, err = durationEnv("AUTH_RATE_WINDOW", time.Minute); err != nil {
@@ -201,6 +205,12 @@ func (c Config) Validate() error {
 	}
 	if c.MaxRequestBody <= 0 {
 		problems = append(problems, "MAX_REQUEST_BODY_BYTES must be positive")
+	}
+	if c.RequestTimeout <= 0 || c.MediaUploadTimeout <= 0 {
+		problems = append(problems, "REQUEST_TIMEOUT and MEDIA_UPLOAD_TIMEOUT must be positive")
+	}
+	if c.MaxMediaUploadBytes <= 0 {
+		problems = append(problems, "MAX_MEDIA_UPLOAD_BYTES must be positive")
 	}
 	switch c.ObjectStorageBackend {
 	case "filesystem":

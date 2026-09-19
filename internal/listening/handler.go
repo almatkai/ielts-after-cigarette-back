@@ -155,7 +155,18 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	actor, _ := auth.UserID(r.Context())
 	media, err := h.service.StoreMedia(r.Context(), actor, kind, header, file)
 	if err != nil {
-		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "MEDIA_INVALID", err.Error(), nil)
+		if errors.Is(err, ErrUnsupportedMedia) {
+			httpx.WriteError(w, r, http.StatusUnprocessableEntity, "MEDIA_INVALID", err.Error(), nil)
+			return
+		}
+		h.logger.ErrorContext(r.Context(), "listening media upload failed",
+			"request_id", httpx.RequestID(r.Context()),
+			"kind", kind,
+			"file_name", header.Filename,
+			"file_size", header.Size,
+			"error", err,
+		)
+		httpx.WriteError(w, r, http.StatusServiceUnavailable, "OBJECT_STORAGE_UNAVAILABLE", "Media storage is temporarily unavailable", nil)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, media)

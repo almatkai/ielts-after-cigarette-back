@@ -12,6 +12,7 @@ var (
 	ErrSlugExists       = errors.New("listening test slug already exists")
 	ErrRevisionConflict = errors.New("listening test revision conflict")
 	ErrMediaNotFound    = errors.New("listening media not found")
+	ErrUnsupportedMedia = errors.New("unsupported listening media type")
 )
 
 const (

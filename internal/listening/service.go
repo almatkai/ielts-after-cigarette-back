@@ -227,7 +227,7 @@ func (s *Service) StoreMedia(ctx context.Context, actorID uuid.UUID, kind string
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	allowed := map[string]map[string]bool{"audio": {".mp3": true, ".m4a": true, ".wav": true, ".ogg": true, ".webm": true}, "image": {".png": true, ".jpg": true, ".jpeg": true, ".webp": true}}
 	if !allowed[kind][ext] {
-		return Media{}, fmt.Errorf("unsupported %s file type", kind)
+		return Media{}, fmt.Errorf("%w: unsupported %s file type", ErrUnsupportedMedia, kind)
 	}
 	mimeTypes := map[string]string{".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".ogg": "audio/ogg", ".webm": "audio/webm", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 	key := "listening/" + uuid.NewString() + ext
