@@ -28,6 +28,13 @@ type Config struct {
 	MaxRequestBody          int64
 	ListeningMediaDir       string
 	SpeakingMediaDir        string
+	ObjectStorageBackend    string
+	ObjectStorageEndpoint   string
+	ObjectStorageAccessKey  string
+	ObjectStorageSecretKey  string
+	ObjectStorageBucket     string
+	ObjectStorageRegion     string
+	ObjectStorageUseSSL     bool
 	MaxMediaUploadBytes     int64
 	AuthRateLimit           int64
 	AuthRateWindow          time.Duration
@@ -45,10 +52,12 @@ type Config struct {
 	InfobipTimeout          time.Duration
 	GoogleClientID          string
 	SuperAdminEmails        []string
-	OpenRouterAPIKey        string
-	OpenRouterModel         string
-	OpenRouterSpeakingModel string
-	OpenRouterTimeout       time.Duration
+	AIAPIKey                string
+	AIChatCompletionsURL    string
+	AIModel                 string
+	AISpeakingModel         string
+	AISpeakingAudioEnabled  bool
+	AITimeout               time.Duration
 }
 
 func Load() (Config, error) {
@@ -73,9 +82,16 @@ func Load() (Config, error) {
 		SuperAdminEmails:        splitCSV(os.Getenv("SUPER_ADMIN_EMAILS")),
 		ListeningMediaDir:       env("LISTENING_MEDIA_DIR", "./var/listening-media"),
 		SpeakingMediaDir:        env("SPEAKING_MEDIA_DIR", "./var/speaking-media"),
-		OpenRouterAPIKey:        os.Getenv("OPENROUTER_API_KEY"),
-		OpenRouterModel:         env("OPENROUTER_MODEL", "openrouter/free"),
-		OpenRouterSpeakingModel: env("OPENROUTER_SPEAKING_MODEL", "thinkingmachines/inkling-small:free"),
+		ObjectStorageBackend:    strings.ToLower(env("OBJECT_STORAGE_BACKEND", "filesystem")),
+		ObjectStorageEndpoint:   os.Getenv("OBJECT_STORAGE_ENDPOINT"),
+		ObjectStorageAccessKey:  os.Getenv("OBJECT_STORAGE_ACCESS_KEY"),
+		ObjectStorageSecretKey:  os.Getenv("OBJECT_STORAGE_SECRET_KEY"),
+		ObjectStorageBucket:     env("OBJECT_STORAGE_BUCKET", "ielts-media"),
+		ObjectStorageRegion:     env("OBJECT_STORAGE_REGION", "us-east-1"),
+		AIAPIKey:                envFirst("AI_API_KEY", "OPENROUTER_API_KEY"),
+		AIChatCompletionsURL:    env("AI_CHAT_COMPLETIONS_URL", "https://openrouter.ai/api/v1/chat/completions"),
+		AIModel:                 envFirstWithFallback("openrouter/free", "AI_MODEL", "OPENROUTER_MODEL"),
+		AISpeakingModel:         envFirstWithFallback("thinkingmachines/inkling-small:free", "AI_SPEAKING_MODEL", "OPENROUTER_SPEAKING_MODEL"),
 	}
 
 	var err error
@@ -106,7 +122,7 @@ func Load() (Config, error) {
 	if cfg.InfobipTimeout, err = durationEnv("INFOBIP_TIMEOUT", 10*time.Second); err != nil {
 		return Config{}, err
 	}
-	if cfg.OpenRouterTimeout, err = durationEnv("OPENROUTER_TIMEOUT", 45*time.Second); err != nil {
+	if cfg.AITimeout, err = durationEnvFallback("AI_TIMEOUT", "OPENROUTER_TIMEOUT", 45*time.Second); err != nil {
 		return Config{}, err
 	}
 	if cfg.MaxRequestBody, err = int64Env("MAX_REQUEST_BODY_BYTES", 1<<20); err != nil {
@@ -125,6 +141,12 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.InfobipEnabled, err = boolEnv("INFOBIP_ENABLED", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.ObjectStorageUseSSL, err = boolEnv("OBJECT_STORAGE_USE_SSL", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.AISpeakingAudioEnabled, err = boolEnv("AI_SPEAKING_AUDIO_ENABLED", true); err != nil {
 		return Config{}, err
 	}
 
@@ -180,6 +202,18 @@ func (c Config) Validate() error {
 	if c.MaxRequestBody <= 0 {
 		problems = append(problems, "MAX_REQUEST_BODY_BYTES must be positive")
 	}
+	switch c.ObjectStorageBackend {
+	case "filesystem":
+		if strings.TrimSpace(c.ListeningMediaDir) == "" || strings.TrimSpace(c.SpeakingMediaDir) == "" {
+			problems = append(problems, "LISTENING_MEDIA_DIR and SPEAKING_MEDIA_DIR are required for filesystem storage")
+		}
+	case "minio":
+		if strings.TrimSpace(c.ObjectStorageEndpoint) == "" || strings.TrimSpace(c.ObjectStorageAccessKey) == "" || strings.TrimSpace(c.ObjectStorageSecretKey) == "" || strings.TrimSpace(c.ObjectStorageBucket) == "" {
+			problems = append(problems, "OBJECT_STORAGE_ENDPOINT, OBJECT_STORAGE_ACCESS_KEY, OBJECT_STORAGE_SECRET_KEY, and OBJECT_STORAGE_BUCKET are required for MinIO")
+		}
+	default:
+		problems = append(problems, "OBJECT_STORAGE_BACKEND must be filesystem or minio")
+	}
 	if c.AuthRateLimit <= 0 || c.AuthRateWindow <= 0 {
 		problems = append(problems, "auth rate limit values must be positive")
 	}
@@ -213,15 +247,18 @@ func (c Config) Validate() error {
 	if c.InfobipTimeout <= 0 {
 		problems = append(problems, "INFOBIP_TIMEOUT must be positive")
 	}
-	if strings.TrimSpace(c.OpenRouterAPIKey) != "" {
-		if c.OpenRouterTimeout <= 0 {
-			problems = append(problems, "OPENROUTER_TIMEOUT must be positive")
+	if strings.TrimSpace(c.AIAPIKey) != "" {
+		if c.AITimeout <= 0 {
+			problems = append(problems, "AI_TIMEOUT must be positive")
 		}
-		if strings.TrimSpace(c.OpenRouterModel) == "" {
-			problems = append(problems, "OPENROUTER_MODEL is required when OPENROUTER_API_KEY is configured")
+		if !strings.HasPrefix(c.AIChatCompletionsURL, "https://") && !(strings.EqualFold(c.Environment, "development") && strings.HasPrefix(c.AIChatCompletionsURL, "http://")) {
+			problems = append(problems, "AI_CHAT_COMPLETIONS_URL must use https (http is allowed only in development)")
 		}
-		if strings.TrimSpace(c.OpenRouterSpeakingModel) == "" {
-			problems = append(problems, "OPENROUTER_SPEAKING_MODEL is required when OPENROUTER_API_KEY is configured")
+		if strings.TrimSpace(c.AIModel) == "" {
+			problems = append(problems, "AI_MODEL is required when AI_API_KEY is configured")
+		}
+		if strings.TrimSpace(c.AISpeakingModel) == "" {
+			problems = append(problems, "AI_SPEAKING_MODEL is required when AI_API_KEY is configured")
 		}
 	}
 	if len(problems) > 0 {
@@ -235,6 +272,29 @@ func env(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func envFirst(keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func envFirstWithFallback(fallback string, keys ...string) string {
+	if value := envFirst(keys...); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func durationEnvFallback(primary, legacy string, fallback time.Duration) (time.Duration, error) {
+	if strings.TrimSpace(os.Getenv(primary)) != "" {
+		return durationEnv(primary, fallback)
+	}
+	return durationEnv(legacy, fallback)
 }
 
 func durationEnv(key string, fallback time.Duration) (time.Duration, error) {

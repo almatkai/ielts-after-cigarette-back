@@ -2,7 +2,10 @@ package attempts
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
@@ -75,5 +78,38 @@ func TestOpenRouterEvaluatorRequiresConfiguration(t *testing.T) {
 	_, err := evaluator.Evaluate(context.Background(), WritingEvaluationRequest{})
 	if !errors.Is(err, ErrAIUnavailable) {
 		t.Fatalf("Evaluate error = %v, want ErrAIUnavailable", err)
+	}
+}
+
+func TestChatCompletionsEvaluatorUsesConfiguredProvider(t *testing.T) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v/chat/completions" {
+			t.Errorf("request path = %q", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
+			t.Errorf("authorization = %q", got)
+		}
+		var payload struct {
+			Model string `json:"model"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if payload.Model != "qwen3-8" {
+			t.Errorf("model = %q", payload.Model)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"model":"qwen3-8","choices":[{"message":{"content":"{\"criteria\":{\"taskResponse\":{\"band\":6.5,\"feedback\":\"Good\"},\"coherence\":{\"band\":6.5,\"feedback\":\"Good\"},\"lexicalResource\":{\"band\":6.5,\"feedback\":\"Good\"},\"grammar\":{\"band\":6.5,\"feedback\":\"Good\"}},\"summary\":\"Good\",\"taskFeedback\":[]}"}}]}`))
+	}))
+	defer server.Close()
+
+	evaluator := NewChatCompletionsEvaluator(server.URL+"/v/chat/completions", "test-key", "qwen3-8", server.Client())
+	evaluation, err := evaluator.Evaluate(context.Background(), WritingEvaluationRequest{})
+	if err != nil {
+		t.Fatalf("Evaluate() error = %v", err)
+	}
+	if evaluation.Model != "qwen3-8" || evaluation.OverallBand != 6.5 {
+		t.Fatalf("evaluation = %#v", evaluation)
 	}
 }

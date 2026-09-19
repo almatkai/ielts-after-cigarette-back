@@ -6,6 +6,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/google/uuid"
 )
 
@@ -14,7 +15,7 @@ type Service struct {
 	providers         map[string]MaterialProvider
 	evaluator         WritingEvaluator
 	speakingEvaluator SpeakingEvaluator
-	speakingMediaDir  string
+	speakingStore     objectstorage.Store
 	maxSpeakingMedia  int64
 	examGuard         ExamGuard
 }
@@ -39,7 +40,14 @@ func (s *Service) SetExamGuard(guard ExamGuard) {
 // Speaking attempts. The same OpenRouter client can implement both evaluator
 // interfaces, so it is accepted independently from the Writing evaluator.
 func (s *Service) WithSpeakingRecordingStore(mediaDir string, maxBytes int64, evaluator SpeakingEvaluator) *Service {
-	s.speakingMediaDir = strings.TrimSpace(mediaDir)
+	s.speakingStore = objectstorage.NewFileStore(strings.TrimSpace(mediaDir))
+	s.maxSpeakingMedia = maxBytes
+	s.speakingEvaluator = evaluator
+	return s
+}
+
+func (s *Service) WithSpeakingObjectStore(store objectstorage.Store, maxBytes int64, evaluator SpeakingEvaluator) *Service {
+	s.speakingStore = store
 	s.maxSpeakingMedia = maxBytes
 	s.speakingEvaluator = evaluator
 	return s
@@ -323,7 +331,7 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 		}
 		item := SpeakingPartAnswer{Part: part, Transcript: transcript}
 		if hasRecording {
-			audio, err := s.readSpeakingAudio(recording)
+			audio, err := s.readSpeakingAudio(ctx, recording)
 			if err != nil {
 				return Attempt{}, err
 			}

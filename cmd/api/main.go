@@ -14,6 +14,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/database"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 )
 
 func main() {
@@ -53,9 +54,30 @@ func run() int {
 		logger.Warn("Redis is unavailable at startup; readiness and rate-limited endpoints will report it", "error", err)
 	}
 
+	var sharedObjectStore objectstorage.Store
+	if cfg.ObjectStorageBackend == "minio" {
+		minioStore, err := objectstorage.NewMinIOStore(objectstorage.MinIOConfig{
+			Endpoint:  cfg.ObjectStorageEndpoint,
+			AccessKey: cfg.ObjectStorageAccessKey,
+			SecretKey: cfg.ObjectStorageSecretKey,
+			Bucket:    cfg.ObjectStorageBucket,
+			Region:    cfg.ObjectStorageRegion,
+			UseSSL:    cfg.ObjectStorageUseSSL,
+		})
+		if err != nil {
+			logger.Error("configure MinIO", "error", err)
+			return 1
+		}
+		if err := minioStore.Check(startupCtx); err != nil {
+			logger.Error("connect to MinIO", "error", err)
+			return 1
+		}
+		sharedObjectStore = minioStore
+	}
+
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           app.New(cfg, pool, redisClient, logger),
+		Handler:           app.New(cfg, pool, redisClient, logger, sharedObjectStore),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       cfg.RequestTimeout + time.Second,
 		WriteTimeout:      cfg.RequestTimeout + time.Second,

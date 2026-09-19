@@ -47,6 +47,9 @@ func TestValidateAcceptsDisabledInfobip(t *testing.T) {
 		RefreshCookieSameSite:   "lax",
 		CORSAllowedOrigins:      []string{"http://78.40.109.172"},
 		MaxRequestBody:          1024,
+		ObjectStorageBackend:    "filesystem",
+		ListeningMediaDir:       "./var/listening-media",
+		SpeakingMediaDir:        "./var/speaking-media",
 		AuthRateLimit:           10,
 		AuthRateWindow:          time.Minute,
 		PhoneVerificationSecret: "abcdef0123456789abcdef0123456789",
@@ -61,5 +64,28 @@ func TestValidateAcceptsDisabledInfobip(t *testing.T) {
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error=%v", err)
+	}
+}
+
+func TestValidateRequiresCompleteMinIOConfiguration(t *testing.T) {
+	cfg := Config{ObjectStorageBackend: "minio", ObjectStorageEndpoint: "minio:9000"}
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "OBJECT_STORAGE_ACCESS_KEY") {
+		t.Fatalf("expected incomplete MinIO configuration error, got %v", err)
+	}
+}
+
+func TestValidateRejectsInsecureProductionAIEndpoint(t *testing.T) {
+	cfg := Config{
+		Environment:          "production",
+		AIAPIKey:             "secret",
+		AIChatCompletionsURL: "http://llm.example/chat/completions",
+		AIModel:              "qwen3-8",
+		AISpeakingModel:      "qwen3-8",
+		AITimeout:            time.Minute,
+	}
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "AI_CHAT_COMPLETIONS_URL must use https") {
+		t.Fatalf("expected insecure AI endpoint error, got %v", err)
 	}
 }

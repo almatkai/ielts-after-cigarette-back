@@ -3,20 +3,6 @@
 name: ielts-shared-dev
 
 services:
-  redis:
-    image: redis:8-alpine
-    command: [redis-server, --appendonly, "yes", --requirepass, "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"]
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    restart: unless-stopped
-
   # Explicitly run migrations after inspecting the target database.
   migrate:
     image: migrate/migrate:v4.18.3
@@ -40,7 +26,7 @@ services:
       APP_ENV: development
       HTTP_ADDR: :8080
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.dev}
-      REDIS_URL: redis://:${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}@redis:6379/0
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.dev}
       REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-60s}
       LISTENING_MEDIA_DIR: /data/listening-media
       SPEAKING_MEDIA_DIR: /data/speaking-media
@@ -49,9 +35,6 @@ services:
     volumes:
       - listening_media:/data/listening-media
       - speaking_media:/data/speaking-media
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
       test: [CMD, wget, -qO-, 'http://localhost:8080/health/ready']
       interval: 10s
@@ -61,6 +44,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  redis_data:
   listening_media:
   speaking_media:

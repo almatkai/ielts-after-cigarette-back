@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/google/uuid"
 )
 
@@ -18,11 +18,15 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type Service struct {
 	repository Repository
-	mediaDir   string
+	mediaStore objectstorage.Store
 }
 
 func NewService(repository Repository, mediaDir string) *Service {
-	return &Service{repository: repository, mediaDir: mediaDir}
+	return NewServiceWithStorage(repository, objectstorage.NewFileStore(mediaDir))
+}
+
+func NewServiceWithStorage(repository Repository, mediaStore objectstorage.Store) *Service {
+	return &Service{repository: repository, mediaStore: mediaStore}
 }
 
 func (s *Service) ListAdmin(ctx context.Context) ([]Test, error) {
@@ -226,40 +230,26 @@ func (s *Service) StoreMedia(ctx context.Context, actorID uuid.UUID, kind string
 		return Media{}, fmt.Errorf("unsupported %s file type", kind)
 	}
 	mimeTypes := map[string]string{".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".ogg": "audio/ogg", ".webm": "audio/webm", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
-	if err := os.MkdirAll(s.mediaDir, 0o750); err != nil {
-		return Media{}, err
-	}
-	key := uuid.NewString() + ext
-	target := filepath.Join(s.mediaDir, key)
-	temporary := target + ".upload"
-	file, err := os.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o640)
+	key := "listening/" + uuid.NewString() + ext
+	written, err := s.mediaStore.Put(ctx, key, mimeTypes[ext], source, header.Size)
 	if err != nil {
-		return Media{}, err
-	}
-	written, copyErr := io.Copy(file, source)
-	closeErr := file.Close()
-	if copyErr != nil || closeErr != nil {
-		_ = os.Remove(temporary)
-		if copyErr != nil {
-			return Media{}, copyErr
-		}
-		return Media{}, closeErr
-	}
-	if err = os.Rename(temporary, target); err != nil {
-		_ = os.Remove(temporary)
 		return Media{}, err
 	}
 	media, err := s.repository.CreateMedia(ctx, actorID, Media{Kind: kind, OriginalName: filepath.Base(header.Filename), MimeType: mimeTypes[ext], StorageKey: key, ByteSize: written})
 	if err != nil {
-		_ = os.Remove(target)
+		_ = s.mediaStore.Delete(ctx, key)
 		return Media{}, err
 	}
 	return media, nil
 }
-func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (Media, string, error) {
+func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (Media, objectstorage.ReadSeekCloser, error) {
 	media, err := s.repository.GetMedia(ctx, id, publishedOnly)
 	if err != nil {
-		return Media{}, "", err
+		return Media{}, nil, err
 	}
-	return media, filepath.Join(s.mediaDir, media.StorageKey), nil
+	object, err := s.mediaStore.Open(ctx, media.StorageKey)
+	if err != nil {
+		return Media{}, nil, err
+	}
+	return media, object, nil
 }

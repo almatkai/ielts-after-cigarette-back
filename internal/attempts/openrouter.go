@@ -32,9 +32,11 @@ type WritingEvaluator interface {
 }
 
 type OpenRouterEvaluator struct {
+	endpoint      string
 	apiKey        string
 	model         string
 	speakingModel string
+	speakingAudio bool
 	client        *http.Client
 }
 
@@ -45,11 +47,30 @@ func (e *OpenRouterEvaluator) WithSpeakingModel(model string) *OpenRouterEvaluat
 	return e
 }
 
+// WithSpeakingAudio controls whether recordings are sent as input_audio
+// content parts. Text-only providers must keep this disabled and evaluate
+// Speaking only when candidate transcripts are available.
+func (e *OpenRouterEvaluator) WithSpeakingAudio(enabled bool) *OpenRouterEvaluator {
+	e.speakingAudio = enabled
+	return e
+}
+
 func NewOpenRouterEvaluator(apiKey, model string, client *http.Client) *OpenRouterEvaluator {
+	return NewChatCompletionsEvaluator(openRouterChatCompletionsURL, apiKey, model, client).WithSpeakingAudio(true)
+}
+
+// NewChatCompletionsEvaluator configures any OpenAI-compatible chat
+// completions provider, including OpenRouter and self-hosted Qwen gateways.
+func NewChatCompletionsEvaluator(endpoint, apiKey, model string, client *http.Client) *OpenRouterEvaluator {
 	if client == nil {
 		client = &http.Client{Timeout: 45 * time.Second}
 	}
-	return &OpenRouterEvaluator{apiKey: strings.TrimSpace(apiKey), model: strings.TrimSpace(model), client: client}
+	return &OpenRouterEvaluator{
+		endpoint: strings.TrimSpace(endpoint),
+		apiKey:   strings.TrimSpace(apiKey),
+		model:    strings.TrimSpace(model),
+		client:   client,
+	}
 }
 
 func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluationRequest) (WritingEvaluation, error) {
@@ -82,7 +103,7 @@ func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluat
 	if err != nil {
 		return WritingEvaluation{}, fmt.Errorf("%w: encode request", ErrAIEvaluationFailed)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, openRouterChatCompletionsURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.endpoint, bytes.NewReader(body))
 	if err != nil {
 		return WritingEvaluation{}, fmt.Errorf("%w: create request", ErrAIEvaluationFailed)
 	}
@@ -91,15 +112,15 @@ func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluat
 	req.Header.Set("X-Title", "IELTS After Cigarette")
 	response, err := e.client.Do(req)
 	if err != nil {
-		return WritingEvaluation{}, fmt.Errorf("%w: request OpenRouter", ErrAIEvaluationFailed)
+		return WritingEvaluation{}, fmt.Errorf("%w: request AI provider", ErrAIEvaluationFailed)
 	}
 	defer response.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
 	if err != nil {
-		return WritingEvaluation{}, fmt.Errorf("%w: read OpenRouter response", ErrAIEvaluationFailed)
+		return WritingEvaluation{}, fmt.Errorf("%w: read AI provider response", ErrAIEvaluationFailed)
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return WritingEvaluation{}, fmt.Errorf("%w: OpenRouter status %d", ErrAIEvaluationFailed, response.StatusCode)
+		return WritingEvaluation{}, fmt.Errorf("%w: AI provider status %d", ErrAIEvaluationFailed, response.StatusCode)
 	}
 	var completion struct {
 		Model   string `json:"model"`
@@ -110,7 +131,7 @@ func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluat
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(data, &completion); err != nil || len(completion.Choices) == 0 {
-		return WritingEvaluation{}, fmt.Errorf("%w: invalid OpenRouter completion", ErrAIEvaluationFailed)
+		return WritingEvaluation{}, fmt.Errorf("%w: invalid AI provider completion", ErrAIEvaluationFailed)
 	}
 	evaluation, err := decodeEvaluation(completion.Choices[0].Message.Content)
 	if err != nil {
@@ -252,19 +273,23 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 		Text       string      `json:"text,omitempty"`
 		InputAudio *inputAudio `json:"input_audio,omitempty"`
 	}
-	prompt := speakingEvaluationPrompt(input)
-	content := []contentPart{{Type: "text", Text: prompt}}
-	for _, part := range input.Parts {
-		if part.Audio == nil || len(part.Audio.Data) == 0 {
-			continue
+	prompt := speakingEvaluationPrompt(input, e.speakingAudio)
+	var userContent any = prompt
+	if e.speakingAudio {
+		content := []contentPart{{Type: "text", Text: prompt}}
+		for _, part := range input.Parts {
+			if part.Audio == nil || len(part.Audio.Data) == 0 {
+				continue
+			}
+			content = append(content, contentPart{
+				Type: "input_audio",
+				InputAudio: &inputAudio{
+					Data:   base64.StdEncoding.EncodeToString(part.Audio.Data),
+					Format: part.Audio.Format,
+				},
+			})
 		}
-		content = append(content, contentPart{
-			Type: "input_audio",
-			InputAudio: &inputAudio{
-				Data:   base64.StdEncoding.EncodeToString(part.Audio.Data),
-				Format: part.Audio.Format,
-			},
-		})
+		userContent = content
 	}
 	payload := struct {
 		Model       string  `json:"model"`
@@ -283,13 +308,13 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 		struct {
 			Role    string `json:"role"`
 			Content any    `json:"content"`
-		}{Role: "user", Content: content},
+		}{Role: "user", Content: userContent},
 	)
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return SpeakingEvaluation{}, fmt.Errorf("%w: encode speaking request", ErrAIEvaluationFailed)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, openRouterChatCompletionsURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.endpoint, bytes.NewReader(body))
 	if err != nil {
 		return SpeakingEvaluation{}, fmt.Errorf("%w: create speaking request", ErrAIEvaluationFailed)
 	}
@@ -298,15 +323,15 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 	req.Header.Set("X-Title", "IELTS After Cigarette")
 	response, err := e.client.Do(req)
 	if err != nil {
-		return SpeakingEvaluation{}, fmt.Errorf("%w: request OpenRouter", ErrAIEvaluationFailed)
+		return SpeakingEvaluation{}, fmt.Errorf("%w: request AI provider", ErrAIEvaluationFailed)
 	}
 	defer response.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))
 	if err != nil {
-		return SpeakingEvaluation{}, fmt.Errorf("%w: read OpenRouter response", ErrAIEvaluationFailed)
+		return SpeakingEvaluation{}, fmt.Errorf("%w: read AI provider response", ErrAIEvaluationFailed)
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return SpeakingEvaluation{}, fmt.Errorf("%w: OpenRouter status %d", ErrAIEvaluationFailed, response.StatusCode)
+		return SpeakingEvaluation{}, fmt.Errorf("%w: AI provider status %d", ErrAIEvaluationFailed, response.StatusCode)
 	}
 	var completion struct {
 		Model   string `json:"model"`
@@ -317,7 +342,7 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(data, &completion); err != nil || len(completion.Choices) == 0 {
-		return SpeakingEvaluation{}, fmt.Errorf("%w: invalid OpenRouter speaking completion", ErrAIEvaluationFailed)
+		return SpeakingEvaluation{}, fmt.Errorf("%w: invalid AI provider speaking completion", ErrAIEvaluationFailed)
 	}
 	evaluation, err := decodeSpeakingEvaluation(completion.Choices[0].Message.Content)
 	if err != nil {
@@ -330,7 +355,7 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 	return evaluation, nil
 }
 
-func speakingEvaluationPrompt(input SpeakingEvaluationRequest) string {
+func speakingEvaluationPrompt(input SpeakingEvaluationRequest, includeAudio bool) string {
 	type promptPart struct {
 		PartID              uuid.UUID `json:"partId"`
 		PartNumber          int       `json:"partNumber"`
@@ -348,7 +373,7 @@ func speakingEvaluationPrompt(input SpeakingEvaluationRequest) string {
 			PartID: item.Part.ID, PartNumber: item.Part.Position, PartType: item.Part.Type,
 			Title: item.Part.Title, Instructions: item.Part.Instructions,
 			CueCard: item.Part.CueCard, Questions: item.Part.Questions,
-			CandidateTranscript: item.Transcript, HasAudio: item.Audio != nil,
+			CandidateTranscript: item.Transcript, HasAudio: includeAudio && item.Audio != nil,
 		})
 	}
 	payload := struct {

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
@@ -169,21 +168,15 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 	}
 	role := auth.Role(r.Context())
 	publishedOnly := role != auth.RoleEditor && role != auth.RoleAdmin
-	media, path, err := h.service.Media(r.Context(), id, publishedOnly)
+	media, object, err := h.service.Media(r.Context(), id, publishedOnly)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
-	file, err := os.Open(path)
-	if err != nil {
-		h.logger.Error("open listening media", "error", err, "media_id", id)
-		httpx.WriteError(w, r, http.StatusServiceUnavailable, "MEDIA_UNAVAILABLE", "Media is unavailable", nil)
-		return
-	}
-	defer file.Close()
+	defer object.Close()
 	w.Header().Set("Content-Type", media.MimeType)
 	w.Header().Set("Content-Disposition", "inline")
-	http.ServeContent(w, r, media.OriginalName, media.CreatedAt, file)
+	http.ServeContent(w, r, media.OriginalName, media.CreatedAt, object)
 }
 func (h *Handler) decode(w http.ResponseWriter, r *http.Request, target any) bool {
 	if err := httpx.DecodeJSON(w, r, h.maxBody, target); err != nil {

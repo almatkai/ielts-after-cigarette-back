@@ -24,6 +24,23 @@ func TestReadyReportsDependencyFailure(t *testing.T) {
 	}
 }
 
+func TestReadyReportsObjectStorageFailure(t *testing.T) {
+	handler := NewHandler(
+		func(context.Context) error { return nil },
+		func(context.Context) error { return nil },
+		func(context.Context) error { return errors.New("MinIO down") },
+	)
+	response := httptest.NewRecorder()
+	handler.Ready(response, httptest.NewRequest(http.MethodGet, "/health/ready", nil))
+
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected %d, got %d", http.StatusServiceUnavailable, response.Code)
+	}
+	if body := response.Body.String(); !contains(body, `"object_storage":"unavailable"`) {
+		t.Fatalf("unexpected response body: %s", body)
+	}
+}
+
 func contains(value, part string) bool {
 	for i := 0; i+len(part) <= len(value); i++ {
 		if value[i:i+len(part)] == part {
