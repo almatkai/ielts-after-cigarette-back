@@ -28,6 +28,12 @@ is optional during text import. The easiest workflow is import first, upload an
 MP3/M4A/WAV/OGG/WebM in the constructor, then save. If an asset was already
 uploaded, its UUID may be supplied as `audio_asset_id`.
 
+When the source is one continuous audio file for all four parts, use the
+constructor's **common test audio** upload. It stores one media asset, assigns
+the same asset to every part and keeps one persistent player visible while the
+student moves through all 40 questions. Per-part uploads remain available for
+tests distributed as separate recordings.
+
 ## Groups
 
 ```text

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -95,21 +94,15 @@ func (h *Handler) SpeakingRecording(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
-	recording, path, err := h.service.SpeakingRecording(r.Context(), actor, attemptID, partID)
+	recording, object, err := h.service.SpeakingRecording(r.Context(), actor, attemptID, partID)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
-	file, err := os.Open(path)
-	if err != nil {
-		h.logger.ErrorContext(r.Context(), "open speaking recording", "request_id", httpx.RequestID(r.Context()), "error", err)
-		httpx.WriteError(w, r, http.StatusServiceUnavailable, "MEDIA_UNAVAILABLE", "Recording is unavailable", nil)
-		return
-	}
-	defer file.Close()
+	defer object.Close()
 	w.Header().Set("Content-Type", recording.MimeType)
 	w.Header().Set("Content-Disposition", "inline; filename=\"recording\"")
-	http.ServeContent(w, r, recording.OriginalName, recording.UpdatedAt, file)
+	http.ServeContent(w, r, recording.OriginalName, recording.UpdatedAt, object)
 }
 
 func (h *Handler) start(w http.ResponseWriter, r *http.Request, materialType, param, paramName, responseKey string) {

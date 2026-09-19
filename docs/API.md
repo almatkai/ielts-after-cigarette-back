@@ -670,8 +670,8 @@ Academic Task 1 материал содержит `visualType` и может с�
 ```
 
 При `POST /attempts/{attemptId}/submit` оба задания обязательны. Backend
-отправляет их в OpenRouter и возвращает попытку с итоговым band. Если
-`OPENROUTER_API_KEY` не настроен, ответ — `503 AI_NOT_CONFIGURED`; при ошибке
+отправляет их в настроенный OpenAI-compatible AI provider и возвращает попытку с итоговым band. Если
+`AI_API_KEY` (или legacy `OPENROUTER_API_KEY`) не настроен, ответ — `503 AI_NOT_CONFIGURED`; при ошибке
 провайдера — `502 AI_EVALUATION_FAILED`. Детали сданной Writing-попытки
 (`GET /attempts/{attemptId}`) включают `writingEvaluation`: four criteria
 `taskResponse`, `coherence`, `lexicalResource`, `grammar`, их band и feedback,
@@ -702,7 +702,8 @@ Academic Task 1 материал содержит `visualType` и может с�
 
 Для Speaking `POST /attempts/{attemptId}/submit` требует запись или текстовую
 расшифровку для каждой из трёх частей. Записи передаются аудио-совместимой
-модели OpenRouter для расшифровки и учебной оценки. Детали сданной попытки
+настроенной AI-модели для расшифровки и учебной оценки. Для text-only моделей
+нужен готовый транскрипт или отдельный STT. Детали сданной попытки
 (`GET /attempts/{attemptId}`) содержат `speakingEvaluation`: общий band,
 `fluency`, `lexicalResource`, `grammar`, `pronunciation`, `summary`, а также
 расшифровку и рекомендации по каждой части. Если AI не настроен —

@@ -54,6 +54,25 @@ services:
         condition: service_healthy
     restart: "no"
 
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: [server, /data, --console-address, ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-local-minio-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-local-minio-password}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [CMD, curl, -f, 'http://localhost:9000/minio/health/live']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -79,6 +98,13 @@ services:
       LISTENING_MEDIA_DIR: /data/listening-media
 
       SPEAKING_MEDIA_DIR: /data/speaking-media
+      OBJECT_STORAGE_BACKEND: ${OBJECT_STORAGE_BACKEND:-minio}
+      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-minio:9000}
+      OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin}
+      OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY:-local-minio-password}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-ielts-media}
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-us-east-1}
+      OBJECT_STORAGE_USE_SSL: ${OBJECT_STORAGE_USE_SSL:-false}
       MAX_MEDIA_UPLOAD_BYTES: ${MAX_MEDIA_UPLOAD_BYTES:-52428800}
       AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10}
       AUTH_RATE_WINDOW: ${AUTH_RATE_WINDOW:-1m}
@@ -94,6 +120,12 @@ services:
       INFOBIP_WHATSAPP_LANGUAGE: ${INFOBIP_WHATSAPP_LANGUAGE:-en}
       INFOBIP_TIMEOUT: ${INFOBIP_TIMEOUT:-10s}
       SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_CHAT_COMPLETIONS_URL: ${AI_CHAT_COMPLETIONS_URL:-https://openrouter.ai/api/v1/chat/completions}
+      AI_MODEL: ${AI_MODEL:-openrouter/free}
+      AI_SPEAKING_MODEL: ${AI_SPEAKING_MODEL:-thinkingmachines/inkling-small:free}
+      AI_SPEAKING_AUDIO_ENABLED: ${AI_SPEAKING_AUDIO_ENABLED:-true}
+      AI_TIMEOUT: ${AI_TIMEOUT:-45s}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/free}
       OPENROUTER_SPEAKING_MODEL: ${OPENROUTER_SPEAKING_MODEL:-thinkingmachines/inkling-small:free}
@@ -108,6 +140,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health/live"]
       interval: 10s
@@ -121,3 +155,4 @@ volumes:
   redis_data:
   listening_media:
   speaking_media:
+  minio_data:

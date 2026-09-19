@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/google/uuid"
 )
 
@@ -73,38 +73,17 @@ func (s *Service) StoreSpeakingRecording(
 	if !ok {
 		return SpeakingRecording{}, fmt.Errorf("unsupported audio file type")
 	}
-	if s.speakingMediaDir == "" {
+	if s.speakingStore == nil {
 		return SpeakingRecording{}, fmt.Errorf("speaking recording storage is not configured")
 	}
-	if err := os.MkdirAll(s.speakingMediaDir, 0o750); err != nil {
-		return SpeakingRecording{}, fmt.Errorf("create speaking media directory: %w", err)
-	}
-	key := uuid.NewString() + ext
-	target := filepath.Join(s.speakingMediaDir, key)
-	temporary := target + ".upload"
-	file, err := os.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o640)
+	key := "speaking/" + uuid.NewString() + ext
+	written, err := s.speakingStore.Put(ctx, key, mimeType, io.LimitReader(source, limit+1), header.Size)
 	if err != nil {
-		return SpeakingRecording{}, fmt.Errorf("create recording: %w", err)
-	}
-	written, copyErr := io.Copy(file, io.LimitReader(source, limit+1))
-	closeErr := file.Close()
-	if copyErr != nil || closeErr != nil || written > limit {
-		_ = os.Remove(temporary)
-		if copyErr != nil {
-			return SpeakingRecording{}, fmt.Errorf("save recording: %w", copyErr)
-		}
-		if closeErr != nil {
-			return SpeakingRecording{}, fmt.Errorf("close recording: %w", closeErr)
-		}
-		return SpeakingRecording{}, ErrRecordingTooLarge
-	}
-	if err = os.Rename(temporary, target); err != nil {
-		_ = os.Remove(temporary)
-		return SpeakingRecording{}, fmt.Errorf("finalize recording: %w", err)
+		return SpeakingRecording{}, fmt.Errorf("save recording: %w", err)
 	}
 	repository, ok := s.repository.(speakingRecordingRepository)
 	if !ok {
-		_ = os.Remove(target)
+		_ = s.speakingStore.Delete(ctx, key)
 		return SpeakingRecording{}, ErrNotFound
 	}
 	recording, previousKey, err := repository.UpsertSpeakingRecording(ctx, SpeakingRecording{
@@ -113,35 +92,39 @@ func (s *Service) StoreSpeakingRecording(
 		StorageKey: key, ByteSize: written,
 	})
 	if err != nil {
-		_ = os.Remove(target)
+		_ = s.speakingStore.Delete(ctx, key)
 		return SpeakingRecording{}, err
 	}
-	if previousKey != "" && previousKey != key && filepath.Base(previousKey) == previousKey {
-		_ = os.Remove(filepath.Join(s.speakingMediaDir, previousKey))
+	if previousKey != "" && previousKey != key {
+		_ = s.speakingStore.Delete(ctx, previousKey)
 	}
 	return recording, nil
 }
 
-func (s *Service) SpeakingRecording(ctx context.Context, userID, attemptID, partID uuid.UUID) (SpeakingRecording, string, error) {
+func (s *Service) SpeakingRecording(ctx context.Context, userID, attemptID, partID uuid.UUID) (SpeakingRecording, objectstorage.ReadSeekCloser, error) {
 	attempt, err := s.own(ctx, userID, attemptID)
 	if err != nil {
-		return SpeakingRecording{}, "", err
+		return SpeakingRecording{}, nil, err
 	}
 	if attempt.MaterialType != MaterialSpeaking {
-		return SpeakingRecording{}, "", ErrNotFound
+		return SpeakingRecording{}, nil, ErrNotFound
 	}
 	repository, ok := s.repository.(speakingRecordingRepository)
 	if !ok {
-		return SpeakingRecording{}, "", ErrNotFound
+		return SpeakingRecording{}, nil, ErrNotFound
 	}
 	recording, err := repository.GetSpeakingRecording(ctx, attemptID, partID)
 	if err != nil {
-		return SpeakingRecording{}, "", err
+		return SpeakingRecording{}, nil, err
 	}
-	if s.speakingMediaDir == "" || filepath.Base(recording.StorageKey) != recording.StorageKey {
-		return SpeakingRecording{}, "", ErrRecordingNotFound
+	if s.speakingStore == nil {
+		return SpeakingRecording{}, nil, ErrRecordingNotFound
 	}
-	return recording, filepath.Join(s.speakingMediaDir, recording.StorageKey), nil
+	object, err := s.speakingStore.Open(ctx, recording.StorageKey)
+	if err != nil {
+		return SpeakingRecording{}, nil, ErrRecordingNotFound
+	}
+	return recording, object, nil
 }
 
 func (s *Service) speakingRecordings(ctx context.Context, attemptID uuid.UUID) ([]SpeakingRecording, error) {
@@ -156,20 +139,17 @@ func (s *Service) speakingRecordings(ctx context.Context, attemptID uuid.UUID) (
 	return items, err
 }
 
-func (s *Service) readSpeakingAudio(recording SpeakingRecording) (*SpeakingAudio, error) {
+func (s *Service) readSpeakingAudio(ctx context.Context, recording SpeakingRecording) (*SpeakingAudio, error) {
 	limit := s.maxSpeakingMedia
 	if limit < 1 {
 		limit = defaultMaxSpeakingAssessmentAudioBytes
 	}
-	if recording.ByteSize < 1 || recording.ByteSize > limit || s.speakingMediaDir == "" || filepath.Base(recording.StorageKey) != recording.StorageKey {
+	if recording.ByteSize < 1 || recording.ByteSize > limit || s.speakingStore == nil {
 		return nil, ErrRecordingTooLarge
 	}
-	file, err := os.Open(filepath.Join(s.speakingMediaDir, recording.StorageKey))
+	file, err := s.speakingStore.Open(ctx, recording.StorageKey)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, ErrRecordingNotFound
-		}
-		return nil, fmt.Errorf("open speaking recording: %w", err)
+		return nil, ErrRecordingNotFound
 	}
 	defer file.Close()
 	data, err := io.ReadAll(io.LimitReader(file, limit+1))

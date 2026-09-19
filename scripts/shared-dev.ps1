@@ -17,7 +17,7 @@ try {
     switch ($Action) {
         'Check' { & docker @composeArgs config --quiet }
         'Migrate' { & docker @composeArgs run --rm migrate }
-        'Up' { & docker @composeArgs up -d --build backend }
+        'Up' { & docker @composeArgs up -d --build --remove-orphans backend }
         'Stop' { & docker @composeArgs stop }
         'Logs' { & docker @composeArgs logs --tail 100 backend }
     }

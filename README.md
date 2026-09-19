@@ -75,8 +75,12 @@ docs/API.md            REST-контракт и примеры
 | `CORS_ALLOWED_ORIGINS` | список точных origins через запятую |
 | `AUTH_RATE_LIMIT`, `AUTH_RATE_WINDOW` | лимит публичных write endpoints |
 | `MAX_REQUEST_BODY_BYTES` | максимальный размер JSON body |
-| `LISTENING_MEDIA_DIR` | каталог аудио и изображений Listening; в Docker это отдельный volume |
-| `SPEAKING_MEDIA_DIR` | каталог записей Speaking; в Docker это отдельный volume |
+| `OBJECT_STORAGE_BACKEND` | `filesystem` или `minio`; Docker Compose локально использует MinIO |
+| `OBJECT_STORAGE_ENDPOINT` | MinIO/S3-compatible endpoint без `http://` или `https://` |
+| `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY` | приватные credentials object storage |
+| `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_USE_SSL` | bucket, region и TLS object storage |
+| `LISTENING_MEDIA_DIR` | fallback-каталог Listening при `OBJECT_STORAGE_BACKEND=filesystem` |
+| `SPEAKING_MEDIA_DIR` | fallback-каталог Speaking при `OBJECT_STORAGE_BACKEND=filesystem` |
 | `MAX_MEDIA_UPLOAD_BYTES` | максимальный размер одного медиафайла; запись Speaking ограничена 12 MiB для AI-оценки |
 | `PHONE_VERIFICATION_SECRET` | отдельный HMAC-секрет для хеширования кодов |
 | `PHONE_CODE_TTL`, `PHONE_TOKEN_TTL` | срок кода и одноразового proof token |
@@ -84,10 +88,11 @@ docs/API.md            REST-контракт и примеры
 | `INFOBIP_ENABLED` | включает реальную отправку через Infobip |
 | `INFOBIP_BASE_URL`, `INFOBIP_API_KEY` | API endpoint и ключ Infobip |
 | `INFOBIP_WHATSAPP_*` | sender, approved template и язык WhatsApp |
-| `OPENROUTER_API_KEY` | API key для AI-проверки Writing и Speaking через OpenRouter |
-| `OPENROUTER_MODEL` | текстовая модель Writing; по умолчанию `openrouter/free` |
-| `OPENROUTER_SPEAKING_MODEL` | бесплатная мультимодальная модель для расшифровки и оценки Speaking; по умолчанию `thinkingmachines/inkling-small:free` |
-| `OPENROUTER_TIMEOUT` | предел ожидания ответа AI; по умолчанию `45s` |
+| `AI_API_KEY`, `AI_CHAT_COMPLETIONS_URL` | ключ и полный URL OpenAI-compatible chat completions API |
+| `AI_MODEL`, `AI_SPEAKING_MODEL` | модели для Writing и Speaking |
+| `AI_SPEAKING_AUDIO_ENABLED` | отправлять ли Speaking-записи модели; для text-only Qwen должно быть `false` |
+| `AI_TIMEOUT` | предел ожидания ответа AI; по умолчанию `45s` |
+| `OPENROUTER_*` | legacy fallback для существующих окружений; новые настройки `AI_*` имеют приоритет |
 
 `.env` исключён из Git. Значения по умолчанию в Compose предназначены только для
 локальной разработки и должны быть переопределены в любом общем окружении.
@@ -302,7 +307,7 @@ adapter-функции, не меняя backend-модели ради имён U
 
 Диагностика, генерация плана, Reading/Listening attempt и grading engine, полноценный student practice
 catalog, mistakes, реальные результаты прогресса, Writing AI, Speaking/audio,
-production object storage/CDN для media, уведомления, email delivery/password recovery, смена пароля,
+production CDN для media, уведомления, email delivery/password recovery, смена пароля,
 avatar upload, управление пользователями в admin, платежи и подписки.
 
 ## Эксплуатационные замечания

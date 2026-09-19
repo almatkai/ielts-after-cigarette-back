@@ -29,7 +29,7 @@ Backend текущего `dev` запущен отдельным Compose-про�
 # Проверить конфигурацию без вывода секретов
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/shared-dev.ps1 Check
 
-# Запуск/обновление backend текущей ветки и отдельного Redis
+# Запуск/обновление backend с общими PostgreSQL, Redis и MinIO
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/shared-dev.ps1 Up
 
 # Проверка реальных зависимостей
@@ -68,18 +68,23 @@ npm.cmd run dev
 ## Настройка у коллеги
 
 Создать `.env` из `.env.example`, `.env.dev` из `.env.dev.example`, передать реальные секреты
-по защищённому каналу. Указать собственные настройки авторизации, `REDIS_PASSWORD`,
+по защищённому каналу. Указать общие `REDIS_URL`, `OBJECT_STORAGE_*`, `AI_*`,
 при необходимости CORS и `BACKEND_PORT`. Проверить конфигурацию и запустить `Up`.
 Не публиковать вывод обычного `docker compose config`: он раскрывает подставленные секреты.
 
-Общая БД **не означает общий backend и общее аудиохранилище**. В текущем `dev` Listening
-и Speaking используют файлы в локальных Docker volumes, интеграции S3/MinIO в этом коде нет.
-Файлы, загруженные через backend одного разработчика, не появятся у остальных автоматически.
-Для совместного наполнения нужен один общий dev-backend с постоянными volumes либо отдельная
-доработка хранения в общем S3/MinIO. Текущий API привязан к `127.0.0.1`, не открыт в интернет.
+Общая БД **не означает общее аудиохранилище**. Backend поддерживает MinIO/S3-compatible
+хранилище для Listening media и Speaking recordings. Все разработчики, работающие с общей БД,
+должны использовать один и тот же endpoint и bucket через `OBJECT_STORAGE_*` в `.env.dev`.
+Локальный `localhost` MinIO подходит только для разработки на одном компьютере: его файлы не
+появятся у коллег автоматически. Текущий API привязан к `127.0.0.1` и не открыт в интернет.
 
-`OPENROUTER_API_KEY` в `.env.dev` намеренно пуст: внешние AI-запросы не выполняются.
-В этой реализации без AI нельзя завершить Writing/Speaking — это ограничение кода, не БД.
+`GET /health/ready` при включённом MinIO содержит `object_storage: ok`. Bucket создаётся
+автоматически при старте, остаётся приватным, а загрузка и чтение выполняются через защищённые
+API endpoints. Не публикуйте access/secret keys и не добавляйте `.env.dev` в Git.
+
+Shared-dev использует OpenAI-compatible AI endpoint из `AI_CHAT_COMPLETIONS_URL`.
+Writing оценивается текстовой моделью сразу. Для Speaking у text-only модели
+`AI_SPEAKING_AUDIO_ENABLED=false`: понадобится транскрипт или отдельный STT-сервис.
 
 ## DataGrip
 

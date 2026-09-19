@@ -13,11 +13,16 @@ type Check func(context.Context) error
 type Handler struct {
 	postgres Check
 	redis    Check
+	storage  Check
 	timeout  time.Duration
 }
 
-func NewHandler(postgres, redis Check) *Handler {
-	return &Handler{postgres: postgres, redis: redis, timeout: 2 * time.Second}
+func NewHandler(postgres, redis Check, optionalStorage ...Check) *Handler {
+	handler := &Handler{postgres: postgres, redis: redis, timeout: 2 * time.Second}
+	if len(optionalStorage) > 0 {
+		handler.storage = optionalStorage[0]
+	}
+	return handler
 }
 
 func (h *Handler) Live(w http.ResponseWriter, _ *http.Request) {
@@ -35,7 +40,13 @@ func (h *Handler) Ready(w http.ResponseWriter, r *http.Request) {
 	if err := h.redis(ctx); err != nil {
 		details["redis"] = "unavailable"
 	}
-	if details["postgres"] != "ok" || details["redis"] != "ok" {
+	if h.storage != nil {
+		details["object_storage"] = "ok"
+		if err := h.storage(ctx); err != nil {
+			details["object_storage"] = "unavailable"
+		}
+	}
+	if details["postgres"] != "ok" || details["redis"] != "ok" || details["object_storage"] == "unavailable" {
 		httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"status":       "not_ready",
 			"dependencies": details,

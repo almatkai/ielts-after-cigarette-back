@@ -20,6 +20,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/health"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
@@ -41,7 +42,12 @@ func New(
 	pool *pgxpool.Pool,
 	redisClient *redis.Client,
 	logger *slog.Logger,
+	sharedObjectStores ...objectstorage.Store,
 ) http.Handler {
+	var sharedObjectStore objectstorage.Store
+	if len(sharedObjectStores) > 0 {
+		sharedObjectStore = sharedObjectStores[0]
+	}
 	tokens := auth.NewTokenManager(
 		cfg.JWTSecret,
 		cfg.JWTIssuer,
@@ -85,20 +91,29 @@ func New(
 	speakingHandler := speaking.NewHandler(speakingService, logger, cfg.MaxRequestBody)
 	listeningRepository := listening.NewPostgresRepository(pool)
 	listeningService := listening.NewService(listeningRepository, cfg.ListeningMediaDir)
+	if sharedObjectStore != nil {
+		listeningService = listening.NewServiceWithStorage(listeningRepository, sharedObjectStore)
+	}
 	listeningHandler := listening.NewHandler(listeningService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 	attemptsRepository := attempts.NewPostgresRepository(pool)
 	speakingMediaLimit := cfg.MaxMediaUploadBytes
 	if speakingMediaLimit < 1 || speakingMediaLimit > 12<<20 {
 		speakingMediaLimit = 12 << 20
 	}
-	openRouterEvaluator := attempts.NewOpenRouterEvaluator(cfg.OpenRouterAPIKey, cfg.OpenRouterModel, &http.Client{Timeout: cfg.OpenRouterTimeout}).
-		WithSpeakingModel(cfg.OpenRouterSpeakingModel)
+	aiEvaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
+		WithSpeakingModel(cfg.AISpeakingModel).
+		WithSpeakingAudio(cfg.AISpeakingAudioEnabled)
 	attemptsService := attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
 		attempts.MaterialWriting:   attempts.NewWritingProvider(writingService),
 		attempts.MaterialSpeaking:  attempts.NewSpeakingProvider(speakingService),
-	}, openRouterEvaluator).WithSpeakingRecordingStore(cfg.SpeakingMediaDir, speakingMediaLimit, openRouterEvaluator)
+	}, aiEvaluator)
+	if sharedObjectStore != nil {
+		attemptsService.WithSpeakingObjectStore(sharedObjectStore, speakingMediaLimit, aiEvaluator)
+	} else {
+		attemptsService.WithSpeakingRecordingStore(cfg.SpeakingMediaDir, speakingMediaLimit, aiEvaluator)
+	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)
 	fullMockService := fullmock.NewService(fullMockRepository, attemptsService)
@@ -133,10 +148,11 @@ func New(
 	)
 	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository, waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID), cfg.SuperAdminEmails), logger, cfg.MaxRequestBody)
 
-	healthHandler := health.NewHandler(
-		pool.Ping,
-		func(ctx context.Context) error { return cache.Ping(ctx, redisClient) },
-	)
+	healthChecks := []health.Check{}
+	if sharedObjectStore != nil {
+		healthChecks = append(healthChecks, sharedObjectStore.Check)
+	}
+	healthHandler := health.NewHandler(pool.Ping, func(ctx context.Context) error { return cache.Ping(ctx, redisClient) }, healthChecks...)
 	rateLimiter := cache.NewRateLimiter(redisClient)
 
 	router := chi.NewRouter()
