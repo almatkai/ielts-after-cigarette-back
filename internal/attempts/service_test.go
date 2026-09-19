@@ -761,10 +761,10 @@ func TestWritingSubmitWithEvaluator(t *testing.T) {
 		t.Fatalf("start writing failed: %v", err)
 	}
 
-	// Submit with insufficient words (<150 words for task 1)
+	// Empty tasks cannot be submitted.
 	_, err = svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{
 		Answers: []AnswerInput{
-			{QuestionID: questionChoiceID, Answer: map[string]any{"value": "too short"}},
+			{QuestionID: questionChoiceID, Answer: map[string]any{"value": ""}},
 			{QuestionID: questionMatchingID, Answer: map[string]any{"value": generateWords(260)}},
 		},
 	})
@@ -772,10 +772,11 @@ func TestWritingSubmitWithEvaluator(t *testing.T) {
 		t.Fatalf("expected ErrWritingIncomplete, got: %v", err)
 	}
 
-	// Submit with sufficient words
+	// A short answer may be submitted, just like in the real exam. The evaluator
+	// receives its word count and applies the under-length penalty.
 	submitted, err := svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{
 		Answers: []AnswerInput{
-			{QuestionID: questionChoiceID, Answer: map[string]any{"value": generateWords(160)}},
+			{QuestionID: questionChoiceID, Answer: map[string]any{"value": "too short"}},
 			{QuestionID: questionMatchingID, Answer: map[string]any{"value": generateWords(260)}},
 		},
 	})

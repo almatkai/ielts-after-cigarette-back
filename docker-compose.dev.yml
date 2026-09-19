@@ -30,11 +30,13 @@ services:
       REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-60s}
       MEDIA_UPLOAD_TIMEOUT: ${MEDIA_UPLOAD_TIMEOUT:-5m}
       LISTENING_MEDIA_DIR: /data/listening-media
+      WRITING_MEDIA_DIR: /data/writing-media
       SPEAKING_MEDIA_DIR: /data/speaking-media
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     volumes:
       - listening_media:/data/listening-media
+      - writing_media:/data/writing-media
       - speaking_media:/data/speaking-media
     healthcheck:
       test: [CMD, wget, -qO-, 'http://localhost:8080/health/ready']
@@ -46,4 +48,5 @@ services:
 
 volumes:
   listening_media:
+  writing_media:
   speaking_media:

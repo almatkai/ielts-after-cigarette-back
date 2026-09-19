@@ -75,12 +75,13 @@ func run() int {
 		sharedObjectStore = minioStore
 	}
 
+	serverTimeout := max(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second) + time.Second
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           app.New(cfg, pool, redisClient, logger, sharedObjectStore),
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       cfg.RequestTimeout + time.Second,
-		WriteTimeout:      cfg.RequestTimeout + time.Second,
+		ReadTimeout:       serverTimeout,
+		WriteTimeout:      serverTimeout,
 		IdleTimeout:       60 * time.Second,
 	}
 

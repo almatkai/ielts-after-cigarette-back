@@ -16,6 +16,7 @@ func TestIsMediaUpload(t *testing.T) {
 		want   bool
 	}{
 		{http.MethodPost, "/api/v1/admin/listening/media", true},
+		{http.MethodPost, "/api/v1/admin/writing/media", true},
 		{http.MethodPost, "/api/v1/attempts/abc/recordings", true},
 		{http.MethodGet, "/api/v1/admin/listening/media", false},
 		{http.MethodPost, "/api/v1/admin/listening/tests", false},
@@ -34,7 +35,7 @@ func TestTimeoutByRequestUsesMediaDeadline(t *testing.T) {
 	t.Parallel()
 
 	var deadline time.Time
-	handler := timeoutByRequest(time.Second, 5*time.Minute)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	handler := timeoutByRequest(time.Second, 5*time.Minute, 2*time.Minute)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		deadline, _ = r.Context().Deadline()
 	}))
 
@@ -45,6 +46,24 @@ func TestTimeoutByRequestUsesMediaDeadline(t *testing.T) {
 	remaining := deadline.Sub(started)
 	if remaining < 4*time.Minute || remaining > 5*time.Minute+time.Second {
 		t.Fatalf("media upload deadline remaining = %s, want approximately 5m", remaining)
+	}
+}
+
+func TestTimeoutByRequestUsesAIEvaluationDeadline(t *testing.T) {
+	t.Parallel()
+
+	var deadline time.Time
+	handler := timeoutByRequest(time.Second, 5*time.Minute, 2*time.Minute)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		deadline, _ = r.Context().Deadline()
+	}))
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/attempts/abc/submit", nil)
+	started := time.Now()
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+
+	remaining := deadline.Sub(started)
+	if remaining < 90*time.Second || remaining > 2*time.Minute+time.Second {
+		t.Fatalf("AI evaluation deadline remaining = %s, want approximately 2m", remaining)
 	}
 }
 

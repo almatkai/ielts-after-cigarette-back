@@ -3,12 +3,18 @@ package writing
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/google/uuid"
 )
 
@@ -26,11 +32,22 @@ type Repository interface {
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Material, error)
 	Publish(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
 	Archive(context.Context, uuid.UUID, uuid.UUID, int64) (Material, error)
+	CreateMedia(context.Context, uuid.UUID, Media) (Media, error)
+	GetMedia(context.Context, uuid.UUID, bool) (Media, error)
 }
 
-type Service struct{ repository Repository }
+type Service struct {
+	repository Repository
+	mediaStore objectstorage.Store
+}
 
-func NewService(repository Repository) *Service { return &Service{repository: repository} }
+func NewService(repository Repository, stores ...objectstorage.Store) *Service {
+	var mediaStore objectstorage.Store
+	if len(stores) > 0 {
+		mediaStore = stores[0]
+	}
+	return &Service{repository: repository, mediaStore: mediaStore}
+}
 
 func (s *Service) List(ctx context.Context) ([]Material, error) {
 	items, err := s.repository.List(ctx)
@@ -100,6 +117,23 @@ func (s *Service) Update(ctx context.Context, id, actorID uuid.UUID, input SaveI
 func (s *Service) Publish(ctx context.Context, id, actorID uuid.UUID, revision int64) (Material, map[string]string, error) {
 	if revision < 1 {
 		return Material{}, map[string]string{"revision": "must be a positive integer"}, nil
+	}
+	current, err := s.repository.Get(ctx, id)
+	if err != nil {
+		return Material{}, nil, err
+	}
+	if details := validateForPublish(current); len(details) > 0 {
+		return Material{}, details, nil
+	}
+	if current.ExamType == "academic" && current.Tasks[0].VisualAssetID != nil {
+		if _, err := s.repository.GetMedia(ctx, *current.Tasks[0].VisualAssetID, false); err != nil {
+			if errors.Is(err, ErrMediaNotFound) {
+				return Material{}, map[string]string{
+					"tasks[0].visualAssetId": "uploaded visual was not found; upload it again",
+				}, nil
+			}
+			return Material{}, nil, err
+		}
 	}
 	material, err := s.repository.Publish(ctx, id, actorID, revision)
 	return material, nil, err
@@ -176,10 +210,19 @@ func (s *Service) BulkCreate(ctx context.Context, actorID uuid.UUID, inputs []Sa
 }
 
 func publicMaterial(material Material) PublicMaterial {
+	tasks := make([]PublicTask, 0, len(material.Tasks))
+	for _, task := range material.Tasks {
+		tasks = append(tasks, PublicTask{
+			ID: task.ID, Position: task.Position, Type: task.Type, Prompt: task.Prompt,
+			MinimumWords: task.MinimumWords, VisualType: task.VisualType,
+			VisualURL: task.VisualURL, VisualAssetID: task.VisualAssetID,
+			EssayType: task.EssayType, LetterTone: task.LetterTone,
+		})
+	}
 	return PublicMaterial{
 		ID: material.ID, Slug: material.Slug, ExamType: material.ExamType,
 		Difficulty: material.Difficulty, Title: material.Title,
-		Description: material.Description, Tasks: material.Tasks,
+		Description: material.Description, DurationMinutes: material.DurationMinutes, Tasks: tasks,
 	}
 }
 
@@ -202,6 +245,8 @@ func normalizeInput(input SaveInput) SaveInput {
 		task.Prompt = strings.TrimSpace(task.Prompt)
 		task.VisualType = normalizeOptional(task.VisualType)
 		task.VisualURL = normalizeOptional(task.VisualURL)
+		task.AssessmentNotes = strings.TrimSpace(task.AssessmentNotes)
+		task.EssayType = normalizeOptional(task.EssayType)
 		task.LetterTone = normalizeOptional(task.LetterTone)
 		if task.MinimumWords < 1 {
 			if index == 0 {
@@ -277,6 +322,10 @@ func validateInput(input SaveInput, requireRevision bool) map[string]string {
 				}
 			}
 		}
+		if index == 1 && task.EssayType != nil && !oneOf(*task.EssayType,
+			"opinion", "discussion", "advantages_disadvantages", "problem_solution", "two_part") {
+			details[prefix+".essayType"] = "must be a supported IELTS essay type"
+		}
 		if index == 0 && input.ExamType == "general" {
 			if task.LetterTone == nil || !oneOf(*task.LetterTone, "formal", "semi-formal", "informal") {
 				details[prefix+".letterTone"] = "General Task 1 needs formal, semi-formal, or informal letterTone"
@@ -284,6 +333,67 @@ func validateInput(input SaveInput, requireRevision bool) map[string]string {
 		}
 	}
 	return details
+}
+
+func validateForPublish(material Material) map[string]string {
+	details := map[string]string{}
+	if len(material.Tasks) != 2 {
+		details["tasks"] = "must contain exactly Task 1 and Task 2"
+		return details
+	}
+	first := material.Tasks[0]
+	if material.ExamType == "academic" {
+		if first.VisualAssetID == nil && first.VisualURL == nil {
+			details["tasks[0].visualAssetId"] = "Academic Task 1 needs an uploaded visual"
+		}
+		if utf8.RuneCountInString(first.AssessmentNotes) < 20 {
+			details["tasks[0].assessmentNotes"] = "describe the visual's key facts and comparisons for AI assessment"
+		}
+	}
+	return details
+}
+
+func (s *Service) StoreMedia(ctx context.Context, actorID uuid.UUID, header *multipart.FileHeader, source io.Reader) (Media, error) {
+	if s.mediaStore == nil {
+		return Media{}, errors.New("writing media storage is not configured")
+	}
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	mimeTypes := map[string]string{
+		".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
+	}
+	mimeType, ok := mimeTypes[ext]
+	if !ok {
+		return Media{}, fmt.Errorf("%w: use PNG, JPG, or WebP", ErrUnsupportedMedia)
+	}
+	key := "writing/" + uuid.NewString() + ext
+	written, err := s.mediaStore.Put(ctx, key, mimeType, source, header.Size)
+	if err != nil {
+		return Media{}, err
+	}
+	media, err := s.repository.CreateMedia(ctx, actorID, Media{
+		Kind: "image", OriginalName: filepath.Base(header.Filename), MimeType: mimeType,
+		StorageKey: key, ByteSize: written,
+	})
+	if err != nil {
+		_ = s.mediaStore.Delete(ctx, key)
+		return Media{}, err
+	}
+	return media, nil
+}
+
+func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (Media, objectstorage.ReadSeekCloser, error) {
+	if s.mediaStore == nil {
+		return Media{}, nil, errors.New("writing media storage is not configured")
+	}
+	media, err := s.repository.GetMedia(ctx, id, publishedOnly)
+	if err != nil {
+		return Media{}, nil, err
+	}
+	object, err := s.mediaStore.Open(ctx, media.StorageKey)
+	if err != nil {
+		return Media{}, nil, err
+	}
+	return media, object, nil
 }
 
 func oneOf(value string, values ...string) bool {

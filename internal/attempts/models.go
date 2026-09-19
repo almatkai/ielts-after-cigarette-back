@@ -8,18 +8,18 @@ import (
 )
 
 var (
-	ErrNotFound            = errors.New("attempt not found")
-	ErrMaterialNotFound    = errors.New("material not found or not published")
-	ErrUnsupportedMaterial = errors.New("unsupported material type")
-	ErrAlreadySubmitted    = errors.New("attempt already submitted")
-	ErrWritingIncomplete   = errors.New("each writing task must meet its minimum word count")
-	ErrSpeakingIncomplete  = errors.New("all speaking parts need a recording or transcript")
-	ErrRecordingNotFound   = errors.New("speaking recording not found")
-	ErrRecordingTooLarge   = errors.New("speaking recording is too large for AI assessment")
-	ErrAIUnavailable       = errors.New("AI evaluation is not configured")
-	ErrAIEvaluationFailed  = errors.New("AI evaluation failed")
+	ErrNotFound             = errors.New("attempt not found")
+	ErrMaterialNotFound     = errors.New("material not found or not published")
+	ErrUnsupportedMaterial  = errors.New("unsupported material type")
+	ErrAlreadySubmitted     = errors.New("attempt already submitted")
+	ErrWritingIncomplete    = errors.New("each writing task requires a response")
+	ErrSpeakingIncomplete   = errors.New("all speaking parts need a recording or transcript")
+	ErrRecordingNotFound    = errors.New("speaking recording not found")
+	ErrRecordingTooLarge    = errors.New("speaking recording is too large for AI assessment")
+	ErrAIUnavailable        = errors.New("AI evaluation is not configured")
+	ErrAIEvaluationFailed   = errors.New("AI evaluation failed")
 	ErrExamDeadlineExceeded = errors.New("exam session deadline exceeded")
-	ErrSectionLocked       = errors.New("exam section is locked")
+	ErrSectionLocked        = errors.New("exam section is locked")
 )
 
 const (
@@ -85,11 +85,14 @@ type GradingMaterial struct {
 }
 
 type WritingTask struct {
-	ID           uuid.UUID
-	Position     int
-	Type         string
-	Prompt       string
-	MinimumWords int
+	ID              uuid.UUID
+	Position        int
+	Type            string
+	Prompt          string
+	MinimumWords    int
+	VisualType      string
+	EssayType       string
+	AssessmentNotes string
 }
 
 type WritingCriterion struct {
@@ -105,10 +108,13 @@ type WritingCriteria struct {
 }
 
 type WritingTaskFeedback struct {
-	TaskID       uuid.UUID `json:"taskId"`
-	Feedback     string    `json:"feedback"`
-	Strengths    []string  `json:"strengths"`
-	Improvements []string  `json:"improvements"`
+	TaskID       uuid.UUID       `json:"taskId"`
+	Position     int             `json:"position"`
+	Band         float64         `json:"band"`
+	Criteria     WritingCriteria `json:"criteria"`
+	Feedback     string          `json:"feedback"`
+	Strengths    []string        `json:"strengths"`
+	Improvements []string        `json:"improvements"`
 }
 
 type WritingEvaluation struct {

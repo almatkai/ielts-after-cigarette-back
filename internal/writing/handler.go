@@ -12,13 +12,18 @@ import (
 )
 
 type Handler struct {
-	service *Service
-	logger  *slog.Logger
-	maxBody int64
+	service  *Service
+	logger   *slog.Logger
+	maxBody  int64
+	maxMedia int64
 }
 
-func NewHandler(service *Service, logger *slog.Logger, maxBody int64) *Handler {
-	return &Handler{service: service, logger: logger, maxBody: maxBody}
+func NewHandler(service *Service, logger *slog.Logger, maxBody int64, mediaLimits ...int64) *Handler {
+	maxMedia := int64(10 << 20)
+	if len(mediaLimits) > 0 && mediaLimits[0] > 0 && mediaLimits[0] < maxMedia {
+		maxMedia = mediaLimits[0]
+	}
+	return &Handler{service: service, logger: logger, maxBody: maxBody, maxMedia: maxMedia}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -175,6 +180,57 @@ func (h *Handler) BulkImport(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"items": items})
 }
 
+func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, h.maxMedia+(1<<20))
+	if err := r.ParseMultipartForm(h.maxMedia); err != nil {
+		httpx.WriteError(w, r, http.StatusRequestEntityTooLarge, "MEDIA_TOO_LARGE", "Writing visual is too large", nil)
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "FILE_REQUIRED", "Multipart field file is required", nil)
+		return
+	}
+	defer file.Close()
+	if header.Size < 1 || header.Size > h.maxMedia {
+		httpx.WriteError(w, r, http.StatusRequestEntityTooLarge, "MEDIA_TOO_LARGE", "Writing visual is too large", nil)
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	media, err := h.service.StoreMedia(r.Context(), actor, header, file)
+	if err != nil {
+		if errors.Is(err, ErrUnsupportedMedia) {
+			httpx.WriteError(w, r, http.StatusUnprocessableEntity, "MEDIA_INVALID", err.Error(), nil)
+			return
+		}
+		h.logger.ErrorContext(r.Context(), "writing media upload failed",
+			"request_id", httpx.RequestID(r.Context()), "file_name", header.Filename,
+			"file_size", header.Size, "error", err)
+		httpx.WriteError(w, r, http.StatusServiceUnavailable, "OBJECT_STORAGE_UNAVAILABLE", "Media storage is temporarily unavailable", nil)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, media)
+}
+
+func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "mediaID"))
+	if err != nil {
+		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_ID", "Media ID must be UUID", nil)
+		return
+	}
+	role := auth.Role(r.Context())
+	publishedOnly := role != auth.RoleEditor && role != auth.RoleAdmin
+	media, object, err := h.service.Media(r.Context(), id, publishedOnly)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	defer object.Close()
+	w.Header().Set("Content-Type", media.MimeType)
+	w.Header().Set("Content-Disposition", "inline")
+	http.ServeContent(w, r, media.OriginalName, media.CreatedAt, object)
+}
+
 func (h *Handler) decode(w http.ResponseWriter, r *http.Request, target any) bool {
 	if err := httpx.DecodeJSON(w, r, h.maxBody, target); err != nil {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
@@ -194,7 +250,7 @@ func (h *Handler) materialID(w http.ResponseWriter, r *http.Request) (uuid.UUID,
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, ErrNotFound), errors.Is(err, ErrMediaNotFound):
 		httpx.WriteError(w, r, http.StatusNotFound, "WRITING_MATERIAL_NOT_FOUND", "Writing material was not found", nil)
 	case errors.Is(err, ErrSlugExists):
 		httpx.WriteError(w, r, http.StatusConflict, "WRITING_SLUG_EXISTS", "Writing material slug already exists", nil)

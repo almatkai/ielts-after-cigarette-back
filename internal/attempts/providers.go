@@ -168,9 +168,18 @@ func (p writingProvider) GradingStructure(ctx context.Context, materialID, versi
 		tasks = append(tasks, WritingTask{
 			ID: task.ID, Position: task.Position, Type: task.Type,
 			Prompt: task.Prompt, MinimumWords: task.MinimumWords,
+			VisualType: optionalString(task.VisualType), EssayType: optionalString(task.EssayType),
+			AssessmentNotes: task.AssessmentNotes,
 		})
 	}
 	return GradingMaterial{ExamType: material.ExamType, WritingTasks: tasks}, nil
+}
+
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 type speakingProvider struct {

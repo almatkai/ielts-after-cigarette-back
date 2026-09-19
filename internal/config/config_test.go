@@ -52,6 +52,7 @@ func TestValidateAcceptsDisabledInfobip(t *testing.T) {
 		MaxMediaUploadBytes:     50 << 20,
 		ObjectStorageBackend:    "filesystem",
 		ListeningMediaDir:       "./var/listening-media",
+		WritingMediaDir:         "./var/writing-media",
 		SpeakingMediaDir:        "./var/speaking-media",
 		AuthRateLimit:           10,
 		AuthRateWindow:          time.Minute,

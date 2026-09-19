@@ -264,8 +264,7 @@ func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input Save
 	for _, task := range material.WritingTasks {
 		answer := given[task.ID]
 		text, _ := answer["value"].(string)
-		wordCount := len(strings.Fields(text))
-		if wordCount < task.MinimumWords || len([]rune(text)) > 15000 {
+		if strings.TrimSpace(text) == "" || len([]rune(text)) > 15000 {
 			return Attempt{}, ErrWritingIncomplete
 		}
 		request.Tasks = append(request.Tasks, WritingTaskAnswer{Task: task, Text: text})

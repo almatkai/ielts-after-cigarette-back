@@ -84,8 +84,12 @@ func New(
 	readingService := reading.NewService(readingRepository)
 	readingHandler := reading.NewHandler(readingService, logger, cfg.MaxRequestBody)
 	writingRepository := writing.NewPostgresRepository(pool)
-	writingService := writing.NewService(writingRepository)
-	writingHandler := writing.NewHandler(writingService, logger, cfg.MaxRequestBody)
+	writingObjectStore := sharedObjectStore
+	if writingObjectStore == nil {
+		writingObjectStore = objectstorage.NewFileStore(cfg.WritingMediaDir)
+	}
+	writingService := writing.NewService(writingRepository, writingObjectStore)
+	writingHandler := writing.NewHandler(writingService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 	speakingRepository := speaking.NewPostgresRepository(pool)
 	speakingService := speaking.NewService(speakingRepository)
 	speakingHandler := speaking.NewHandler(speakingService, logger, cfg.MaxRequestBody)
@@ -160,7 +164,7 @@ func New(
 	router.Use(httpx.Recover(logger))
 	router.Use(httpx.AccessLog(logger))
 	router.Use(httpx.CORS(cfg.CORSAllowedOrigins))
-	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout))
+	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second))
 
 	router.Get("/health/live", healthHandler.Live)
 	router.Get("/health/ready", healthHandler.Ready)
@@ -198,6 +202,7 @@ func New(
 			protected.Post("/reading/materials/{materialID}/attempts", attemptsHandler.StartReading)
 			protected.Get("/writing/materials", writingHandler.ListPublic)
 			protected.Get("/writing/materials/{materialID}", writingHandler.GetPublic)
+			protected.Get("/writing/media/{mediaID}", writingHandler.Media)
 			protected.Post("/writing/materials/{materialID}/attempts", attemptsHandler.StartWriting)
 			protected.Get("/speaking/materials", speakingHandler.ListPublic)
 			protected.Get("/speaking/materials/{materialID}", speakingHandler.GetPublic)
@@ -235,6 +240,7 @@ func New(
 				adminRouter.Post("/writing/materials", writingHandler.Create)
 				adminRouter.Post("/writing/import/parse", writingHandler.ParseImport)
 				adminRouter.Post("/writing/import", writingHandler.BulkImport)
+				adminRouter.Post("/writing/media", writingHandler.UploadMedia)
 				adminRouter.Get("/writing/materials/{materialID}", writingHandler.Get)
 				adminRouter.Put("/writing/materials/{materialID}", writingHandler.Update)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/writing/materials/{materialID}/publish", writingHandler.Publish)
@@ -276,13 +282,18 @@ func New(
 // Media uploads can legitimately take longer than ordinary JSON requests,
 // especially when the object store is outside the local network. Keep the
 // normal API deadline strict while giving only upload endpoints more time.
-func timeoutByRequest(requestTimeout, mediaUploadTimeout time.Duration) func(http.Handler) http.Handler {
+func timeoutByRequest(requestTimeout, mediaUploadTimeout, aiEvaluationTimeout time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		regular := chimiddleware.Timeout(requestTimeout)(next)
 		mediaUpload := chimiddleware.Timeout(mediaUploadTimeout)(next)
+		aiEvaluation := chimiddleware.Timeout(aiEvaluationTimeout)(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if isMediaUpload(r) {
 				mediaUpload.ServeHTTP(w, r)
+				return
+			}
+			if isAIEvaluation(r) {
+				aiEvaluation.ServeHTTP(w, r)
 				return
 			}
 			regular.ServeHTTP(w, r)
@@ -290,11 +301,18 @@ func timeoutByRequest(requestTimeout, mediaUploadTimeout time.Duration) func(htt
 	}
 }
 
+func isAIEvaluation(r *http.Request) bool {
+	return r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/v1/attempts/") && strings.HasSuffix(r.URL.Path, "/submit")
+}
+
 func isMediaUpload(r *http.Request) bool {
 	if r.Method != http.MethodPost {
 		return false
 	}
 	if r.URL.Path == "/api/v1/admin/listening/media" {
+		return true
+	}
+	if r.URL.Path == "/api/v1/admin/writing/media" {
 		return true
 	}
 	return strings.HasPrefix(r.URL.Path, "/api/v1/attempts/") && strings.HasSuffix(r.URL.Path, "/recordings")
