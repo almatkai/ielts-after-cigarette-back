@@ -451,10 +451,7 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 		if err != nil {
 			return Detail{}, err
 		}
-		if attempt.Status == StatusInProgress {
-			return Detail{Attempt: attempt, Answers: saved, Recordings: recordings}, nil
-		}
-		if attempt.Status == StatusProcessing {
+		if attempt.Status == StatusInProgress || attempt.Status == StatusProcessing {
 			detail := Detail{Attempt: attempt, Answers: saved, Recordings: recordings}
 			if repository, ok := s.repository.(interface {
 				GetSpeakingAssessmentJob(context.Context, uuid.UUID) (SpeakingAssessmentJob, error)

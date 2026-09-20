@@ -86,6 +86,33 @@ func TestDecodeSpeakingEvaluationRoundsCriteriaAndKeepsTranscript(t *testing.T) 
 	}
 }
 
+func TestDecodeSpeakingEvaluationIgnoresReasoningBraces(t *testing.T) {
+	partID := uuid.New()
+	content := `<think>I first considered {"band": 7}, but that is not the response.</think>
+{
+  "criteria": {
+    "fluency": {"band": 6.5, "feedback": "Clear."},
+    "lexicalResource": {"band": 7, "feedback": "Varied."},
+    "grammar": {"band": 6.5, "feedback": "Mostly accurate."}
+  },
+  "summary": "A clear response.",
+  "partFeedback": [{
+    "partId": "` + partID.String() + `",
+    "transcript": "A short answer.",
+    "feedback": "Develop the example.",
+    "strengths": ["Clear position"],
+    "improvements": ["Add detail"]
+  }]
+}`
+	evaluation, err := decodeSpeakingEvaluation(content)
+	if err != nil {
+		t.Fatalf("decodeSpeakingEvaluation returned error: %v", err)
+	}
+	if evaluation.OverallBand != 6.5 || len(evaluation.Parts) != 1 || evaluation.Parts[0].PartID != partID {
+		t.Fatalf("unexpected evaluation: %#v", evaluation)
+	}
+}
+
 func TestOpenRouterEvaluatorRequiresConfiguration(t *testing.T) {
 	evaluator := NewOpenRouterEvaluator("", "openrouter/free", nil)
 	_, err := evaluator.Evaluate(context.Background(), WritingEvaluationRequest{})

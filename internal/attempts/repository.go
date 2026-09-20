@@ -217,7 +217,7 @@ func (r *PostgresRepository) Submit(ctx context.Context, result SubmitResult) er
 	}
 	command, err := tx.Exec(ctx, `UPDATE attempts SET status='SUBMITTED',
 		score=$2, max_score=$3, band=$4, submitted_at=CURRENT_TIMESTAMP
-		WHERE id=$1 AND status='IN_PROGRESS'`,
+		WHERE id=$1 AND status IN ('IN_PROGRESS','PROCESSING')`,
 		result.AttemptID, result.Score, result.MaxScore, result.Band)
 	if err != nil {
 		return fmt.Errorf("submit attempt: %w", err)
@@ -419,9 +419,21 @@ func (r *PostgresRepository) UpsertSpeakingRecording(ctx context.Context, record
 }
 
 func (r *PostgresRepository) ListSpeakingRecordings(ctx context.Context, attemptID uuid.UUID) ([]SpeakingRecording, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id, attempt_id, part_id, original_name, mime_type,
-		storage_key, byte_size, revision, created_at, updated_at
-		FROM speaking_recordings WHERE attempt_id=$1 ORDER BY created_at`, attemptID)
+	rows, err := r.pool.Query(ctx, `SELECT
+		r.id, r.attempt_id, r.part_id, r.original_name, r.mime_type,
+		r.storage_key, r.byte_size, r.revision, r.created_at, r.updated_at,
+		t.recording_id IS NOT NULL,
+		COALESCE(t.recording_revision,0), COALESCE(t.status,''), COALESCE(t.provider,''),
+		COALESCE(t.model,''), COALESCE(t.language,''), COALESCE(t.language_probability,0),
+		COALESCE(t.transcript,''), COALESCE(t.audio_duration_ms,0),
+		COALESCE(t.speech_duration_ms,0), COALESCE(t.processing_time_ms,0),
+		COALESCE(t.words,'[]'::jsonb), COALESCE(t.segments,'[]'::jsonb),
+		COALESCE(t.metrics,'{}'::jsonb), COALESCE(t.attempts,0),
+		COALESCE(t.error_code,''), COALESCE(t.error_message,''), t.started_at, t.completed_at,
+		COALESCE(t.created_at,r.created_at), COALESCE(t.updated_at,r.updated_at)
+		FROM speaking_recordings r
+		LEFT JOIN speaking_transcriptions t ON t.recording_id=r.id
+		WHERE r.attempt_id=$1 ORDER BY r.created_at`, attemptID)
 	if err != nil {
 		return nil, fmt.Errorf("list speaking recordings: %w", err)
 	}
@@ -429,26 +441,37 @@ func (r *PostgresRepository) ListSpeakingRecordings(ctx context.Context, attempt
 	items := []SpeakingRecording{}
 	for rows.Next() {
 		var item SpeakingRecording
+		var hasTranscription bool
+		var transcription SpeakingTranscription
+		var words, segments, metrics []byte
 		if err := rows.Scan(&item.ID, &item.AttemptID, &item.PartID, &item.OriginalName,
-			&item.MimeType, &item.StorageKey, &item.ByteSize, &item.Revision, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			&item.MimeType, &item.StorageKey, &item.ByteSize, &item.Revision, &item.CreatedAt, &item.UpdatedAt,
+			&hasTranscription, &transcription.RecordingRevision, &transcription.Status,
+			&transcription.Provider, &transcription.Model, &transcription.Language,
+			&transcription.LanguageProbability, &transcription.Transcript,
+			&transcription.AudioDurationMS, &transcription.SpeechDurationMS,
+			&transcription.ProcessingTimeMS, &words, &segments, &metrics,
+			&transcription.Attempts, &transcription.ErrorCode, &transcription.ErrorMessage,
+			&transcription.StartedAt, &transcription.CompletedAt, &transcription.CreatedAt,
+			&transcription.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan speaking recording: %w", err)
+		}
+		if hasTranscription {
+			transcription.RecordingID = item.ID
+			if err := json.Unmarshal(words, &transcription.Words); err != nil {
+				return nil, fmt.Errorf("decode transcription words: %w", err)
+			}
+			if err := json.Unmarshal(segments, &transcription.Segments); err != nil {
+				return nil, fmt.Errorf("decode transcription segments: %w", err)
+			}
+			if err := json.Unmarshal(metrics, &transcription.Metrics); err != nil {
+				return nil, fmt.Errorf("decode transcription metrics: %w", err)
+			}
+			item.Transcription = &transcription
 		}
 		items = append(items, item)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	rows.Close()
-	for i := range items {
-		transcription, err := r.GetSpeakingTranscription(ctx, items[i].ID)
-		if err != nil && !errors.Is(err, ErrNotFound) {
-			return nil, err
-		}
-		if err == nil {
-			items[i].Transcription = &transcription
-		}
-	}
-	return items, nil
+	return items, rows.Err()
 }
 
 func (r *PostgresRepository) GetSpeakingRecording(ctx context.Context, attemptID, partID uuid.UUID) (SpeakingRecording, error) {

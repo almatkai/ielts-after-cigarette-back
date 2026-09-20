@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -322,7 +323,7 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 		Text       string      `json:"text,omitempty"`
 		InputAudio *inputAudio `json:"input_audio,omitempty"`
 	}
-	prompt := speakingEvaluationPrompt(input, e.speakingAudio)
+	prompt := speakingEvaluationPrompt(input, e.speakingAudio) + "\n/no_think"
 	var userContent any = prompt
 	if e.speakingAudio {
 		content := []contentPart{{Type: "text", Text: prompt}}
@@ -341,14 +342,21 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 		userContent = content
 	}
 	payload := struct {
-		Model       string  `json:"model"`
-		Temperature float64 `json:"temperature"`
-		MaxTokens   int     `json:"max_tokens"`
-		Messages    []struct {
+		Model              string  `json:"model"`
+		Temperature        float64 `json:"temperature"`
+		MaxTokens          int     `json:"max_tokens"`
+		ChatTemplateKwargs struct {
+			EnableThinking bool `json:"enable_thinking"`
+		} `json:"chat_template_kwargs"`
+		ResponseFormat struct {
+			Type string `json:"type"`
+		} `json:"response_format"`
+		Messages []struct {
 			Role    string `json:"role"`
 			Content any    `json:"content"`
 		} `json:"messages"`
 	}{Model: e.speakingModel, Temperature: 0.1, MaxTokens: 3000}
+	payload.ResponseFormat.Type = "json_object"
 	payload.Messages = append(payload.Messages,
 		struct {
 			Role    string `json:"role"`
@@ -385,13 +393,17 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 	var completion struct {
 		Model   string `json:"model"`
 		Choices []struct {
-			Message struct {
+			FinishReason string `json:"finish_reason"`
+			Message      struct {
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(data, &completion); err != nil || len(completion.Choices) == 0 {
 		return SpeakingEvaluation{}, fmt.Errorf("%w: invalid AI provider speaking completion", ErrAIEvaluationFailed)
+	}
+	if completion.Choices[0].FinishReason == "length" {
+		return SpeakingEvaluation{}, fmt.Errorf("%w: speaking response exceeded token limit", ErrAIEvaluationFailed)
 	}
 	evaluation, err := decodeSpeakingEvaluation(completion.Choices[0].Message.Content)
 	if err != nil {
@@ -450,8 +462,8 @@ func decodeSpeakingEvaluation(content string) (SpeakingEvaluation, error) {
 		content = strings.TrimPrefix(content, "```")
 		content = strings.TrimSuffix(strings.TrimSpace(content), "```")
 	}
-	start, end := strings.IndexByte(content, '{'), strings.LastIndexByte(content, '}')
-	if start < 0 || end <= start {
+	encoded, err := speakingJSONObject(content)
+	if err != nil {
 		return SpeakingEvaluation{}, fmt.Errorf("%w: speaking response was not JSON", ErrAIEvaluationFailed)
 	}
 	var response struct {
@@ -468,8 +480,8 @@ func decodeSpeakingEvaluation(content string) (SpeakingEvaluation, error) {
 			Improvements []string `json:"improvements"`
 		} `json:"partFeedback"`
 	}
-	if err := json.Unmarshal([]byte(content[start:end+1]), &response); err != nil {
-		return SpeakingEvaluation{}, fmt.Errorf("%w: decode speaking response JSON", ErrAIEvaluationFailed)
+	if err := json.Unmarshal(encoded, &response); err != nil {
+		return SpeakingEvaluation{}, fmt.Errorf("%w: decode speaking response JSON: %v", ErrAIEvaluationFailed, err)
 	}
 	criterion := func(name string) (SpeakingCriterion, error) {
 		value, ok := response.Criteria[name]
@@ -518,4 +530,28 @@ func decodeSpeakingEvaluation(content string) (SpeakingEvaluation, error) {
 		})
 	}
 	return evaluation, nil
+}
+
+// speakingJSONObject tolerates Qwen reasoning text and Markdown around the
+// requested object. It deliberately accepts only an object with the Speaking
+// response's top-level keys, so braces in a <think> preamble cannot be mistaken
+// for the assessment itself.
+func speakingJSONObject(content string) ([]byte, error) {
+	for offset := 0; offset < len(content); {
+		relative := strings.IndexByte(content[offset:], '{')
+		if relative < 0 {
+			break
+		}
+		start := offset + relative
+		decoder := json.NewDecoder(strings.NewReader(content[start:]))
+		var candidate json.RawMessage
+		if err := decoder.Decode(&candidate); err == nil {
+			var object map[string]json.RawMessage
+			if json.Unmarshal(candidate, &object) == nil && object["criteria"] != nil && object["partFeedback"] != nil {
+				return candidate, nil
+			}
+		}
+		offset = start + 1
+	}
+	return nil, errors.New("speaking JSON object not found")
 }
