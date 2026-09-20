@@ -60,6 +60,10 @@ type Config struct {
 	AISpeakingModel         string
 	AISpeakingAudioEnabled  bool
 	AITimeout               time.Duration
+	SpeechEnabled           bool
+	SpeechServiceURL        string
+	SpeechServiceToken      string
+	SpeechTimeout           time.Duration
 }
 
 func Load() (Config, error) {
@@ -95,6 +99,8 @@ func Load() (Config, error) {
 		AIChatCompletionsURL:    env("AI_CHAT_COMPLETIONS_URL", "https://openrouter.ai/api/v1/chat/completions"),
 		AIModel:                 envFirstWithFallback("openrouter/free", "AI_MODEL", "OPENROUTER_MODEL"),
 		AISpeakingModel:         envFirstWithFallback("thinkingmachines/inkling-small:free", "AI_SPEAKING_MODEL", "OPENROUTER_SPEAKING_MODEL"),
+		SpeechServiceURL:        env("SPEECH_SERVICE_URL", "http://speech-service:8001"),
+		SpeechServiceToken:      os.Getenv("SPEECH_SERVICE_TOKEN"),
 	}
 
 	var err error
@@ -131,6 +137,9 @@ func Load() (Config, error) {
 	if cfg.AITimeout, err = durationEnvFallback("AI_TIMEOUT", "OPENROUTER_TIMEOUT", 45*time.Second); err != nil {
 		return Config{}, err
 	}
+	if cfg.SpeechTimeout, err = durationEnv("SPEECH_TIMEOUT", 5*time.Minute); err != nil {
+		return Config{}, err
+	}
 	if cfg.MaxRequestBody, err = int64Env("MAX_REQUEST_BODY_BYTES", 1<<20); err != nil {
 		return Config{}, err
 	}
@@ -153,6 +162,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.AISpeakingAudioEnabled, err = boolEnv("AI_SPEAKING_AUDIO_ENABLED", true); err != nil {
+		return Config{}, err
+	}
+	if cfg.SpeechEnabled, err = boolEnv("SPEECH_ENABLED", false); err != nil {
 		return Config{}, err
 	}
 
@@ -271,6 +283,14 @@ func (c Config) Validate() error {
 		}
 		if strings.TrimSpace(c.AISpeakingModel) == "" {
 			problems = append(problems, "AI_SPEAKING_MODEL is required when AI_API_KEY is configured")
+		}
+	}
+	if c.SpeechEnabled {
+		if c.SpeechTimeout <= 0 {
+			problems = append(problems, "SPEECH_TIMEOUT must be positive")
+		}
+		if !strings.HasPrefix(c.SpeechServiceURL, "http://") && !strings.HasPrefix(c.SpeechServiceURL, "https://") {
+			problems = append(problems, "SPEECH_SERVICE_URL must use http or https")
 		}
 	}
 	if len(problems) > 0 {

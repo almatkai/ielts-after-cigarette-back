@@ -18,6 +18,12 @@ type Service struct {
 	speakingStore     objectstorage.Store
 	maxSpeakingMedia  int64
 	examGuard         ExamGuard
+	speakingJobs      SpeakingJobQueue
+}
+
+type SpeakingJobQueue interface {
+	EnqueueTranscription(context.Context, uuid.UUID) error
+	EnqueueAssessment(context.Context, uuid.UUID) error
 }
 
 type ExamGuard interface {
@@ -50,6 +56,11 @@ func (s *Service) WithSpeakingObjectStore(store objectstorage.Store, maxBytes in
 	s.speakingStore = store
 	s.maxSpeakingMedia = maxBytes
 	s.speakingEvaluator = evaluator
+	return s
+}
+
+func (s *Service) WithSpeakingPipeline(queue SpeakingJobQueue) *Service {
+	s.speakingJobs = queue
 	return s
 }
 
@@ -329,7 +340,7 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 			return Attempt{}, ErrSpeakingIncomplete
 		}
 		item := SpeakingPartAnswer{Part: part, Transcript: transcript}
-		if hasRecording {
+		if hasRecording && s.speakingJobs == nil {
 			audio, err := s.readSpeakingAudio(ctx, recording)
 			if err != nil {
 				return Attempt{}, err
@@ -337,6 +348,19 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 			item.Audio = audio
 		}
 		request.Parts = append(request.Parts, item)
+	}
+	if s.speakingJobs != nil {
+		repository, ok := s.repository.(interface {
+			QueueSpeakingAssessment(context.Context, uuid.UUID, []AnswerInput) error
+		})
+		if !ok {
+			return Attempt{}, ErrAIUnavailable
+		}
+		if err := repository.QueueSpeakingAssessment(ctx, attempt.ID, input.Answers); err != nil {
+			return Attempt{}, err
+		}
+		_ = s.speakingJobs.EnqueueAssessment(ctx, attempt.ID)
+		return s.repository.Get(ctx, attempt.ID)
 	}
 	if s.speakingEvaluator == nil {
 		return Attempt{}, ErrAIUnavailable
@@ -427,8 +451,17 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 		if err != nil {
 			return Detail{}, err
 		}
-		if attempt.Status == StatusInProgress {
-			return Detail{Attempt: attempt, Answers: saved, Recordings: recordings}, nil
+		if attempt.Status == StatusInProgress || attempt.Status == StatusProcessing {
+			detail := Detail{Attempt: attempt, Answers: saved, Recordings: recordings}
+			if repository, ok := s.repository.(interface {
+				GetSpeakingAssessmentJob(context.Context, uuid.UUID) (SpeakingAssessmentJob, error)
+			}); ok {
+				job, jobErr := repository.GetSpeakingAssessmentJob(ctx, attemptID)
+				if jobErr == nil {
+					detail.SpeakingAssessment = &job
+				}
+			}
+			return detail, nil
 		}
 		repository, ok := s.repository.(interface {
 			GetSpeakingEvaluation(context.Context, uuid.UUID) (SpeakingEvaluation, error)

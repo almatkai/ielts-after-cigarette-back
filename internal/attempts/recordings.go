@@ -98,6 +98,9 @@ func (s *Service) StoreSpeakingRecording(
 	if previousKey != "" && previousKey != key {
 		_ = s.speakingStore.Delete(ctx, previousKey)
 	}
+	if s.speakingJobs != nil {
+		_ = s.speakingJobs.EnqueueTranscription(ctx, recording.ID)
+	}
 	return recording, nil
 }
 
