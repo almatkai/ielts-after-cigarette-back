@@ -299,3 +299,35 @@ func mapWriteError(err error) error {
 	}
 	return fmt.Errorf("write writing material: %w", err)
 }
+
+func (r *PostgresRepository) CreateMedia(ctx context.Context, actorID uuid.UUID, media Media) (Media, error) {
+	media.ID = uuid.New()
+	err := r.pool.QueryRow(ctx, `INSERT INTO writing_media
+		(id,kind,original_name,mime_type,storage_key,byte_size,created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING created_at`, media.ID, media.Kind,
+		media.OriginalName, media.MimeType, media.StorageKey, media.ByteSize, actorID).Scan(&media.CreatedAt)
+	if err != nil {
+		return Media{}, fmt.Errorf("create writing media: %w", err)
+	}
+	return media, nil
+}
+
+func (r *PostgresRepository) GetMedia(ctx context.Context, id uuid.UUID, publishedOnly bool) (Media, error) {
+	var media Media
+	err := r.pool.QueryRow(ctx, `SELECT media.id,media.kind,media.original_name,media.mime_type,
+		media.storage_key,media.byte_size,media.created_at
+		FROM writing_media media WHERE media.id=$1 AND (NOT $2 OR EXISTS (
+			SELECT 1 FROM writing_materials material
+			JOIN writing_material_versions version ON version.id=material.published_version_id
+			CROSS JOIN LATERAL jsonb_array_elements(version.tasks) task
+			WHERE material.status='PUBLISHED' AND task->>'visualAssetId'=media.id::text
+		))`, id, publishedOnly).Scan(&media.ID, &media.Kind, &media.OriginalName,
+		&media.MimeType, &media.StorageKey, &media.ByteSize, &media.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Media{}, ErrMediaNotFound
+	}
+	if err != nil {
+		return Media{}, fmt.Errorf("get writing media: %w", err)
+	}
+	return media, nil
+}
