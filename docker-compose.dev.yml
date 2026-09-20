@@ -32,6 +32,10 @@ services:
       LISTENING_MEDIA_DIR: /data/listening-media
       WRITING_MEDIA_DIR: /data/writing-media
       SPEAKING_MEDIA_DIR: /data/speaking-media
+      SPEECH_ENABLED: ${SPEECH_ENABLED:-true}
+      SPEECH_SERVICE_URL: http://speech-service:8001
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:-local-speaking-service-token}
+      AI_SPEAKING_AUDIO_ENABLED: "false"
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     volumes:
@@ -46,7 +50,52 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: [/app/worker]
+    env_file:
+      - .env
+      - .env.dev
+    environment:
+      APP_ENV: development
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.dev}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.dev}
+      SPEECH_ENABLED: "true"
+      SPEECH_SERVICE_URL: http://speech-service:8001
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:-local-speaking-service-token}
+      AI_SPEAKING_AUDIO_ENABLED: "false"
+      SPEAKING_MEDIA_DIR: /data/speaking-media
+    volumes:
+      - speaking_media:/data/speaking-media
+    depends_on:
+      speech-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  speech-service:
+    build:
+      context: ./services/speech-service
+    environment:
+      SPEECH_MODEL: ${SPEECH_MODEL:-small.en}
+      SPEECH_DEVICE: ${SPEECH_DEVICE:-cpu}
+      SPEECH_COMPUTE_TYPE: ${SPEECH_COMPUTE_TYPE:-int8}
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:-local-speaking-service-token}
+      SPEECH_MAX_AUDIO_BYTES: ${MAX_MEDIA_UPLOAD_BYTES:-12582912}
+    ports:
+      - "127.0.0.1:${SPEECH_PORT:-8001}:8001"
+    volumes:
+      - speech_models:/models
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/live')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
   listening_media:
   writing_media:
   speaking_media:
+  speech_models:

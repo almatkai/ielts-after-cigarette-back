@@ -24,6 +24,7 @@ var (
 
 const (
 	StatusInProgress = "IN_PROGRESS"
+	StatusProcessing = "PROCESSING"
 	StatusSubmitted  = "SUBMITTED"
 	StatusAbandoned  = "ABANDONED"
 
@@ -160,25 +161,86 @@ type SpeakingPartFeedback struct {
 }
 
 type SpeakingEvaluation struct {
-	AttemptID   uuid.UUID              `json:"-"`
-	Model       string                 `json:"model"`
-	OverallBand float64                `json:"overallBand"`
-	Criteria    SpeakingCriteria       `json:"criteria"`
-	Summary     string                 `json:"summary"`
-	Parts       []SpeakingPartFeedback `json:"parts"`
-	EvaluatedAt time.Time              `json:"evaluatedAt"`
+	AttemptID              uuid.UUID              `json:"-"`
+	Model                  string                 `json:"model"`
+	OverallBand            float64                `json:"overallBand"`
+	Criteria               SpeakingCriteria       `json:"criteria"`
+	Summary                string                 `json:"summary"`
+	Parts                  []SpeakingPartFeedback `json:"parts"`
+	EvaluatedAt            time.Time              `json:"evaluatedAt"`
+	PronunciationAvailable bool                   `json:"pronunciationAvailable"`
+}
+
+type SpeakingWord struct {
+	Word        string  `json:"word"`
+	Start       float64 `json:"start"`
+	End         float64 `json:"end"`
+	Probability float64 `json:"probability"`
+}
+
+type SpeakingSegment struct {
+	Start float64 `json:"start"`
+	End   float64 `json:"end"`
+	Text  string  `json:"text"`
+}
+
+type SpeakingMetrics struct {
+	RecordingDurationSeconds float64        `json:"recordingDurationSeconds"`
+	SpeechDurationSeconds    float64        `json:"speechDurationSeconds"`
+	WordCount                int            `json:"wordCount"`
+	SpeechRateWPM            float64        `json:"speechRateWpm"`
+	ArticulationRateWPM      float64        `json:"articulationRateWpm"`
+	LongPauseCount           int            `json:"longPauseCount"`
+	TotalLongPauseSeconds    float64        `json:"totalLongPauseSeconds"`
+	AverageLongPauseSeconds  float64        `json:"averageLongPauseSeconds"`
+	MaxPauseSeconds          float64        `json:"maxPauseSeconds"`
+	FillerCount              int            `json:"fillerCount"`
+	Fillers                  map[string]int `json:"fillers"`
+}
+
+type SpeakingTranscription struct {
+	RecordingID         uuid.UUID         `json:"-"`
+	RecordingRevision   int               `json:"recordingRevision"`
+	Status              string            `json:"status"`
+	Provider            string            `json:"provider,omitempty"`
+	Model               string            `json:"model,omitempty"`
+	Language            string            `json:"language,omitempty"`
+	LanguageProbability float64           `json:"languageProbability,omitempty"`
+	Transcript          string            `json:"transcript,omitempty"`
+	AudioDurationMS     int64             `json:"audioDurationMs,omitempty"`
+	SpeechDurationMS    int64             `json:"speechDurationMs,omitempty"`
+	ProcessingTimeMS    int64             `json:"processingTimeMs,omitempty"`
+	Words               []SpeakingWord    `json:"words,omitempty"`
+	Segments            []SpeakingSegment `json:"segments,omitempty"`
+	Metrics             SpeakingMetrics   `json:"metrics"`
+	Attempts            int               `json:"attempts"`
+	ErrorCode           string            `json:"errorCode,omitempty"`
+	ErrorMessage        string            `json:"errorMessage,omitempty"`
+	StartedAt           *time.Time        `json:"startedAt,omitempty"`
+	CompletedAt         *time.Time        `json:"completedAt,omitempty"`
+	CreatedAt           time.Time         `json:"createdAt"`
+	UpdatedAt           time.Time         `json:"updatedAt"`
+}
+
+type SpeakingAssessmentJob struct {
+	Status       string `json:"status"`
+	Attempts     int    `json:"attempts"`
+	ErrorCode    string `json:"errorCode,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 type SpeakingRecording struct {
-	ID           uuid.UUID `json:"id"`
-	AttemptID    uuid.UUID `json:"-"`
-	PartID       uuid.UUID `json:"partId"`
-	OriginalName string    `json:"originalName"`
-	MimeType     string    `json:"mimeType"`
-	StorageKey   string    `json:"-"`
-	ByteSize     int64     `json:"byteSize"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID            uuid.UUID              `json:"id"`
+	AttemptID     uuid.UUID              `json:"-"`
+	PartID        uuid.UUID              `json:"partId"`
+	OriginalName  string                 `json:"originalName"`
+	MimeType      string                 `json:"mimeType"`
+	StorageKey    string                 `json:"-"`
+	ByteSize      int64                  `json:"byteSize"`
+	Revision      int                    `json:"revision"`
+	Transcription *SpeakingTranscription `json:"transcription,omitempty"`
+	CreatedAt     time.Time              `json:"createdAt"`
+	UpdatedAt     time.Time              `json:"updatedAt"`
 }
 
 type Summary struct {
@@ -200,11 +262,12 @@ type ReviewAnswer struct {
 
 type Detail struct {
 	Attempt
-	Answers            []Answer            `json:"answers,omitempty"`
-	Review             []ReviewAnswer      `json:"review,omitempty"`
-	WritingEvaluation  *WritingEvaluation  `json:"writingEvaluation,omitempty"`
-	SpeakingEvaluation *SpeakingEvaluation `json:"speakingEvaluation,omitempty"`
-	Recordings         []SpeakingRecording `json:"recordings,omitempty"`
+	Answers            []Answer               `json:"answers,omitempty"`
+	Review             []ReviewAnswer         `json:"review,omitempty"`
+	WritingEvaluation  *WritingEvaluation     `json:"writingEvaluation,omitempty"`
+	SpeakingEvaluation *SpeakingEvaluation    `json:"speakingEvaluation,omitempty"`
+	Recordings         []SpeakingRecording    `json:"recordings,omitempty"`
+	SpeakingAssessment *SpeakingAssessmentJob `json:"speakingAssessment,omitempty"`
 }
 
 // MistakeReport combines a submitted attempt with the material needed by the

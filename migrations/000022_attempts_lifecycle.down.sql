@@ -1,4 +1,4 @@
-﻿ALTER TABLE attempts
+ALTER TABLE attempts
     DROP CONSTRAINT attempts_submitted_fields;
 
 ALTER TABLE attempts

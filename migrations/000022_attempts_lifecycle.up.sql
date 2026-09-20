@@ -1,4 +1,4 @@
-﻿ALTER TABLE attempts
+ALTER TABLE attempts
     DROP CONSTRAINT attempts_status_valid;
 
 ALTER TABLE attempts

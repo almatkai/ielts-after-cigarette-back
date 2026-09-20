@@ -19,6 +19,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/fullmock"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/health"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/jobs"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
@@ -106,7 +107,7 @@ func New(
 	}
 	aiEvaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
 		WithSpeakingModel(cfg.AISpeakingModel).
-		WithSpeakingAudio(cfg.AISpeakingAudioEnabled)
+		WithSpeakingAudio(cfg.AISpeakingAudioEnabled && !cfg.SpeechEnabled)
 	attemptsService := attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
@@ -117,6 +118,9 @@ func New(
 		attemptsService.WithSpeakingObjectStore(sharedObjectStore, speakingMediaLimit, aiEvaluator)
 	} else {
 		attemptsService.WithSpeakingRecordingStore(cfg.SpeakingMediaDir, speakingMediaLimit, aiEvaluator)
+	}
+	if cfg.SpeechEnabled {
+		attemptsService.WithSpeakingPipeline(jobs.NewSpeakingQueue(redisClient))
 	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)
