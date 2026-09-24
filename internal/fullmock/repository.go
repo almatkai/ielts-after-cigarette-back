@@ -37,7 +37,9 @@ type Repository interface {
 
 type PostgresRepository struct{ pool *pgxpool.Pool }
 
-func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository { return &PostgresRepository{pool: pool} }
+func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
+	return &PostgresRepository{pool: pool}
+}
 
 func (r *PostgresRepository) ListPublic(ctx context.Context) ([]Test, error) {
 	rows, err := r.pool.Query(ctx, `SELECT `+testColumns+` FROM full_mock_tests
@@ -242,7 +244,18 @@ func (r *PostgresRepository) Advance(ctx context.Context, id uuid.UUID, nextSect
 	if complete {
 		return r.Finish(ctx, id)
 	}
-	result, err := r.pool.Exec(ctx, `UPDATE full_mock_sessions SET current_section=$2 WHERE id=$1 AND status=$3`, id, nextSection, SessionInProgress)
+	// Activate the next section and its timer atomically. Repeated advance
+	// requests must not reset the clock or move an exam backwards.
+	result, err := r.pool.Exec(ctx, `WITH advanced AS (
+		UPDATE full_mock_sessions SET current_section=$2
+		WHERE id=$1 AND status=$3 AND current_section=$2-1
+		RETURNING id
+	)
+	UPDATE attempts SET started_at=CURRENT_TIMESTAMP
+	WHERE id IN (
+		SELECT sec.attempt_id FROM full_mock_session_sections sec
+		JOIN advanced ON advanced.id=sec.session_id WHERE sec.position=$2
+	)`, id, nextSection, SessionInProgress)
 	if err != nil {
 		return fmt.Errorf("advance full mock: %w", err)
 	}

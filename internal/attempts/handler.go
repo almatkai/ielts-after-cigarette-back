@@ -29,6 +29,20 @@ func (h *Handler) WithSpeakingMedia(maxMedia int64) *Handler {
 	return h
 }
 
+func (h *Handler) Material(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	_, material, err := h.service.PublicMaterial(r.Context(), actor, id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, material)
+}
+
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	h.start(w, r, MaterialListening, "testID", "Test ID", "test")
 }

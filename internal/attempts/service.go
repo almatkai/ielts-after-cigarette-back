@@ -147,6 +147,11 @@ func (s *Service) PublicMaterial(ctx context.Context, userID, attemptID uuid.UUI
 	if err != nil {
 		return Attempt{}, nil, err
 	}
+	if attempt.Status == StatusInProgress && s.examGuard != nil {
+		if err := s.examGuard.ValidateAttemptAccess(ctx, userID, attemptID); err != nil {
+			return Attempt{}, nil, err
+		}
+	}
 	provider, err := s.provider(attempt.MaterialType)
 	if err != nil {
 		return Attempt{}, nil, err
@@ -187,6 +192,24 @@ func (s *Service) Submit(ctx context.Context, userID, attemptID uuid.UUID, input
 			return Attempt{}, err
 		}
 	}
+	return s.submit(ctx, attempt, input)
+}
+
+// SubmitSavedForExpiredExam is called only by the exam lifecycle after checking
+// ownership and deadline. It never accepts new answers after the deadline.
+func (s *Service) SubmitSavedForExpiredExam(ctx context.Context, userID, attemptID uuid.UUID) (Attempt, error) {
+	attempt, err := s.own(ctx, userID, attemptID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	if attempt.Status != StatusInProgress {
+		return attempt, nil
+	}
+	return s.submit(ctx, attempt, SaveAnswersInput{})
+}
+
+func (s *Service) submit(ctx context.Context, attempt Attempt, input SaveAnswersInput) (Attempt, error) {
+	attemptID, userID := attempt.ID, attempt.UserID
 	if attempt.MaterialType == MaterialWriting {
 		return s.submitWriting(ctx, attempt, input)
 	}
@@ -251,6 +274,11 @@ func (s *Service) Submit(ctx context.Context, userID, attemptID uuid.UUID, input
 }
 
 func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input SaveAnswersInput) (Attempt, error) {
+	// Persist the final revision before validation or any external AI call.
+	// A timeout must leave the student's work available for retry.
+	if err := s.repository.SaveAnswers(ctx, attempt.ID, input.Answers); err != nil {
+		return Attempt{}, err
+	}
 	provider, err := s.provider(attempt.MaterialType)
 	if err != nil {
 		return Attempt{}, err
@@ -445,6 +473,9 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 	}
 	if saved == nil {
 		saved = []Answer{}
+	}
+	if attempt.Status == StatusAbandoned {
+		return Detail{Attempt: attempt, Answers: saved}, nil
 	}
 	if attempt.MaterialType == MaterialSpeaking {
 		recordings, err := s.speakingRecordings(ctx, attemptID)

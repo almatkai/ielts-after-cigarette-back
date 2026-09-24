@@ -181,7 +181,9 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 	}
 	deadline := session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)
 	if time.Now().After(deadline) {
-		_ = s.repository.Finish(ctx, session.ID)
+		if err := s.expire(ctx, session); err != nil {
+			return Session{}, err
+		}
 		return Session{}, ErrSessionCompleted
 	}
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
@@ -216,6 +218,16 @@ func (s *Service) Finish(ctx context.Context, userID, sessionID uuid.UUID) (Sess
 	if session.Status != SessionInProgress {
 		return Session{}, ErrSessionCompleted
 	}
+	test, err := s.repository.Get(ctx, session.MockTestID)
+	if err != nil {
+		return Session{}, err
+	}
+	if time.Now().After(session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)) {
+		if err := s.expire(ctx, session); err != nil {
+			return Session{}, err
+		}
+		return s.GetSession(ctx, userID, sessionID)
+	}
 	if err := s.repository.Finish(ctx, session.ID); err != nil {
 		return Session{}, err
 	}
@@ -241,7 +253,9 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 	}
 	deadline := session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)
 	if time.Now().After(deadline) {
-		_ = s.repository.Finish(ctx, session.ID)
+		if err := s.expire(ctx, session); err != nil {
+			return SessionSection{}, nil, err
+		}
 		return SessionSection{}, nil, ErrSectionLocked
 	}
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
@@ -282,7 +296,13 @@ func (s *Service) ValidateAttemptAccess(ctx context.Context, userID, attemptID u
 	}
 	deadline := meta.StartedAt.Add(time.Duration(meta.DurationMinutes) * time.Minute)
 	if time.Now().After(deadline) {
-		_ = s.repository.Finish(ctx, meta.SessionID)
+		session, err := s.repository.GetSession(ctx, meta.SessionID)
+		if err != nil {
+			return err
+		}
+		if err := s.expire(ctx, session); err != nil {
+			return err
+		}
 		return attempts.ErrExamDeadlineExceeded
 	}
 	if meta.SectionPosition != meta.CurrentSection {
@@ -295,6 +315,15 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 	test, err := s.repository.Get(ctx, session.MockTestID)
 	if err != nil {
 		return Session{}, err
+	}
+	if session.Status == SessionInProgress && time.Now().After(session.StartedAt.Add(time.Duration(test.DurationMinutes)*time.Minute)) {
+		if err := s.expire(ctx, session); err != nil {
+			return Session{}, err
+		}
+		session, err = s.repository.GetSession(ctx, session.ID)
+		if err != nil {
+			return Session{}, err
+		}
 	}
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
 	if err != nil {
@@ -317,6 +346,32 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 		}
 	}
 	return session, nil
+}
+
+// Expiration grades the active section's persisted answers before closing the
+// exam. Unopened/incomplete sections stay ungraded. Transient failures keep the
+// expired session retryable, while ValidateAttemptAccess still rejects edits.
+func (s *Service) expire(ctx context.Context, session Session) error {
+	if session.Status != SessionInProgress {
+		return nil
+	}
+	sections, err := s.repository.ListSessionSections(ctx, session.ID)
+	if err != nil {
+		return err
+	}
+	for _, section := range sections {
+		if section.Position != session.CurrentSection || section.Attempt.Status != attempts.StatusInProgress {
+			continue
+		}
+		_, err := s.attempts.SubmitSavedForExpiredExam(ctx, session.UserID, section.Attempt.ID)
+		if err != nil && !errors.Is(err, attempts.ErrAlreadySubmitted) && !errors.Is(err, attempts.ErrWritingIncomplete) && !errors.Is(err, attempts.ErrSpeakingIncomplete) {
+			return err
+		}
+	}
+	if err := s.repository.Finish(ctx, session.ID); err != nil && !errors.Is(err, ErrSessionCompleted) {
+		return err
+	}
+	return nil
 }
 
 func validate(input SaveInput) map[string]string {

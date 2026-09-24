@@ -15,6 +15,37 @@ type TranscriptionWork struct {
 	Transcription SpeakingTranscription
 }
 
+// Workers renew updated_at while an external call is running. A lost worker's
+// lease expires, allowing a replacement process to resume persisted work.
+func (r *PostgresRepository) RecoverSpeakingJobs(ctx context.Context) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	for _, table := range []string{"speaking_transcriptions", "speaking_assessment_jobs"} {
+		if _, err := tx.Exec(ctx, `UPDATE `+table+` SET status='QUEUED',
+			attempts=GREATEST(attempts-1,0), next_attempt_at=CURRENT_TIMESTAMP,
+			updated_at=CURRENT_TIMESTAMP
+			WHERE status='PROCESSING' AND updated_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes'`); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *PostgresRepository) RenewTranscription(ctx context.Context, id uuid.UUID, revision int) error {
+	_, err := r.pool.Exec(ctx, `UPDATE speaking_transcriptions SET updated_at=CURRENT_TIMESTAMP
+		WHERE recording_id=$1 AND recording_revision=$2 AND status='PROCESSING'`, id, revision)
+	return err
+}
+
+func (r *PostgresRepository) RenewAssessment(ctx context.Context, id uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE speaking_assessment_jobs SET updated_at=CURRENT_TIMESTAMP
+		WHERE attempt_id=$1 AND status='PROCESSING'`, id)
+	return err
+}
+
 func (r *PostgresRepository) GetSpeakingTranscription(ctx context.Context, recordingID uuid.UUID) (SpeakingTranscription, error) {
 	var item SpeakingTranscription
 	var words, segments, metrics []byte

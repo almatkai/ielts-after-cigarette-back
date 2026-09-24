@@ -75,6 +75,10 @@ func (w *Worker) consume(ctx context.Context, pop func(context.Context) (uuid.UU
 }
 
 func (w *Worker) recoverPending(ctx context.Context) {
+	if err := w.repository.RecoverSpeakingJobs(ctx); err != nil {
+		w.logger.Error("recover speaking jobs", "error", err)
+		return
+	}
 	ids, err := w.repository.PendingTranscriptionIDs(ctx, 20)
 	if err == nil {
 		for _, id := range ids {
@@ -97,6 +101,10 @@ func (w *Worker) processTranscription(ctx context.Context, recordingID uuid.UUID
 		}
 		return
 	}
+	stopHeartbeat := keepLease(ctx, func(ctx context.Context) error {
+		return w.repository.RenewTranscription(ctx, recordingID, work.Recording.Revision)
+	})
+	defer stopHeartbeat()
 	object, err := w.store.Open(ctx, work.Recording.StorageKey)
 	if err != nil {
 		w.failTranscription(ctx, work, err)
@@ -146,6 +154,10 @@ func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 	if err != nil || !claimed {
 		return
 	}
+	stopHeartbeat := keepLease(ctx, func(ctx context.Context) error {
+		return w.repository.RenewAssessment(ctx, attemptID)
+	})
+	defer stopHeartbeat()
 	attempt, err := w.repository.Get(ctx, attemptID)
 	if err != nil {
 		w.failAssessment(ctx, attemptID, err)
@@ -226,6 +238,23 @@ func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 func (w *Worker) failAssessment(ctx context.Context, attemptID uuid.UUID, err error) {
 	w.logger.Error("speaking assessment failed", "attempt_id", attemptID, "error", err)
 	_ = w.repository.FailAssessment(ctx, attemptID, truncate(err.Error(), 2000))
+}
+
+func keepLease(ctx context.Context, renew func(context.Context) error) context.CancelFunc {
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		ticker := time.NewTicker(20 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_ = renew(ctx)
+			}
+		}
+	}()
+	return cancel
 }
 
 func truncate(value string, limit int) string {
