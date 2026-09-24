@@ -218,6 +218,7 @@ func New(
 			protected.Get("/attempts/mistakes", attemptsHandler.Mistakes)
 			protected.Get("/attempts", attemptsHandler.List)
 			protected.Get("/attempts/{attemptID}", attemptsHandler.Get)
+			protected.Get("/attempts/{attemptID}/material", attemptsHandler.Material)
 			protected.Get("/users/me", authHandler.Me)
 			protected.Get("/profile", userHandler.Get)
 			protected.Patch("/profile", userHandler.UpdateProfile)
