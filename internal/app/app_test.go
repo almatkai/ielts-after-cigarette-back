@@ -1,11 +1,37 @@
 package app
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
+	"github.com/go-chi/chi/v5"
 )
+
+func TestOnlyGoogleAuthEntryPointsArePublic(t *testing.T) {
+	router := New(config.Config{JWTSecret: "test-secret-at-least-32-characters-long"}, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	routes := map[string]bool{}
+	if err := chi.Walk(router.(chi.Routes), func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		routes[method+" "+route] = true
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/v1/auth/register", "/api/v1/auth/login"} {
+		if routes["POST "+path] {
+			t.Fatalf("password endpoint %s must not be publicly reachable", path)
+		}
+	}
+	for _, path := range []string{"/api/v1/auth/google", "/api/v1/auth/google/complete"} {
+		if !routes["POST "+path] {
+			t.Fatalf("Google endpoint %s is missing", path)
+		}
+	}
+}
 
 func TestIsMediaUpload(t *testing.T) {
 	t.Parallel()

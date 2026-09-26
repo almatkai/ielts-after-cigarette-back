@@ -189,8 +189,8 @@ docker build -t ielts-api:local .
 | POST | `/api/v1/phone-verifications` | нет | отправить WhatsApp-код |
 | POST | `/api/v1/phone-verifications/{id}/confirm` | нет | подтвердить код |
 | POST | `/api/v1/waitlist` | нет | вступить в waitlist с proof token |
-| POST | `/api/v1/auth/register` | нет | регистрация STUDENT |
-| POST | `/api/v1/auth/login` | нет | вход |
+| POST | `/api/v1/auth/google` | нет | вход через Google или начало регистрации |
+| POST | `/api/v1/auth/google/complete` | нет | завершение регистрации через Google |
 | POST | `/api/v1/auth/refresh` | нет | атомарная ротация refresh token |
 | POST | `/api/v1/auth/logout` | нет | отзыв текущей refresh-сессии |
 | GET | `/api/v1/users/me` | Bearer | текущий пользователь |
@@ -214,7 +214,8 @@ docker build -t ielts-api:local .
 
 ## Роли и первый администратор
 
-Публичная регистрация всегда создаёт `STUDENT`. Роли `EDITOR` и `ADMIN`
+Публичная регистрация через Google создаёт `STUDENT`; email/пароль отключены.
+Роли `EDITOR` и `ADMIN`
 назначаются только явной CLI-командой внутри backend-контейнера:
 
 ```bash

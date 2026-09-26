@@ -143,7 +143,6 @@ type CompleteGoogleRegistrationInput struct {
 	RegistrationToken string
 	Name              string
 	Phone             string
-	Password          string
 	AcceptedTerms     bool
 	UserAgent         string
 	IPAddress         string

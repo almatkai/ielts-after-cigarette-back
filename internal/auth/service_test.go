@@ -233,7 +233,6 @@ func TestCompleteGoogleRegistrationCreatesStudent(t *testing.T) {
 		RegistrationToken: pending.PendingRegistration.Token,
 		Name:              "  Person Personov  ",
 		Phone:             "+7 700 123 45 67",
-		Password:          "safe-password",
 		AcceptedTerms:     true,
 	})
 	if err != nil || len(details) != 0 {
@@ -257,6 +256,9 @@ func TestCompleteGoogleRegistrationCreatesStudent(t *testing.T) {
 	if repository.users["person@example.com"].GoogleSub != "sub-person" {
 		t.Fatal("google sub was not stored on the new account")
 	}
+	if repository.users["person@example.com"].PasswordHash != "" {
+		t.Fatal("Google registration must not create a password")
+	}
 
 	outcome, err := service.GoogleLogin(context.Background(), GoogleLoginInput{GoogleToken: "person"})
 	if err != nil {
@@ -271,7 +273,7 @@ func TestCompleteGoogleRegistrationRejectsInvalidRegistrationToken(t *testing.T)
 	service, _ := testGoogleService("admin@example.com")
 	for _, token := range []string{"", "bogus"} {
 		if _, _, err := service.CompleteGoogleRegistration(context.Background(), CompleteGoogleRegistrationInput{
-			RegistrationToken: token, Name: "Person", Phone: testPhone, Password: "safe-password", AcceptedTerms: true,
+			RegistrationToken: token, Name: "Person", Phone: testPhone, AcceptedTerms: true,
 		}); !errors.Is(err, ErrInvalidGoogleToken) {
 			t.Fatalf("expected invalid google token for %q, got %v", token, err)
 		}
@@ -281,7 +283,7 @@ func TestCompleteGoogleRegistrationRejectsInvalidRegistrationToken(t *testing.T)
 		t.Fatalf("create access token: %v", err)
 	}
 	if _, _, err := service.CompleteGoogleRegistration(context.Background(), CompleteGoogleRegistrationInput{
-		RegistrationToken: access, Name: "Person", Phone: testPhone, Password: "safe-password", AcceptedTerms: true,
+		RegistrationToken: access, Name: "Person", Phone: testPhone, AcceptedTerms: true,
 	}); !errors.Is(err, ErrInvalidGoogleToken) {
 		t.Fatalf("expected access token to be rejected, got %v", err)
 	}
@@ -300,7 +302,7 @@ func TestCompleteGoogleRegistrationRejectsExistingEmail(t *testing.T) {
 		t.Fatalf("create registration token: %v", err)
 	}
 	if _, _, err := service.CompleteGoogleRegistration(context.Background(), CompleteGoogleRegistrationInput{
-		RegistrationToken: token, Name: "Alice", Phone: "+77001234568", Password: "safe-password", AcceptedTerms: true,
+		RegistrationToken: token, Name: "Alice", Phone: "+77001234568", AcceptedTerms: true,
 	}); !errors.Is(err, ErrEmailExists) {
 		t.Fatalf("expected email exists, got %v", err)
 	}
@@ -313,7 +315,7 @@ func TestCompleteGoogleRegistrationRejectsDuplicatePhone(t *testing.T) {
 		t.Fatalf("expected pending registration, got %+v err=%v", pending, err)
 	}
 	if _, _, err := service.CompleteGoogleRegistration(context.Background(), CompleteGoogleRegistrationInput{
-		RegistrationToken: pending.PendingRegistration.Token, Name: "Person", Phone: testPhone, Password: "safe-password", AcceptedTerms: true,
+		RegistrationToken: pending.PendingRegistration.Token, Name: "Person", Phone: testPhone, AcceptedTerms: true,
 	}); err != nil {
 		t.Fatalf("first completion failed: %v", err)
 	}
@@ -322,7 +324,7 @@ func TestCompleteGoogleRegistrationRejectsDuplicatePhone(t *testing.T) {
 		t.Fatalf("create registration token: %v", err)
 	}
 	if _, _, err := service.CompleteGoogleRegistration(context.Background(), CompleteGoogleRegistrationInput{
-		RegistrationToken: token, Name: "Other", Phone: testPhone, Password: "safe-password", AcceptedTerms: true,
+		RegistrationToken: token, Name: "Other", Phone: testPhone, AcceptedTerms: true,
 	}); !errors.Is(err, ErrPhoneExists) {
 		t.Fatalf("expected phone exists, got %v", err)
 	}
@@ -338,19 +340,18 @@ func TestCompleteGoogleRegistrationValidatesFieldsAndKeepsToken(t *testing.T) {
 		RegistrationToken: pending.PendingRegistration.Token,
 		Name:              "A",
 		Phone:             "7001234567",
-		Password:          "short",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	for _, field := range []string{"name", "phone", "password", "acceptedTerms"} {
+	for _, field := range []string{"name", "phone", "acceptedTerms"} {
 		if details[field] == "" {
 			t.Fatalf("expected validation detail for %s, got %v", field, details)
 		}
 	}
 	if _, details, err := service.CompleteGoogleRegistration(context.Background(), CompleteGoogleRegistrationInput{
 		RegistrationToken: pending.PendingRegistration.Token,
-		Name:              "Person", Phone: testPhone, Password: "safe-password", AcceptedTerms: true,
+		Name:              "Person", Phone: testPhone, AcceptedTerms: true,
 	}); err != nil || len(details) != 0 {
 		t.Fatalf("registration token should survive a failed attempt: details=%v err=%v", details, err)
 	}
@@ -411,7 +412,6 @@ func TestCompleteGoogleRegistrationCompletesWaitlistLead(t *testing.T) {
 		RegistrationToken: pending.PendingRegistration.Token,
 		Name:              "Aidos Serik",
 		Phone:             "+7 700 123 45 67",
-		Password:          "safe-password",
 		AcceptedTerms:     true,
 	})
 	if err != nil || len(details) != 0 {
@@ -437,10 +437,8 @@ func TestCompleteGoogleRegistrationCompletesWaitlistLead(t *testing.T) {
 	if outcome.Session == nil || outcome.Session.User.ID != lead.ID {
 		t.Fatalf("expected session for the completed lead, got %+v", outcome)
 	}
-	if _, _, err := service.Login(context.Background(), LoginInput{
-		Email: "person@example.com", Password: "safe-password",
-	}); err != nil {
-		t.Fatalf("password login after completion failed: %v", err)
+	if repository.users["person@example.com"].PasswordHash != "" {
+		t.Fatal("completed Google waitlist lead must not have a password")
 	}
 }
 
@@ -643,7 +641,7 @@ func (r *fakeRepository) CreateGoogleUser(
 
 func (r *fakeRepository) CreateGoogleCompletedUser(
 	_ context.Context,
-	email, hash, displayName, phone, googleSub string,
+	email, displayName, phone, googleSub string,
 	now time.Time,
 ) (UserView, error) {
 	r.mu.Lock()
@@ -656,7 +654,7 @@ func (r *fakeRepository) CreateGoogleCompletedUser(
 			return UserView{}, ErrPhoneExists
 		}
 	}
-	user := User{ID: uuid.New(), Email: email, PasswordHash: hash, Role: "STUDENT", GoogleSub: googleSub, Status: StatusRegistered, Phone: phone}
+	user := User{ID: uuid.New(), Email: email, Role: "STUDENT", GoogleSub: googleSub, Status: StatusRegistered, Phone: phone}
 	view := UserView{
 		ID: user.ID, Email: email, Phone: phone, DisplayName: displayName, Role: user.Role,
 		Timezone: "UTC", CreatedAt: now, UpdatedAt: now,

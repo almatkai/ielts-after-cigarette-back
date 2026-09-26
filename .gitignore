@@ -5,6 +5,8 @@
 .idea/
 .vscode/
 bin/
+tmp/
+air-build-errors.log
 coverage.out
 *.exe
 *.test

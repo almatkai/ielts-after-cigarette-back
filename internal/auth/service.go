@@ -281,9 +281,8 @@ func (s *Service) googleSessionForUser(ctx context.Context, userRecord User, met
 }
 
 // CompleteGoogleRegistration turns a pending Google registration token plus
-// the user-chosen name, phone and password into a full STUDENT account and a
-// session. The token proves both the email and the Google identity, so no
-// WhatsApp phone verification is required.
+// the user's name and phone into a full STUDENT account and a session.
+// Google proves the email identity; no password or WhatsApp proof is created.
 func (s *Service) CompleteGoogleRegistration(
 	ctx context.Context,
 	input CompleteGoogleRegistrationInput,
@@ -328,10 +327,6 @@ func (s *Service) CompleteGoogleRegistration(
 		}
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), s.bcryptCost)
-	if err != nil {
-		return AuthResult{}, nil, fmt.Errorf("hash password: %w", err)
-	}
 	var user UserView
 	if lead != nil {
 		// Finish registration on the waitlist lead row; the Google email from
@@ -340,7 +335,7 @@ func (s *Service) CompleteGoogleRegistration(
 			ctx,
 			lead.ID,
 			email,
-			string(passwordHash),
+			"",
 			input.Name,
 			input.Phone,
 			claims.Subject,
@@ -351,7 +346,6 @@ func (s *Service) CompleteGoogleRegistration(
 		user, err = s.repository.CreateGoogleCompletedUser(
 			ctx,
 			email,
-			string(passwordHash),
 			input.Name,
 			input.Phone,
 			claims.Subject,
@@ -532,17 +526,13 @@ func validateRegistration(input RegisterInput) map[string]string {
 	return details
 }
 
-// validateGoogleRegistration mirrors validateRegistration minus the email and
-// verification token checks — the Google registration token proves the
-// identity, so neither is collected from the user.
+// validateGoogleRegistration checks the profile fields and consent; the
+// Google registration token proves the identity, so no password is collected.
 func validateGoogleRegistration(input CompleteGoogleRegistrationInput) map[string]string {
 	details := map[string]string{}
 	nameLength := utf8.RuneCountInString(input.Name)
 	if nameLength < 2 || nameLength > 100 {
 		details["name"] = "must contain between 2 and 100 characters"
-	}
-	if utf8.RuneCountInString(input.Password) < 8 || len(input.Password) > 72 {
-		details["password"] = "must contain at least 8 characters and at most 72 bytes"
 	}
 	if !input.AcceptedTerms {
 		details["acceptedTerms"] = "must be accepted"

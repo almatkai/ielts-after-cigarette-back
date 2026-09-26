@@ -1,0 +1,23 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  args_bin = ["--run"]
+  bin = "../run-backend-local.sh"
+  cmd = "go build -o ./tmp/ielts-api ./cmd/api"
+  delay = 500
+  exclude_dir = ["tmp", "vendor", "node_modules", "docs", "migrations", "var"]
+  exclude_file = []
+  exclude_regex = ["_test.go"]
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  include_file = ["go.mod", "go.sum", ".env"]
+  kill_delay = "500ms"
+  log = "air-build-errors.log"
+  send_interrupt = true
+  stop_on_error = true
+
+[log]
+  time = true
+
+[misc]
+  clean_on_exit = true

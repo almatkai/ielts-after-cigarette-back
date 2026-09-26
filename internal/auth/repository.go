@@ -15,7 +15,7 @@ import (
 type Repository interface {
 	CreateUser(context.Context, string, string, string, string, []byte, time.Time) (UserView, error)
 	CreateGoogleUser(ctx context.Context, email, passwordHash, displayName, role, googleSub string, now time.Time) (UserView, error)
-	CreateGoogleCompletedUser(ctx context.Context, email, passwordHash, displayName, phone, googleSub string, now time.Time) (UserView, error)
+	CreateGoogleCompletedUser(ctx context.Context, email, displayName, phone, googleSub string, now time.Time) (UserView, error)
 	CompleteWaitlistUser(ctx context.Context, userID uuid.UUID, email, passwordHash, displayName, phone, googleSub string, verificationTokenHash []byte, now time.Time) (UserView, error)
 	UpgradeWaitlistToAdmin(ctx context.Context, userID uuid.UUID, displayName, googleSub string, now time.Time) (UserView, error)
 	SetRole(ctx context.Context, email, role string) error
@@ -163,13 +163,11 @@ func (r *PostgresRepository) CreateGoogleUser(
 }
 
 // CreateGoogleCompletedUser registers a Google-sign-in student after the
-// complete-registration step: email comes from the verified Google token, the
-// password is user-chosen, and the phone needs no WhatsApp proof — Google
-// identity is the verification. Same row set as CreateUser, minus the phone
-// verification token consumption.
+// complete-registration step. Google verifies the email; no password or
+// WhatsApp proof is required.
 func (r *PostgresRepository) CreateGoogleCompletedUser(
 	ctx context.Context,
-	email, passwordHash, displayName, phone, googleSub string,
+	email, displayName, phone, googleSub string,
 	now time.Time,
 ) (UserView, error) {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
@@ -181,8 +179,8 @@ func (r *PostgresRepository) CreateGoogleCompletedUser(
 	userID := uuid.New()
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO users (id, email, phone, password_hash, role, terms_accepted_at, google_sub)
-		VALUES ($1, $2, $3, $4, 'STUDENT', $5, NULLIF($6, ''))
-	`, userID, email, phone, passwordHash, now, googleSub); err != nil {
+		VALUES ($1, $2, $3, NULL, 'STUDENT', $4, NULLIF($5, ''))
+	`, userID, email, phone, now, googleSub); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			if pgErr.ConstraintName == "users_phone_unique" {
@@ -262,7 +260,7 @@ func (r *PostgresRepository) CompleteWaitlistUser(
 	tag, err := tx.Exec(ctx, `
 		UPDATE users
 		SET email = COALESCE(NULLIF($2, ''), email),
-			password_hash = $3,
+			password_hash = NULLIF($3, ''),
 			terms_accepted_at = $4,
 			status = 'REGISTERED',
 			phone = COALESCE(NULLIF($5, ''), phone),

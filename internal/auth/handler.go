@@ -169,7 +169,6 @@ type completeGoogleRegistrationRequest struct {
 	RegistrationToken string `json:"registrationToken"`
 	Name              string `json:"name"`
 	Phone             string `json:"phone"`
-	Password          string `json:"password"`
 	AcceptedTerms     bool   `json:"acceptedTerms"`
 }
 
@@ -183,7 +182,6 @@ func (h *Handler) CompleteGoogleRegistration(w http.ResponseWriter, r *http.Requ
 		RegistrationToken: request.RegistrationToken,
 		Name:              request.Name,
 		Phone:             request.Phone,
-		Password:          request.Password,
 		AcceptedTerms:     request.AcceptedTerms,
 		UserAgent:         limited(r.UserAgent(), 512),
 		IPAddress:         clientIP(r),

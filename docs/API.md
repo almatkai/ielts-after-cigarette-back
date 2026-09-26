@@ -74,9 +74,8 @@ Infobip выключен, endpoint возвращает `503 WHATSAPP_NOT_CONFIG
 ## Waitlist
 
 Заявки waitlist хранятся в таблице `users` со статусом `WAITING`/`INVITED`
-(без пароля); регистрация через `POST /auth/register` или
-`POST /auth/google/complete` дозавершает ту же строку и переводит её в
-`REGISTERED`.
+(без пароля); регистрация через `POST /auth/google/complete` дозавершает
+ту же строку и переводит её в `REGISTERED`.
 
 ### `POST /waitlist`
 
@@ -219,66 +218,10 @@ ADMIN_PROTECTED` (его можно убрать только правкой env
 
 ## Auth
 
-### `POST /auth/register`
-
-```json
-{
-  "name": "Ada Lovelace",
-  "email": "ada@example.com",
-  "phone": "+77001234567",
-  "password": "correct horse battery staple",
-  "confirmPassword": "correct horse battery staple",
-  "acceptedTerms": true,
-  "verificationToken": "<single-use-registration-token>"
-}
-```
-
-`confirmPassword` необязателен для API-клиента, но если передан, обязан
-совпадать. `acceptedTerms` обязателен. Перед регистрацией необходимо выполнить
-phone verification с purpose `registration`. Ответ `201`:
-
-```json
-{
-  "accessToken": "<jwt>",
-  "tokenType": "Bearer",
-  "expiresIn": 900,
-  "user": {
-    "id": "2c6eea74-968f-4af4-9f30-929bbf47bc45",
-    "email": "ada@example.com",
-    "phone": "+77001234567",
-    "displayName": "Ada Lovelace",
-    "role": "STUDENT",
-    "currentBand": null,
-    "targetBand": null,
-    "examDate": null,
-    "examType": null,
-    "timezone": "UTC",
-    "createdAt": "2026-07-26T10:00:00Z",
-    "updatedAt": "2026-07-26T10:00:00Z"
-  }
-}
-```
-
-Регистрация и login также устанавливают refresh token cookie. Cookie недоступна
-JavaScript (`HttpOnly`), ограничена `Path=/api/v1/auth`, имеет настраиваемые
-`SameSite`/`Secure` и отправляется браузером только с `credentials: include`.
-
-Duplicate normalized email возвращает `409 EMAIL_ALREADY_EXISTS`, duplicate
-phone — `409 PHONE_ALREADY_EXISTS`, а неверный proof token —
-`422 PHONE_NOT_VERIFIED`.
-
-### `POST /auth/login`
-
-```json
-{
-  "email": "ada@example.com",
-  "password": "correct horse battery staple",
-  "remember": false
-}
-```
-
-Ответ `200` имеет тот же формат, что регистрация. Неверные данные всегда дают
-одинаковый `401 INVALID_CREDENTIALS`, чтобы не раскрывать наличие email.
+`POST /auth/register` и `POST /auth/login` отключены (`404`): создание
+аккаунта и вход доступны только через Google. Успешная аутентификация выдаёт
+HttpOnly refresh cookie с `Path=/api/v1/auth` и настраиваемыми
+`SameSite`/`Secure`; браузер отправляет её с `credentials: include`.
 
 ### `POST /auth/google`
 
@@ -323,7 +266,6 @@ refresh cookie):
   "registrationToken": "<jwt из /auth/google>",
   "name": "Ada Lovelace",
   "phone": "+77001234567",
-  "password": "correct horse battery staple",
   "acceptedTerms": true
 }
 ```
@@ -333,7 +275,7 @@ refresh cookie):
 WhatsApp-проверку телефона. Ответ `201` — auth-формат с refresh cookie.
 Ошибки: `401 GOOGLE_TOKEN_INVALID` (токен регистрации недействителен или
 истёк), `409 EMAIL_ALREADY_EXISTS`, `409 PHONE_ALREADY_EXISTS`,
-`422 VALIDATION_ERROR` (`name`, `phone`, `password`, `acceptedTerms`).
+`422 VALIDATION_ERROR` (`name`, `phone`, `acceptedTerms`). Пароль не создаётся.
 Повторная попытка с тем же токеном после временной ошибки разрешена.
 
 ### `POST /auth/refresh`

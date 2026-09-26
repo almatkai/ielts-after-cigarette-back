@@ -74,7 +74,7 @@ func TestCompleteGoogleRegistrationReturnsCreatedSession(t *testing.T) {
 		t.Fatalf("expected pending registration, got %+v err=%v", pending, err)
 	}
 	handler := testAuthHandler(service)
-	body := `{"registrationToken":"` + pending.PendingRegistration.Token + `","name":"Person Personov","phone":"+7 700 123 45 67","password":"safe-password","acceptedTerms":true}`
+	body := `{"registrationToken":"` + pending.PendingRegistration.Token + `","name":"Person Personov","phone":"+7 700 123 45 67","acceptedTerms":true}`
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/google/complete", strings.NewReader(body))
 	response := httptest.NewRecorder()
 	handler.CompleteGoogleRegistration(response, request)
@@ -98,7 +98,7 @@ func TestCompleteGoogleRegistrationReturnsCreatedSession(t *testing.T) {
 func TestCompleteGoogleRegistrationRejectsBadTokenWithUnauthorized(t *testing.T) {
 	service, _ := testGoogleService("admin@example.com")
 	handler := testAuthHandler(service)
-	body := `{"registrationToken":"bogus","name":"Person","phone":"+77001234567","password":"safe-password","acceptedTerms":true}`
+	body := `{"registrationToken":"bogus","name":"Person","phone":"+77001234567","acceptedTerms":true}`
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/google/complete", strings.NewReader(body))
 	response := httptest.NewRecorder()
 	handler.CompleteGoogleRegistration(response, request)
