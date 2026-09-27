@@ -286,21 +286,21 @@ source of truth.
 
 ## Explanations
 
-Explanations are optional and may be multiline:
+Explanations are optional and may be multiline. They support structured fields to enable guided retry and passage highlighting:
 
 ```text
 ## EXPLANATIONS
 ### 1
-The first relevant sentence directly contradicts the statement.
-
-The following paragraph confirms the same conclusion.
+quote: "Arguments can start as easily over minor points of usage as over major policies of linguistic education."
+hint: Check Paragraph 1 where the author explains why language debates arise so easily.
+explanation: The first relevant sentence directly confirms the statement.
 ### 8
-The passage uses the word "sample" in the relevant sentence.
+quote: "The sample contained small traces of zinc."
+hint: Look for the noun phrase identifying the specimen in the second paragraph.
+explanation: The passage uses the word "sample" in the relevant sentence.
 ```
 
-An explanation is persisted in the existing versioned question row. Missing
-explanations are information only, never a warning or error. An explanation for
-an unknown question is an error.
+When `quote:`, `hint:` or `explanation:` prefixes are omitted, standard multiline text is preserved as plain explanation for backward compatibility. An explanation is persisted in the existing versioned question row. Missing explanations are information only, never a warning or error. An explanation for an unknown question is an error.
 
 ## Formatting and validation rules
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
@@ -128,6 +129,9 @@ func New(
 	attemptsService.SetExamGuard(fullMockService)
 	fullMockHandler := fullmock.NewHandler(fullMockService, logger, cfg.MaxRequestBody)
 
+	assistantService := assistant.NewService(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout})
+	assistantHandler := assistant.NewHandler(assistantService, logger, cfg.MaxRequestBody)
+
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
 	infobipAPIKey := cfg.InfobipAPIKey
 	if !cfg.InfobipEnabled {
@@ -169,6 +173,11 @@ func New(
 	router.Use(httpx.AccessLog(logger))
 	router.Use(httpx.CORS(cfg.CORSAllowedOrigins))
 	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second))
+	// History endpoints answer with tens of kilobytes to megabytes of JSON
+	// (a mistakes page carries the review of every attempt), so compress the
+	// text responses. Audio and other binary media keep their own types and are
+	// passed through untouched.
+	router.Use(chimiddleware.Compress(5, "application/json", "text/plain"))
 
 	router.Get("/health/live", healthHandler.Live)
 	router.Get("/health/ready", healthHandler.Ready)
@@ -178,6 +187,7 @@ func New(
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
+		api.With(auth.AuthenticateOptional(tokens)).Post("/assistant/chat", assistantHandler.Chat)
 
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
@@ -306,7 +316,13 @@ func timeoutByRequest(requestTimeout, mediaUploadTimeout, aiEvaluationTimeout ti
 }
 
 func isAIEvaluation(r *http.Request) bool {
-	return r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/v1/attempts/") && strings.HasSuffix(r.URL.Path, "/submit")
+	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/v1/attempts/") && strings.HasSuffix(r.URL.Path, "/submit") {
+		return true
+	}
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/assistant/chat" {
+		return true
+	}
+	return false
 }
 
 func isMediaUpload(r *http.Request) bool {

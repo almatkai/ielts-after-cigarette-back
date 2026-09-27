@@ -26,6 +26,13 @@ func (r *repositoryStub) GetPublished(context.Context, uuid.UUID) (Material, err
 func (r *repositoryStub) GetVersion(context.Context, uuid.UUID, uuid.UUID) (Material, error) {
 	return Material{}, nil
 }
+func (r *repositoryStub) GradingStructures(_ context.Context, refs []VersionRef) (map[VersionRef]Material, error) {
+	items := make(map[VersionRef]Material, len(refs))
+	for _, ref := range refs {
+		items[ref] = Material{}
+	}
+	return items, nil
+}
 func (r *repositoryStub) PublishedVersionID(context.Context, uuid.UUID) (uuid.UUID, error) {
 	return uuid.Nil, nil
 }

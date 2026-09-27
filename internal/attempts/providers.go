@@ -23,6 +23,20 @@ type MaterialProvider interface {
 	GradingStructure(ctx context.Context, materialID, versionID uuid.UUID) (GradingMaterial, error)
 }
 
+// MaterialRef identifies a pinned material version inside a material module.
+type MaterialRef struct {
+	MaterialID uuid.UUID
+	VersionID  uuid.UUID
+}
+
+// BulkMaterialProvider is implemented by material modules that can load the
+// grading structures of many versions with a bounded number of queries. The
+// mistakes page asks for the structure of every submitted attempt at once, so
+// without it the page pays one query fan-out per attempt.
+type BulkMaterialProvider interface {
+	GradingStructures(ctx context.Context, refs []MaterialRef) (map[MaterialRef]GradingMaterial, error)
+}
+
 type listeningProvider struct {
 	service *listening.Service
 }
@@ -59,9 +73,19 @@ func (p listeningProvider) GradingStructure(ctx context.Context, materialID, ver
 	for _, part := range test.Parts {
 		for _, group := range part.Groups {
 			for _, question := range group.Questions {
+				quote, _ := question.Content["quote"].(string)
+				hint, _ := question.Content["hint"].(string)
 				questions = append(questions, GradingQuestion{
-					ID: question.ID, Number: question.Number, Prompt: question.Prompt,
-					Content: question.Content, Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
+					ID:          question.ID,
+					Number:      question.Number,
+					Prompt:      question.Prompt,
+					Type:        group.Type,
+					Content:     question.Content,
+					Answer:      question.Answer,
+					Explanation: question.Explanation,
+					Quote:       quote,
+					Hint:        hint,
+					Points:      question.Points,
 				})
 			}
 		}
@@ -101,6 +125,40 @@ func (p readingProvider) GradingStructure(ctx context.Context, materialID, versi
 	if err != nil {
 		return GradingMaterial{}, err
 	}
+	return gradingMaterialFromReading(material), nil
+}
+
+// GradingStructures loads many reading versions with a bounded number of
+// queries, which is what the mistakes page needs for historical attempts.
+func (p readingProvider) GradingStructures(ctx context.Context, refs []MaterialRef) (map[MaterialRef]GradingMaterial, error) {
+	versionRefs := make([]reading.VersionRef, 0, len(refs))
+	for _, ref := range refs {
+		versionRefs = append(versionRefs, reading.VersionRef{
+			MaterialID: ref.MaterialID,
+			VersionID:  ref.VersionID,
+		})
+	}
+	materials, err := p.service.GradingStructures(ctx, versionRefs)
+	if errors.Is(err, reading.ErrNotFound) {
+		return nil, ErrMaterialNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := make(map[MaterialRef]GradingMaterial, len(refs))
+	for _, ref := range refs {
+		material, ok := materials[reading.VersionRef{MaterialID: ref.MaterialID, VersionID: ref.VersionID}]
+		if !ok {
+			return nil, ErrMaterialNotFound
+		}
+		items[ref] = gradingMaterialFromReading(material)
+	}
+	return items, nil
+}
+
+// gradingMaterialFromReading flattens the reading structure (a test plus its
+// passages) into the module-neutral view used for grading and review.
+func gradingMaterialFromReading(material reading.Material) GradingMaterial {
 	questions := []GradingQuestion{}
 	materials := append([]reading.Material{material}, material.Passages...)
 	for _, current := range materials {
@@ -110,14 +168,29 @@ func (p readingProvider) GradingStructure(ctx context.Context, materialID, versi
 				if contentNumber, ok := numericInt(question.Content["number"]); ok {
 					number = contentNumber
 				}
+				quote, _ := question.Content["quote"].(string)
+				if quote == "" {
+					quote, _ = question.Content["textReference"].(string)
+				}
+				hint, _ := question.Content["hint"].(string)
 				questions = append(questions, GradingQuestion{
-					ID: question.ID, Number: number, Prompt: question.Prompt, Content: question.Content,
-					Answer: question.Answer, Explanation: question.Explanation, Points: question.Points,
+					ID:           question.ID,
+					Number:       number,
+					Prompt:       question.Prompt,
+					Type:         group.Type,
+					Content:      question.Content,
+					Answer:       question.Answer,
+					Explanation:  question.Explanation,
+					Quote:        quote,
+					Hint:         hint,
+					Points:       question.Points,
+					PassageTitle: current.Title,
+					PassageBody:  current.Body,
 				})
 			}
 		}
 	}
-	return GradingMaterial{ExamType: material.ExamType, Questions: questions}, nil
+	return GradingMaterial{ExamType: material.ExamType, Questions: questions}
 }
 
 func numericInt(value any) (int, bool) {

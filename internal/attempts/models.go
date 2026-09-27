@@ -69,13 +69,18 @@ type Answer struct {
 // question groups. Number is the listening question number; reading
 // questions have no number, so their position is used.
 type GradingQuestion struct {
-	ID          uuid.UUID
-	Number      int
-	Prompt      string
-	Content     map[string]any
-	Answer      map[string]any
-	Explanation string
-	Points      int
+	ID           uuid.UUID
+	Number       int
+	Prompt       string
+	Type         string
+	Content      map[string]any
+	Answer       map[string]any
+	Explanation  string
+	Quote        string
+	Hint         string
+	Points       int
+	PassageTitle string
+	PassageBody  string
 }
 
 type GradingMaterial struct {
@@ -253,11 +258,17 @@ type ReviewAnswer struct {
 	QuestionID    uuid.UUID      `json:"questionId"`
 	Number        int            `json:"number"`
 	Prompt        string         `json:"prompt"`
+	Type          string         `json:"type,omitempty"`
+	Content       map[string]any `json:"content,omitempty"`
 	Answer        map[string]any `json:"answer"`
 	IsCorrect     bool           `json:"isCorrect"`
 	PointsAwarded int            `json:"pointsAwarded"`
 	CorrectAnswer map[string]any `json:"correctAnswer"`
 	Explanation   string         `json:"explanation"`
+	Quote         string         `json:"quote,omitempty"`
+	Hint          string         `json:"hint,omitempty"`
+	PassageTitle string `json:"passageTitle,omitempty"`
+	PassageBody  string `json:"passageBody,omitempty"`
 }
 
 type Detail struct {

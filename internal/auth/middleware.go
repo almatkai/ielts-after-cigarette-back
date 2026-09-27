@@ -48,6 +48,24 @@ func Authenticate(tokens *TokenManager) func(http.Handler) http.Handler {
 	}
 }
 
+func AuthenticateOptional(tokens *TokenManager) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			header := strings.TrimSpace(r.Header.Get("Authorization"))
+			parts := strings.Fields(header)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+				if claims, err := tokens.ParseAccessToken(parts[1]); err == nil {
+					userID, _ := uuid.Parse(claims.Subject)
+					ctx := context.WithValue(r.Context(), userIDKey, userID)
+					ctx = context.WithValue(ctx, roleKey, claims.Role)
+					r = r.WithContext(ctx)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func RequireAnyRole(roles ...string) func(http.Handler) http.Handler {
 	allowed := make(map[string]struct{}, len(roles))
 	for _, role := range roles {

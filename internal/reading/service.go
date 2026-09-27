@@ -19,6 +19,7 @@ type Repository interface {
 	ListPublished(context.Context) ([]MaterialSummary, error)
 	GetPublished(context.Context, uuid.UUID) (Material, error)
 	GetVersion(context.Context, uuid.UUID, uuid.UUID) (Material, error)
+	GradingStructures(context.Context, []VersionRef) (map[VersionRef]Material, error)
 	PublishedVersionID(context.Context, uuid.UUID) (uuid.UUID, error)
 	Create(context.Context, uuid.UUID, SaveInput) (Material, error)
 	CreateMany(context.Context, uuid.UUID, []SaveInput) ([]Material, error)
@@ -124,6 +125,12 @@ func (s *Service) GetPublic(ctx context.Context, id uuid.UUID) (PublicMaterial, 
 // GetVersion returns the full structure (with answers) of a specific version.
 func (s *Service) GetVersion(ctx context.Context, id, versionID uuid.UUID) (Material, error) {
 	return s.repository.GetVersion(ctx, id, versionID)
+}
+
+// GradingStructures returns the full structure (with answers) of many pinned
+// versions using a bounded number of queries.
+func (s *Service) GradingStructures(ctx context.Context, refs []VersionRef) (map[VersionRef]Material, error) {
+	return s.repository.GradingStructures(ctx, refs)
 }
 
 // GetVersionPublic returns the public structure (without answers) of a

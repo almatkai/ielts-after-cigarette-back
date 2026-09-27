@@ -19,6 +19,7 @@ type Service struct {
 	maxSpeakingMedia  int64
 	examGuard         ExamGuard
 	speakingJobs      SpeakingJobQueue
+	gradingCache      *gradingCache
 }
 
 type SpeakingJobQueue interface {
@@ -31,7 +32,7 @@ type ExamGuard interface {
 }
 
 func NewService(repository Repository, providers map[string]MaterialProvider, evaluators ...WritingEvaluator) *Service {
-	service := &Service{repository: repository, providers: providers}
+	service := &Service{repository: repository, providers: providers, gradingCache: newGradingCache()}
 	if len(evaluators) > 0 {
 		service.evaluator = evaluators[0]
 	}
@@ -428,40 +429,6 @@ func (s *Service) List(ctx context.Context, userID uuid.UUID, materialType strin
 	return s.repository.ListByUser(ctx, userID, materialType)
 }
 
-// Mistakes returns all submitted attempts relevant to the mistakes page in
-// one API response. It keeps the detailed grading and AI feedback private to
-// the server, avoiding an HTTP request per historical attempt in the client.
-func (s *Service) Mistakes(ctx context.Context, userID uuid.UUID) ([]MistakeReport, error) {
-	attempts, err := s.repository.ListByUser(ctx, userID, "")
-	if err != nil {
-		return nil, err
-	}
-	reports := make([]MistakeReport, 0, len(attempts))
-	for _, attempt := range attempts {
-		if attempt.Status != StatusSubmitted {
-			continue
-		}
-		detail, err := s.Get(ctx, userID, attempt.ID)
-		if err != nil {
-			return nil, err
-		}
-		report := MistakeReport{
-			Attempt:            attempt,
-			WritingEvaluation:  detail.WritingEvaluation,
-			SpeakingEvaluation: detail.SpeakingEvaluation,
-		}
-		for _, item := range detail.Review {
-			if !item.IsCorrect {
-				report.Review = append(report.Review, item)
-			}
-		}
-		if len(report.Review) > 0 || report.WritingEvaluation != nil || report.SpeakingEvaluation != nil {
-			reports = append(reports, report)
-		}
-	}
-	return reports, nil
-}
-
 func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail, error) {
 	attempt, err := s.own(ctx, userID, attemptID)
 	if err != nil {
@@ -530,6 +497,12 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 	if err != nil {
 		return Detail{}, err
 	}
+	return Detail{Attempt: attempt, Review: reviewFromMaterial(material, saved)}, nil
+}
+
+// reviewFromMaterial joins a graded material with the saved answers into the
+// per-question review shared by attempt detail and the mistakes page.
+func reviewFromMaterial(material GradingMaterial, saved []Answer) []ReviewAnswer {
 	byID := make(map[uuid.UUID]Answer, len(saved))
 	for _, item := range saved {
 		byID[item.QuestionID] = item
@@ -540,9 +513,15 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 			QuestionID:    question.ID,
 			Number:        question.Number,
 			Prompt:        question.Prompt,
+			Type:          question.Type,
+			Content:       question.Content,
 			Answer:        map[string]any{},
 			CorrectAnswer: question.Answer,
 			Explanation:   question.Explanation,
+			Quote:         question.Quote,
+			Hint:          question.Hint,
+			PassageTitle:  question.PassageTitle,
+			PassageBody:   question.PassageBody,
 		}
 		if answer, ok := byID[question.ID]; ok {
 			item.Answer = answer.Answer
@@ -555,7 +534,7 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 		}
 		review = append(review, item)
 	}
-	return Detail{Attempt: attempt, Review: review}, nil
+	return review
 }
 
 // own loads the attempt and hides foreign attempts behind ErrNotFound.

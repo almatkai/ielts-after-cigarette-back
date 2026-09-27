@@ -78,6 +78,16 @@ func (r *stubAttemptsRepo) ListAnswers(_ context.Context, attemptID uuid.UUID) (
 	return r.answers[attemptID], nil
 }
 
+func (r *stubAttemptsRepo) ListAnswersByAttempts(_ context.Context, attemptIDs []uuid.UUID) (map[uuid.UUID][]attempts.Answer, error) {
+	items := make(map[uuid.UUID][]attempts.Answer, len(attemptIDs))
+	for _, attemptID := range attemptIDs {
+		if saved, ok := r.answers[attemptID]; ok {
+			items[attemptID] = saved
+		}
+	}
+	return items, nil
+}
+
 func (r *stubAttemptsRepo) Submit(_ context.Context, res attempts.SubmitResult) error {
 	a, ok := r.attempts[res.AttemptID]
 	if !ok {

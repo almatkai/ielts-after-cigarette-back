@@ -561,7 +561,28 @@ func applyV1AnswersAndExplanations(result *ImportResult, refs map[int]importQues
 		}
 		if explanation, exists := explanations[number]; exists {
 			question := &result.Passages[ref.passage].Material.QuestionGroups[ref.group].Questions[ref.question]
-			text := strings.TrimSpace(strings.Join(explanation.lines, "\n"))
+			if question.Content == nil {
+				question.Content = make(map[string]any)
+			}
+			var explanationLines []string
+			for _, l := range explanation.lines {
+				trimmed := strings.TrimSpace(l)
+				lower := strings.ToLower(trimmed)
+				if strings.HasPrefix(lower, "quote:") || strings.HasPrefix(lower, "цитата:") {
+					val := strings.TrimSpace(trimmed[strings.Index(trimmed, ":")+1:])
+					val = strings.Trim(val, `"'«»`)
+					question.Content["quote"] = val
+				} else if strings.HasPrefix(lower, "hint:") || strings.HasPrefix(lower, "подсказка:") {
+					val := strings.TrimSpace(trimmed[strings.Index(trimmed, ":")+1:])
+					question.Content["hint"] = val
+				} else if strings.HasPrefix(lower, "explanation:") || strings.HasPrefix(lower, "объяснение:") {
+					val := strings.TrimSpace(trimmed[strings.Index(trimmed, ":")+1:])
+					explanationLines = append(explanationLines, val)
+				} else {
+					explanationLines = append(explanationLines, l)
+				}
+			}
+			text := strings.TrimSpace(strings.Join(explanationLines, "\n"))
 			if question.Explanation != "" && text != "" {
 				question.Explanation += "\n\n"
 			}

@@ -23,9 +23,11 @@ Requirements:
 - Put shared matching options under `options:` as `A: text`.
 - Put all correct answers only under one final `## ANSWERS` section.
 - Separate accepted spelling alternatives with ` | `.
-- Add explanations under `## EXPLANATIONS` only when they are present in the source.
-- Never invent missing questions, answers or explanations. Omit unknown answers;
-  the import preview must report them as blocking errors for a human to fix.
+- For each question under `## EXPLANATIONS`, provide structured analysis:
+  quote: "exact sentence or clause from the passage that justifies the answer"
+  hint: a guiding clue directing the student to the relevant paragraph/idea without spoiling the answer
+  explanation: why the answer is correct and why other options or misconceptions are wrong
+- Never invent missing questions or answers. Omit unknown answers; the import preview must report them as blocking errors for a human to fix.
 
 Start with:
 # IELTS_READING_IMPORT_V1

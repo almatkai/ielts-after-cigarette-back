@@ -30,6 +30,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		if httpx.ClientGone(w, r, err) {
+			return
+		}
 		h.logger.ErrorContext(r.Context(), "get dashboard",
 			"request_id", httpx.RequestID(r.Context()),
 			"error", err,

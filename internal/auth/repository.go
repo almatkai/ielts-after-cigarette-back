@@ -470,79 +470,87 @@ func (r *PostgresRepository) CreateSession(ctx context.Context, session Session)
 	return nil
 }
 
+// RotateSession exchanges a refresh token for its replacement. The happy path
+// is a single statement: it locks the session row, inserts the replacement and
+// revokes the old row in one round trip, and a single statement is atomic on
+// its own, so no explicit transaction is needed. Only the rare failure paths
+// (unknown, reused or expired token) need a follow-up query, which is where the
+// security response for token reuse lives.
 func (r *PostgresRepository) RotateSession(
 	ctx context.Context,
 	oldHash []byte,
 	replacement Session,
 	now time.Time,
 ) (uuid.UUID, error) {
-	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("begin refresh rotation: %w", err)
+	var userID uuid.UUID
+	err := r.pool.QueryRow(ctx, `
+		WITH session AS (
+			SELECT id, user_id, expires_at, revoked_at
+			FROM refresh_sessions
+			WHERE token_hash = $1
+			FOR UPDATE
+		), replacement AS (
+			INSERT INTO refresh_sessions (
+				id, user_id, token_hash, expires_at, user_agent, ip_address
+			)
+			SELECT $2, session.user_id, $3, $4, NULLIF($5, ''), NULLIF($6, '')
+			FROM session
+			WHERE session.revoked_at IS NULL AND session.expires_at > $7
+			RETURNING user_id, id
+		), revoked AS (
+			UPDATE refresh_sessions
+			SET revoked_at = $7, replaced_by = (SELECT id FROM replacement)
+			WHERE id = (SELECT id FROM session)
+			  AND EXISTS (SELECT 1 FROM replacement)
+		)
+		SELECT user_id FROM replacement
+	`, oldHash, replacement.ID, replacement.TokenHash, replacement.ExpiresAt,
+		replacement.UserAgent, replacement.IPAddress, now).Scan(&userID)
+	if err == nil {
+		return userID, nil
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("rotate refresh session: %w", err)
+	}
+	return uuid.Nil, r.rotateSessionFailure(ctx, oldHash, now)
+}
 
+// rotateSessionFailure reports why a rotation produced no replacement and
+// applies the matching security response: a reused token revokes every active
+// session of the user, an expired one is revoked on the spot.
+func (r *PostgresRepository) rotateSessionFailure(ctx context.Context, oldHash []byte, now time.Time) error {
 	var sessionID, userID uuid.UUID
 	var expiresAt time.Time
 	var revokedAt *time.Time
-	err = tx.QueryRow(ctx, `
+	err := r.pool.QueryRow(ctx, `
 		SELECT id, user_id, expires_at, revoked_at
 		FROM refresh_sessions
 		WHERE token_hash = $1
-		FOR UPDATE
 	`, oldHash).Scan(&sessionID, &userID, &expiresAt, &revokedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.Nil, ErrInvalidRefresh
+		return ErrInvalidRefresh
 	}
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("lock refresh session: %w", err)
+		return fmt.Errorf("inspect refresh session: %w", err)
 	}
-
 	if revokedAt != nil {
-		if _, err := tx.Exec(ctx, `
+		if _, err := r.pool.Exec(ctx, `
 			UPDATE refresh_sessions
 			SET revoked_at = COALESCE(revoked_at, $2)
 			WHERE user_id = $1 AND revoked_at IS NULL
 		`, userID, now); err != nil {
-			return uuid.Nil, fmt.Errorf("revoke sessions after token reuse: %w", err)
+			return fmt.Errorf("revoke sessions after token reuse: %w", err)
 		}
-		if err := tx.Commit(ctx); err != nil {
-			return uuid.Nil, fmt.Errorf("commit token reuse revocation: %w", err)
-		}
-		return uuid.Nil, ErrRefreshReuse
+		return ErrRefreshReuse
 	}
 	if !expiresAt.After(now) {
-		if _, err := tx.Exec(ctx, `
+		if _, err := r.pool.Exec(ctx, `
 			UPDATE refresh_sessions SET revoked_at = $2 WHERE id = $1
 		`, sessionID, now); err != nil {
-			return uuid.Nil, fmt.Errorf("revoke expired refresh session: %w", err)
+			return fmt.Errorf("revoke expired refresh session: %w", err)
 		}
-		if err := tx.Commit(ctx); err != nil {
-			return uuid.Nil, fmt.Errorf("commit expired refresh revocation: %w", err)
-		}
-		return uuid.Nil, ErrInvalidRefresh
 	}
-
-	replacement.UserID = userID
-	if _, err := tx.Exec(ctx, `
-		INSERT INTO refresh_sessions (
-			id, user_id, token_hash, expires_at, user_agent, ip_address
-		) VALUES ($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''))
-	`, replacement.ID, userID, replacement.TokenHash, replacement.ExpiresAt,
-		replacement.UserAgent, replacement.IPAddress); err != nil {
-		return uuid.Nil, fmt.Errorf("insert replacement refresh session: %w", err)
-	}
-	if _, err := tx.Exec(ctx, `
-		UPDATE refresh_sessions
-		SET revoked_at = $2, replaced_by = $3
-		WHERE id = $1
-	`, sessionID, now, replacement.ID); err != nil {
-		return uuid.Nil, fmt.Errorf("revoke rotated refresh session: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return uuid.Nil, fmt.Errorf("commit refresh rotation: %w", err)
-	}
-	return userID, nil
+	return ErrInvalidRefresh
 }
 
 func (r *PostgresRepository) RevokeSession(ctx context.Context, hash []byte, now time.Time) error {

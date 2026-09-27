@@ -224,6 +224,9 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, ErrRevisionConflict):
 		httpx.WriteError(w, r, http.StatusConflict, "REVISION_CONFLICT", "Reload and retry", nil)
 	default:
+		if httpx.ClientGone(w, r, err) {
+			return
+		}
 		h.logger.Error("listening request failed", "error", err)
 		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Request failed", nil)
 	}

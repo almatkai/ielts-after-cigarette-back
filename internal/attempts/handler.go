@@ -271,6 +271,10 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, ErrAlreadySubmitted):
 		httpx.WriteError(w, r, http.StatusConflict, "ATTEMPT_ALREADY_SUBMITTED", "Attempt was already submitted", nil)
 	default:
+		// A cancelled request means the client is gone, not a server failure.
+		if httpx.ClientGone(w, r, err) {
+			return
+		}
 		h.logger.ErrorContext(r.Context(), "attempts request failed",
 			"request_id", httpx.RequestID(r.Context()),
 			"error", err,

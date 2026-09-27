@@ -291,3 +291,43 @@ func v1Question(t *testing.T, result ImportResult, number int) Question {
 	t.Fatalf("question %d not found", number)
 	return Question{}
 }
+
+func TestParseImportV1StructuredExplanation(t *testing.T) {
+	t.Parallel()
+	src := `# IELTS_READING_IMPORT_V1
+title: Structured Explanation Test
+exam_type: ACADEMIC
+duration_minutes: 60
+## PASSAGE 1
+title: Synthetic Passage
+### TEXT
+Researchers observed a fictional bird in a protected forest.
+### GROUP 1
+range: 1-1
+type: TRUE_FALSE_NOT_GIVEN
+instruction:
+Do the statements agree?
+1. The bird was observed in a protected forest.
+## ANSWERS
+1: TRUE
+## EXPLANATIONS
+### 1
+quote: "Researchers observed a fictional bird in a protected forest."
+hint: Check the first sentence of the passage.
+explanation: The statement directly matches the text verbatim.
+`
+	result := ParseImport(ImportParseInput{Source: src, Difficulty: "intermediate"})
+	if len(result.Errors) != 0 {
+		t.Fatalf("errors = %#v", result.Errors)
+	}
+	q1 := v1Question(t, result, 1)
+	if q1.Content["quote"] != "Researchers observed a fictional bird in a protected forest." {
+		t.Fatalf("expected quote in content, got: %#v", q1.Content["quote"])
+	}
+	if q1.Content["hint"] != "Check the first sentence of the passage." {
+		t.Fatalf("expected hint in content, got: %#v", q1.Content["hint"])
+	}
+	if !strings.Contains(q1.Explanation, "The statement directly matches the text verbatim.") {
+		t.Fatalf("expected explanation, got: %q", q1.Explanation)
+	}
+}

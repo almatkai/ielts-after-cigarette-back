@@ -116,6 +116,16 @@ func (s *stubRepository) ListAnswers(_ context.Context, attemptID uuid.UUID) ([]
 	return s.answers[attemptID], nil
 }
 
+func (s *stubRepository) ListAnswersByAttempts(_ context.Context, attemptIDs []uuid.UUID) (map[uuid.UUID][]Answer, error) {
+	items := make(map[uuid.UUID][]Answer, len(attemptIDs))
+	for _, attemptID := range attemptIDs {
+		if saved, ok := s.answers[attemptID]; ok {
+			items[attemptID] = saved
+		}
+	}
+	return items, nil
+}
+
 func (s *stubRepository) Submit(_ context.Context, result SubmitResult) error {
 	attempt, ok := s.attempts[result.AttemptID]
 	if !ok {

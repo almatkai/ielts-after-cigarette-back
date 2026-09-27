@@ -377,7 +377,26 @@ type rowScanner interface {
 
 func scanMaterial(row rowScanner) (Material, error) {
 	var material Material
-	err := row.Scan(
+	if err := row.Scan(materialScanTargets(&material)...); err != nil {
+		return Material{}, err
+	}
+	return material, nil
+}
+
+// scanMaterialVersion scans the same columns as scanMaterial followed by the
+// ID of the version that was joined, which is how the bulk grading loader
+// addresses the rows it fetches.
+func scanMaterialVersion(row rowScanner) (uuid.UUID, Material, error) {
+	var material Material
+	var versionID uuid.UUID
+	if err := row.Scan(append(materialScanTargets(&material), &versionID)...); err != nil {
+		return uuid.Nil, Material{}, err
+	}
+	return versionID, material, nil
+}
+
+func materialScanTargets(material *Material) []any {
+	return []any{
 		&material.ID,
 		&material.Slug,
 		&material.ExamType,
@@ -398,8 +417,7 @@ func scanMaterial(row rowScanner) (Material, error) {
 		&material.PublishedAt,
 		&material.CreatedAt,
 		&material.UpdatedAt,
-	)
-	return material, err
+	}
 }
 
 func insertQuestionGroups(ctx context.Context, tx pgx.Tx, versionID uuid.UUID, groups []QuestionGroup, actorID uuid.UUID) error {
@@ -477,14 +495,11 @@ func (r *PostgresRepository) questionGroups(ctx context.Context, materialID uuid
 			groups[len(groups)-1].Questions = []Question{}
 		}
 		if qID != nil {
-			var qContent, qAnswer map[string]any
-			if err := json.Unmarshal(content, &qContent); err != nil {
-				return nil, fmt.Errorf("decode question content: %w", err)
+			question, err := buildQuestion(*qID, *position, *prompt, content, answer, *explanation, *points)
+			if err != nil {
+				return nil, err
 			}
-			if err := json.Unmarshal(answer, &qAnswer); err != nil {
-				return nil, fmt.Errorf("decode question answer: %w", err)
-			}
-			groups[byID[group.ID]].Questions = append(groups[byID[group.ID]].Questions, Question{ID: *qID, Position: *position, Prompt: *prompt, Content: qContent, Answer: qAnswer, Explanation: *explanation, Points: *points})
+			groups[byID[group.ID]].Questions = append(groups[byID[group.ID]].Questions, question)
 		}
 	}
 	if err := rows.Err(); err != nil {

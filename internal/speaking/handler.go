@@ -181,6 +181,9 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, ErrRevisionConflict):
 		httpx.WriteError(w, r, http.StatusConflict, "REVISION_CONFLICT", "Speaking material was changed by another editor", nil)
 	default:
+		if httpx.ClientGone(w, r, err) {
+			return
+		}
 		h.logger.ErrorContext(r.Context(), "speaking request failed", "request_id", httpx.RequestID(r.Context()), "error", err)
 		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Request failed", nil)
 	}

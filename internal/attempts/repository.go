@@ -5,11 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// rowScanner is satisfied by both pgx.Row and pgx.Rows, so a single decoder can
+// serve a single-row and a bulk query.
+type rowScanner interface {
+	Scan(...any) error
+}
 
 const attemptColumns = `id, user_id, material_type, material_id, material_version_id,
 	status, score, max_score, band::double precision, started_at, submitted_at`
@@ -34,6 +41,10 @@ type Repository interface {
 	ListByUser(context.Context, uuid.UUID, string) ([]Summary, error)
 	SaveAnswers(context.Context, uuid.UUID, []AnswerInput) error
 	ListAnswers(context.Context, uuid.UUID) ([]Answer, error)
+	// ListAnswersByAttempts loads the graded answers of many attempts in one
+	// round trip, which keeps the mistakes page from paying a query per
+	// historical attempt.
+	ListAnswersByAttempts(context.Context, []uuid.UUID) (map[uuid.UUID][]Answer, error)
 	Submit(context.Context, SubmitResult) error
 }
 
@@ -183,6 +194,36 @@ func (r *PostgresRepository) ListAnswers(ctx context.Context, attemptID uuid.UUI
 	return items, rows.Err()
 }
 
+func (r *PostgresRepository) ListAnswersByAttempts(ctx context.Context, attemptIDs []uuid.UUID) (map[uuid.UUID][]Answer, error) {
+	items := map[uuid.UUID][]Answer{}
+	if len(attemptIDs) == 0 {
+		return items, nil
+	}
+	rows, err := r.pool.Query(ctx, `SELECT attempt_id, question_id, answer, is_correct, points_awarded
+		FROM attempt_answers WHERE attempt_id = ANY($1) ORDER BY attempt_id, question_id`, attemptIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list attempt answers by attempts: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var attemptID uuid.UUID
+		var item Answer
+		var raw []byte
+		if err := rows.Scan(&attemptID, &item.QuestionID, &raw, &item.IsCorrect, &item.PointsAwarded); err != nil {
+			return nil, fmt.Errorf("scan attempt answer: %w", err)
+		}
+		_ = json.Unmarshal(raw, &item.Answer)
+		if item.Answer == nil {
+			item.Answer = map[string]any{}
+		}
+		items[attemptID] = append(items[attemptID], item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate attempt answers: %w", err)
+	}
+	return items, nil
+}
+
 func (r *PostgresRepository) Submit(ctx context.Context, result SubmitResult) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -287,80 +328,180 @@ func (r *PostgresRepository) Submit(ctx context.Context, result SubmitResult) er
 	return tx.Commit(ctx)
 }
 
+const writingEvaluationSelect = `SELECT attempt_id, model, overall_band::double precision,
+	task_response_band::double precision, coherence_band::double precision,
+	lexical_resource_band::double precision, grammar_band::double precision,
+	feedback, evaluated_at
+	FROM writing_evaluations`
+
+type writingEvaluationRow struct {
+	attemptID                                         uuid.UUID
+	model                                             string
+	overallBand                                       float64
+	taskResponse, coherence, lexicalResource, grammar float64
+	feedback                                          []byte
+	evaluatedAt                                       time.Time
+}
+
+func (row *writingEvaluationRow) scan(source rowScanner) error {
+	return source.Scan(&row.attemptID, &row.model, &row.overallBand, &row.taskResponse,
+		&row.coherence, &row.lexicalResource, &row.grammar, &row.feedback, &row.evaluatedAt)
+}
+
+func (row writingEvaluationRow) decode() (WritingEvaluation, error) {
+	var stored struct {
+		Summary  string                `json:"summary"`
+		Criteria WritingCriteria       `json:"criteria"`
+		Tasks    []WritingTaskFeedback `json:"tasks"`
+	}
+	if err := json.Unmarshal(row.feedback, &stored); err != nil {
+		return WritingEvaluation{}, fmt.Errorf("decode writing evaluation: %w", err)
+	}
+	evaluation := WritingEvaluation{
+		AttemptID:   row.attemptID,
+		Model:       row.model,
+		OverallBand: row.overallBand,
+		Summary:     stored.Summary,
+		Tasks:       stored.Tasks,
+		EvaluatedAt: row.evaluatedAt,
+	}
+	evaluation.Criteria.TaskResponse = WritingCriterion{Band: row.taskResponse, Feedback: stored.Criteria.TaskResponse.Feedback}
+	evaluation.Criteria.Coherence = WritingCriterion{Band: row.coherence, Feedback: stored.Criteria.Coherence.Feedback}
+	evaluation.Criteria.LexicalResource = WritingCriterion{Band: row.lexicalResource, Feedback: stored.Criteria.LexicalResource.Feedback}
+	evaluation.Criteria.Grammar = WritingCriterion{Band: row.grammar, Feedback: stored.Criteria.Grammar.Feedback}
+	return evaluation, nil
+}
+
 func (r *PostgresRepository) GetWritingEvaluation(ctx context.Context, attemptID uuid.UUID) (WritingEvaluation, error) {
-	var evaluation WritingEvaluation
-	var feedback []byte
-	err := r.pool.QueryRow(ctx, `SELECT model, overall_band::double precision,
-		task_response_band::double precision, coherence_band::double precision,
-		lexical_resource_band::double precision, grammar_band::double precision,
-		feedback, evaluated_at
-		FROM writing_evaluations WHERE attempt_id=$1`, attemptID).Scan(
-		&evaluation.Model, &evaluation.OverallBand, &evaluation.Criteria.TaskResponse.Band,
-		&evaluation.Criteria.Coherence.Band, &evaluation.Criteria.LexicalResource.Band,
-		&evaluation.Criteria.Grammar.Band, &feedback, &evaluation.EvaluatedAt)
+	var row writingEvaluationRow
+	err := row.scan(r.pool.QueryRow(ctx, writingEvaluationSelect+` WHERE attempt_id=$1`, attemptID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return WritingEvaluation{}, ErrNotFound
 	}
 	if err != nil {
 		return WritingEvaluation{}, fmt.Errorf("get writing evaluation: %w", err)
 	}
-	var stored struct {
-		Summary  string                `json:"summary"`
-		Criteria WritingCriteria       `json:"criteria"`
-		Tasks    []WritingTaskFeedback `json:"tasks"`
-	}
-	if err := json.Unmarshal(feedback, &stored); err != nil {
-		return WritingEvaluation{}, fmt.Errorf("decode writing evaluation: %w", err)
-	}
-	evaluation.AttemptID = attemptID
-	evaluation.Summary = stored.Summary
-	evaluation.Tasks = stored.Tasks
-	evaluation.Criteria.TaskResponse.Feedback = stored.Criteria.TaskResponse.Feedback
-	evaluation.Criteria.Coherence.Feedback = stored.Criteria.Coherence.Feedback
-	evaluation.Criteria.LexicalResource.Feedback = stored.Criteria.LexicalResource.Feedback
-	evaluation.Criteria.Grammar.Feedback = stored.Criteria.Grammar.Feedback
-	return evaluation, nil
+	return row.decode()
 }
 
-func (r *PostgresRepository) GetSpeakingEvaluation(ctx context.Context, attemptID uuid.UUID) (SpeakingEvaluation, error) {
-	var evaluation SpeakingEvaluation
-	var feedback []byte
-	var pronunciationBand *float64
-	err := r.pool.QueryRow(ctx, `SELECT model, overall_band::double precision,
-		fluency_band::double precision, lexical_resource_band::double precision,
-		grammar_band::double precision, pronunciation_band::double precision,
-		feedback, evaluated_at
-		FROM speaking_evaluations WHERE attempt_id=$1`, attemptID).Scan(
-		&evaluation.Model, &evaluation.OverallBand, &evaluation.Criteria.Fluency.Band,
-		&evaluation.Criteria.LexicalResource.Band, &evaluation.Criteria.Grammar.Band,
-		&pronunciationBand, &feedback, &evaluation.EvaluatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return SpeakingEvaluation{}, ErrNotFound
+// GetWritingEvaluations loads the AI feedback of many attempts in one round
+// trip, which the mistakes page needs for historical attempts.
+func (r *PostgresRepository) GetWritingEvaluations(ctx context.Context, attemptIDs []uuid.UUID) (map[uuid.UUID]WritingEvaluation, error) {
+	items := map[uuid.UUID]WritingEvaluation{}
+	if len(attemptIDs) == 0 {
+		return items, nil
 	}
+	rows, err := r.pool.Query(ctx, writingEvaluationSelect+` WHERE attempt_id = ANY($1)`, attemptIDs)
 	if err != nil {
-		return SpeakingEvaluation{}, fmt.Errorf("get speaking evaluation: %w", err)
+		return nil, fmt.Errorf("list writing evaluations: %w", err)
 	}
+	defer rows.Close()
+	for rows.Next() {
+		var row writingEvaluationRow
+		if err := row.scan(rows); err != nil {
+			return nil, fmt.Errorf("scan writing evaluation: %w", err)
+		}
+		evaluation, err := row.decode()
+		if err != nil {
+			return nil, err
+		}
+		items[evaluation.AttemptID] = evaluation
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate writing evaluations: %w", err)
+	}
+	return items, nil
+}
+
+const speakingEvaluationSelect = `SELECT attempt_id, model, overall_band::double precision,
+	fluency_band::double precision, lexical_resource_band::double precision,
+	grammar_band::double precision, pronunciation_band::double precision,
+	feedback, evaluated_at
+	FROM speaking_evaluations`
+
+type speakingEvaluationRow struct {
+	attemptID                         uuid.UUID
+	model                             string
+	overallBand                       float64
+	fluency, lexicalResource, grammar float64
+	pronunciationBand                 *float64
+	feedback                          []byte
+	evaluatedAt                       time.Time
+}
+
+func (row *speakingEvaluationRow) scan(source rowScanner) error {
+	return source.Scan(&row.attemptID, &row.model, &row.overallBand, &row.fluency,
+		&row.lexicalResource, &row.grammar, &row.pronunciationBand, &row.feedback, &row.evaluatedAt)
+}
+
+func (row speakingEvaluationRow) decode() (SpeakingEvaluation, error) {
 	var stored struct {
 		Summary                string                 `json:"summary"`
 		Criteria               SpeakingCriteria       `json:"criteria"`
 		Parts                  []SpeakingPartFeedback `json:"parts"`
 		PronunciationAvailable bool                   `json:"pronunciationAvailable"`
 	}
-	if err := json.Unmarshal(feedback, &stored); err != nil {
+	if err := json.Unmarshal(row.feedback, &stored); err != nil {
 		return SpeakingEvaluation{}, fmt.Errorf("decode speaking evaluation: %w", err)
 	}
-	evaluation.AttemptID = attemptID
-	evaluation.Summary = stored.Summary
-	evaluation.Parts = stored.Parts
-	evaluation.Criteria.Fluency.Feedback = stored.Criteria.Fluency.Feedback
-	evaluation.Criteria.LexicalResource.Feedback = stored.Criteria.LexicalResource.Feedback
-	evaluation.Criteria.Grammar.Feedback = stored.Criteria.Grammar.Feedback
-	evaluation.Criteria.Pronunciation.Feedback = stored.Criteria.Pronunciation.Feedback
-	evaluation.PronunciationAvailable = stored.PronunciationAvailable && pronunciationBand != nil
-	if pronunciationBand != nil {
-		evaluation.Criteria.Pronunciation.Band = *pronunciationBand
+	evaluation := SpeakingEvaluation{
+		AttemptID:   row.attemptID,
+		Model:       row.model,
+		OverallBand: row.overallBand,
+		Summary:     stored.Summary,
+		Parts:       stored.Parts,
+		EvaluatedAt: row.evaluatedAt,
+	}
+	evaluation.Criteria.Fluency = SpeakingCriterion{Band: row.fluency, Feedback: stored.Criteria.Fluency.Feedback}
+	evaluation.Criteria.LexicalResource = SpeakingCriterion{Band: row.lexicalResource, Feedback: stored.Criteria.LexicalResource.Feedback}
+	evaluation.Criteria.Grammar = SpeakingCriterion{Band: row.grammar, Feedback: stored.Criteria.Grammar.Feedback}
+	evaluation.Criteria.Pronunciation = SpeakingCriterion{Band: 0, Feedback: stored.Criteria.Pronunciation.Feedback}
+	evaluation.PronunciationAvailable = stored.PronunciationAvailable && row.pronunciationBand != nil
+	if row.pronunciationBand != nil {
+		evaluation.Criteria.Pronunciation.Band = *row.pronunciationBand
 	}
 	return evaluation, nil
+}
+
+func (r *PostgresRepository) GetSpeakingEvaluation(ctx context.Context, attemptID uuid.UUID) (SpeakingEvaluation, error) {
+	var row speakingEvaluationRow
+	err := row.scan(r.pool.QueryRow(ctx, speakingEvaluationSelect+` WHERE attempt_id=$1`, attemptID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return SpeakingEvaluation{}, ErrNotFound
+	}
+	if err != nil {
+		return SpeakingEvaluation{}, fmt.Errorf("get speaking evaluation: %w", err)
+	}
+	return row.decode()
+}
+
+// GetSpeakingEvaluations loads the AI feedback of many attempts in one round
+// trip, which the mistakes page needs for historical attempts.
+func (r *PostgresRepository) GetSpeakingEvaluations(ctx context.Context, attemptIDs []uuid.UUID) (map[uuid.UUID]SpeakingEvaluation, error) {
+	items := map[uuid.UUID]SpeakingEvaluation{}
+	if len(attemptIDs) == 0 {
+		return items, nil
+	}
+	rows, err := r.pool.Query(ctx, speakingEvaluationSelect+` WHERE attempt_id = ANY($1)`, attemptIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list speaking evaluations: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var row speakingEvaluationRow
+		if err := row.scan(rows); err != nil {
+			return nil, fmt.Errorf("scan speaking evaluation: %w", err)
+		}
+		evaluation, err := row.decode()
+		if err != nil {
+			return nil, err
+		}
+		items[evaluation.AttemptID] = evaluation
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate speaking evaluations: %w", err)
+	}
+	return items, nil
 }
 
 func (r *PostgresRepository) UpsertSpeakingRecording(ctx context.Context, recording SpeakingRecording) (SpeakingRecording, string, error) {

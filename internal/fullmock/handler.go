@@ -249,6 +249,9 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, ErrSlugExists):
 		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_SLUG_EXISTS", "Full mock slug already exists", nil)
 	default:
+		if httpx.ClientGone(w, r, err) {
+			return
+		}
 		h.logger.ErrorContext(r.Context(), "full mock request failed", "request_id", httpx.RequestID(r.Context()), "error", err)
 		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Request failed", nil)
 	}
