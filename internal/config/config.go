@@ -60,6 +60,8 @@ type Config struct {
 	AISpeakingModel         string
 	AISpeakingAudioEnabled  bool
 	AITimeout               time.Duration
+	STTAPIKey               string
+	STTAPIURL               string
 	SpeechEnabled           bool
 	SpeechServiceURL        string
 	SpeechServiceToken      string
@@ -99,6 +101,8 @@ func Load() (Config, error) {
 		AIChatCompletionsURL:    env("AI_CHAT_COMPLETIONS_URL", "https://openrouter.ai/api/v1/chat/completions"),
 		AIModel:                 envFirstWithFallback("openrouter/free", "AI_MODEL", "OPENROUTER_MODEL"),
 		AISpeakingModel:         envFirstWithFallback("thinkingmachines/inkling-small:free", "AI_SPEAKING_MODEL", "OPENROUTER_SPEAKING_MODEL"),
+		STTAPIKey:               envFirst("STT_API_KEY", "AI_API_KEY"),
+		STTAPIURL:               env("STT_API_URL", "https://llm.alem.ai/v1/audio/transcriptions"),
 		SpeechServiceURL:        env("SPEECH_SERVICE_URL", "http://speech-service:8001"),
 		SpeechServiceToken:      os.Getenv("SPEECH_SERVICE_TOKEN"),
 	}

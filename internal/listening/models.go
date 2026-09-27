@@ -72,11 +72,13 @@ type QuestionGroup struct {
 }
 
 type Part struct {
-	ID           uuid.UUID       `json:"id"`
-	Position     int             `json:"position"`
-	Title        string          `json:"title"`
-	AudioAssetID *uuid.UUID      `json:"audioAssetId"`
-	Groups       []QuestionGroup `json:"groups"`
+	ID                 uuid.UUID       `json:"id"`
+	Position           int             `json:"position"`
+	Title              string          `json:"title"`
+	AudioAssetID       *uuid.UUID      `json:"audioAssetId"`
+	Transcript         string          `json:"transcript,omitempty"`
+	TranscriptSegments []STTSegment    `json:"transcriptSegments,omitempty"`
+	Groups             []QuestionGroup `json:"groups"`
 }
 
 type Test struct {
@@ -127,11 +129,13 @@ type PublicQuestionGroup struct {
 }
 
 type PublicPart struct {
-	ID           uuid.UUID             `json:"id"`
-	Position     int                   `json:"position"`
-	Title        string                `json:"title"`
-	AudioAssetID *uuid.UUID            `json:"audioAssetId"`
-	Groups       []PublicQuestionGroup `json:"groups"`
+	ID                 uuid.UUID             `json:"id"`
+	Position           int                   `json:"position"`
+	Title              string                `json:"title"`
+	AudioAssetID       *uuid.UUID            `json:"audioAssetId"`
+	Transcript         string                `json:"transcript,omitempty"`
+	TranscriptSegments []STTSegment          `json:"transcriptSegments,omitempty"`
+	Groups             []PublicQuestionGroup `json:"groups"`
 }
 
 type PublicTest struct {

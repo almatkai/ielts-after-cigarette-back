@@ -236,9 +236,13 @@ func insertVersion(ctx context.Context, tx pgx.Tx, testID, versionID uuid.UUID, 
 	}
 	for partIndex, part := range input.Parts {
 		partID := uuid.New()
+		transcriptSegments, _ := json.Marshal(part.TranscriptSegments)
+		if part.TranscriptSegments == nil {
+			transcriptSegments = []byte("[]")
+		}
 		if _, err := tx.Exec(ctx, `INSERT INTO listening_parts
-			(id,test_version_id,position,title,audio_asset_id) VALUES ($1,$2,$3,$4,$5)`,
-			partID, versionID, partIndex+1, part.Title, part.AudioAssetID); err != nil {
+			(id,test_version_id,position,title,audio_asset_id,transcript,transcript_segments) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)`,
+			partID, versionID, partIndex+1, part.Title, part.AudioAssetID, part.Transcript, transcriptSegments); err != nil {
 			return fmt.Errorf("insert listening part: %w", err)
 		}
 		for groupIndex, group := range part.Groups {
@@ -266,7 +270,7 @@ func insertVersion(ctx context.Context, tx pgx.Tx, testID, versionID uuid.UUID, 
 }
 
 func (r *PostgresRepository) parts(ctx context.Context, versionID uuid.UUID) ([]Part, error) {
-	rows, err := r.pool.Query(ctx, `SELECT p.id,p.position,p.title,p.audio_asset_id,
+	rows, err := r.pool.Query(ctx, `SELECT p.id,p.position,p.title,p.audio_asset_id,p.transcript,p.transcript_segments,
 		g.id,g.position,g.question_type,g.instructions,g.context,g.config,g.image_asset_id,
 		q.id,q.position,q.number,q.prompt,q.content,q.answer,q.explanation,q.points
 		FROM listening_parts p
@@ -286,7 +290,9 @@ func (r *PostgresRepository) parts(ctx context.Context, versionID uuid.UUID) ([]
 		var groupType, instructions, contextText, prompt, explanation *string
 		var config, content, answer []byte
 		var imageID *uuid.UUID
-		if err := rows.Scan(&part.ID, &part.Position, &part.Title, &part.AudioAssetID,
+		var transcript string
+		var transcriptSegmentsRaw []byte
+		if err := rows.Scan(&part.ID, &part.Position, &part.Title, &part.AudioAssetID, &transcript, &transcriptSegmentsRaw,
 			&groupID, &groupPosition, &groupType, &instructions, &contextText, &config, &imageID,
 			&questionID, &questionPosition, &questionNumber, &prompt, &content, &answer, &explanation, &points); err != nil {
 			return nil, err
@@ -296,6 +302,13 @@ func (r *PostgresRepository) parts(ctx context.Context, versionID uuid.UUID) ([]
 			pi = len(parts)
 			partIndex[part.ID] = pi
 			part.Groups = []QuestionGroup{}
+			part.Transcript = transcript
+			if len(transcriptSegmentsRaw) > 0 {
+				_ = json.Unmarshal(transcriptSegmentsRaw, &part.TranscriptSegments)
+			}
+			if part.TranscriptSegments == nil {
+				part.TranscriptSegments = []STTSegment{}
+			}
 			parts = append(parts, part)
 		}
 		if groupID == nil {

@@ -114,6 +114,19 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	item, details, err := h.service.Archive(r.Context(), id, actor, input.Revision)
 	h.writeSave(w, r, http.StatusOK, item, details, err)
 }
+func (h *Handler) Transcribe(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	item, err := h.service.TranscribeTest(r.Context(), id, actor)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, item)
+}
 func (h *Handler) ParseImport(w http.ResponseWriter, r *http.Request) {
 	var input ImportParseInput
 	if !h.decode(w, r, &input) {

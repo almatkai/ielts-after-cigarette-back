@@ -75,17 +75,28 @@ func (p listeningProvider) GradingStructure(ctx context.Context, materialID, ver
 			for _, question := range group.Questions {
 				quote, _ := question.Content["quote"].(string)
 				hint, _ := question.Content["hint"].(string)
+				var tStart, tEnd *float64
+				if s, ok := question.Content["timestampStart"].(float64); ok {
+					tStart = &s
+				}
+				if e, ok := question.Content["timestampEnd"].(float64); ok {
+					tEnd = &e
+				}
 				questions = append(questions, GradingQuestion{
-					ID:          question.ID,
-					Number:      question.Number,
-					Prompt:      question.Prompt,
-					Type:        group.Type,
-					Content:     question.Content,
-					Answer:      question.Answer,
-					Explanation: question.Explanation,
-					Quote:       quote,
-					Hint:        hint,
-					Points:      question.Points,
+					ID:             question.ID,
+					Number:         question.Number,
+					Prompt:         question.Prompt,
+					Type:           group.Type,
+					Content:        question.Content,
+					Answer:         question.Answer,
+					Explanation:    question.Explanation,
+					Quote:          quote,
+					Hint:           hint,
+					Points:         question.Points,
+					TimestampStart: tStart,
+					TimestampEnd:   tEnd,
+					AudioAssetID:   part.AudioAssetID,
+					Transcript:     part.Transcript,
 				})
 			}
 		}

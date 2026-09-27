@@ -510,18 +510,22 @@ func reviewFromMaterial(material GradingMaterial, saved []Answer) []ReviewAnswer
 	review := []ReviewAnswer{}
 	for _, question := range material.Questions {
 		item := ReviewAnswer{
-			QuestionID:    question.ID,
-			Number:        question.Number,
-			Prompt:        question.Prompt,
-			Type:          question.Type,
-			Content:       question.Content,
-			Answer:        map[string]any{},
-			CorrectAnswer: question.Answer,
-			Explanation:   question.Explanation,
-			Quote:         question.Quote,
-			Hint:          question.Hint,
-			PassageTitle:  question.PassageTitle,
-			PassageBody:   question.PassageBody,
+			QuestionID:     question.ID,
+			Number:         question.Number,
+			Prompt:         question.Prompt,
+			Type:           question.Type,
+			Content:        question.Content,
+			Answer:         map[string]any{},
+			CorrectAnswer:  question.Answer,
+			Explanation:    question.Explanation,
+			Quote:          question.Quote,
+			Hint:           question.Hint,
+			PassageTitle:   question.PassageTitle,
+			PassageBody:    question.PassageBody,
+			TimestampStart: question.TimestampStart,
+			TimestampEnd:   question.TimestampEnd,
+			AudioAssetID:   question.AudioAssetID,
+			Transcript:     question.Transcript,
 		}
 		if answer, ok := byID[question.ID]; ok {
 			item.Answer = answer.Answer

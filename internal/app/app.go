@@ -100,6 +100,14 @@ func New(
 	if sharedObjectStore != nil {
 		listeningService = listening.NewServiceWithStorage(listeningRepository, sharedObjectStore)
 	}
+	sttService := listening.NewSTTService(
+		cfg.STTAPIURL,
+		cfg.STTAPIKey,
+		cfg.AIChatCompletionsURL,
+		cfg.AIAPIKey,
+		cfg.AIModel,
+	)
+	listeningService.WithSTTService(sttService)
 	listeningHandler := listening.NewHandler(listeningService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 	attemptsRepository := attempts.NewPostgresRepository(pool)
 	speakingMediaLimit := cfg.MaxMediaUploadBytes
@@ -274,6 +282,7 @@ func New(
 				adminRouter.Post("/listening/import/parse", listeningHandler.ParseImport)
 				adminRouter.Post("/listening/import", listeningHandler.Import)
 				adminRouter.Post("/listening/media", listeningHandler.UploadMedia)
+				adminRouter.Post("/listening/tests/{testID}/transcribe", listeningHandler.Transcribe)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/publish", listeningHandler.Publish)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/archive", listeningHandler.Archive)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/waitlist", waitlistHandler.AdminList)
@@ -333,6 +342,9 @@ func isMediaUpload(r *http.Request) bool {
 		return true
 	}
 	if r.URL.Path == "/api/v1/admin/writing/media" {
+		return true
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/admin/listening/tests/") && strings.HasSuffix(r.URL.Path, "/transcribe") {
 		return true
 	}
 	return strings.HasPrefix(r.URL.Path, "/api/v1/attempts/") && strings.HasSuffix(r.URL.Path, "/recordings")

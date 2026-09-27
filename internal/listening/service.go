@@ -2,6 +2,7 @@ package listening
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -19,6 +20,7 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 type Service struct {
 	repository Repository
 	mediaStore objectstorage.Store
+	sttService *STTService
 }
 
 func NewService(repository Repository, mediaDir string) *Service {
@@ -27,6 +29,11 @@ func NewService(repository Repository, mediaDir string) *Service {
 
 func NewServiceWithStorage(repository Repository, mediaStore objectstorage.Store) *Service {
 	return &Service{repository: repository, mediaStore: mediaStore}
+}
+
+func (s *Service) WithSTTService(stt *STTService) *Service {
+	s.sttService = stt
+	return s
 }
 
 func (s *Service) ListAdmin(ctx context.Context) ([]Test, error) {
@@ -210,7 +217,15 @@ func supported(value string) bool {
 func publicTest(item Test) PublicTest {
 	result := PublicTest{ID: item.ID, Slug: item.Slug, ExamType: item.ExamType, Title: item.Title, Description: item.Description, DurationMinutes: item.DurationMinutes, Parts: []PublicPart{}}
 	for _, part := range item.Parts {
-		pp := PublicPart{ID: part.ID, Position: part.Position, Title: part.Title, AudioAssetID: part.AudioAssetID, Groups: []PublicQuestionGroup{}}
+		pp := PublicPart{
+			ID:                 part.ID,
+			Position:           part.Position,
+			Title:              part.Title,
+			AudioAssetID:       part.AudioAssetID,
+			Transcript:         part.Transcript,
+			TranscriptSegments: part.TranscriptSegments,
+			Groups:             []PublicQuestionGroup{},
+		}
 		for _, group := range part.Groups {
 			pg := PublicQuestionGroup{ID: group.ID, Position: group.Position, Type: group.Type, Instructions: group.Instructions, Context: group.Context, Config: group.Config, ImageAssetID: group.ImageAssetID, Questions: []PublicQuestion{}}
 			for _, q := range group.Questions {
@@ -253,3 +268,93 @@ func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (
 	}
 	return media, object, nil
 }
+
+func (s *Service) TranscribeTest(ctx context.Context, testID, actorID uuid.UUID) (Test, error) {
+	if s.sttService == nil {
+		return Test{}, errors.New("STT service is not configured")
+	}
+	test, err := s.repository.Get(ctx, testID, false)
+	if err != nil {
+		return Test{}, err
+	}
+
+	updatedParts := make([]Part, len(test.Parts))
+	copy(updatedParts, test.Parts)
+
+	sttCache := make(map[uuid.UUID]STTResult)
+
+	for i := range updatedParts {
+		part := &updatedParts[i]
+		if part.AudioAssetID == nil {
+			continue
+		}
+		sttRes, ok := sttCache[*part.AudioAssetID]
+		if !ok {
+			media, stream, err := s.Media(ctx, *part.AudioAssetID, false)
+			if err != nil {
+				return Test{}, fmt.Errorf("open audio for part %d: %w", part.Position, err)
+			}
+			sttRes, err = s.sttService.Transcribe(ctx, media.OriginalName, stream)
+			_ = stream.Close()
+			if err != nil {
+				return Test{}, fmt.Errorf("transcribe part %d: %w", part.Position, err)
+			}
+			sttCache[*part.AudioAssetID] = sttRes
+		}
+
+		part.Transcript = sttRes.Text
+		part.TranscriptSegments = sttRes.Segments
+
+		var questions []Question
+		for _, g := range part.Groups {
+			questions = append(questions, g.Questions...)
+		}
+
+		if len(questions) > 0 && len(part.TranscriptSegments) > 0 {
+			alignments, err := s.sttService.Align(ctx, part.TranscriptSegments, questions)
+			if err == nil && len(alignments) > 0 {
+				alignMap := make(map[int]QuestionAlignment)
+				for _, a := range alignments {
+					alignMap[a.Number] = a
+				}
+				for gi := range part.Groups {
+					for qi := range part.Groups[gi].Questions {
+						q := &part.Groups[gi].Questions[qi]
+						if a, ok := alignMap[q.Number]; ok {
+							if q.Content == nil {
+								q.Content = make(map[string]any)
+							}
+							q.Content["timestampStart"] = a.Start
+							q.Content["timestampEnd"] = a.End
+							if a.Quote != "" {
+								q.Content["quote"] = a.Quote
+							}
+							if a.Hint != "" {
+								q.Content["hint"] = a.Hint
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	updatedTest, validationErrors, err := s.Update(ctx, test.ID, actorID, SaveInput{
+		Slug:            test.Slug,
+		ExamType:        test.ExamType,
+		Title:           test.Title,
+		Description:     test.Description,
+		DurationMinutes: test.DurationMinutes,
+		Parts:           updatedParts,
+		Revision:        test.Revision,
+	})
+	if err != nil {
+		return Test{}, err
+	}
+	if len(validationErrors) > 0 {
+		return Test{}, fmt.Errorf("validation error updating transcribed test: %v", validationErrors)
+	}
+
+	return updatedTest, nil
+}
+
