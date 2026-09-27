@@ -19,12 +19,17 @@ type Service struct {
 	maxSpeakingMedia  int64
 	examGuard         ExamGuard
 	speakingJobs      SpeakingJobQueue
+	writingJobs       WritingJobQueue
 	gradingCache      *gradingCache
 }
 
 type SpeakingJobQueue interface {
 	EnqueueTranscription(context.Context, uuid.UUID) error
 	EnqueueAssessment(context.Context, uuid.UUID) error
+}
+
+type WritingJobQueue interface {
+	EnqueueWritingAssessment(context.Context, uuid.UUID) error
 }
 
 type ExamGuard interface {
@@ -62,6 +67,11 @@ func (s *Service) WithSpeakingObjectStore(store objectstorage.Store, maxBytes in
 
 func (s *Service) WithSpeakingPipeline(queue SpeakingJobQueue) *Service {
 	s.speakingJobs = queue
+	return s
+}
+
+func (s *Service) WithWritingPipeline(queue WritingJobQueue) *Service {
+	s.writingJobs = queue
 	return s
 }
 
@@ -310,6 +320,19 @@ func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input Save
 		request.Tasks = append(request.Tasks, WritingTaskAnswer{Task: task, Text: text})
 		answers = append(answers, Answer{QuestionID: task.ID, Answer: map[string]any{"value": text}})
 	}
+	if s.writingJobs != nil {
+		repository, ok := s.repository.(interface {
+			QueueWritingAssessment(context.Context, uuid.UUID, []AnswerInput) error
+		})
+		if !ok {
+			return Attempt{}, ErrAIUnavailable
+		}
+		if err := repository.QueueWritingAssessment(ctx, attempt.ID, input.Answers); err != nil {
+			return Attempt{}, err
+		}
+		_ = s.writingJobs.EnqueueWritingAssessment(ctx, attempt.ID)
+		return s.repository.Get(ctx, attempt.ID)
+	}
 	if s.evaluator == nil {
 		return Attempt{}, ErrAIUnavailable
 	}
@@ -473,7 +496,19 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 		}
 		return Detail{Attempt: attempt, Answers: saved, Recordings: recordings, SpeakingEvaluation: &evaluation}, nil
 	}
-	if attempt.Status == StatusInProgress {
+	if attempt.Status == StatusInProgress || attempt.Status == StatusProcessing {
+		if attempt.MaterialType == MaterialWriting {
+			detail := Detail{Attempt: attempt, Answers: saved}
+			if repository, ok := s.repository.(interface {
+				GetWritingAssessmentJob(context.Context, uuid.UUID) (WritingAssessmentJob, error)
+			}); ok {
+				job, jobErr := repository.GetWritingAssessmentJob(ctx, attemptID)
+				if jobErr == nil {
+					detail.WritingAssessment = &job
+				}
+			}
+			return detail, nil
+		}
 		return Detail{Attempt: attempt, Answers: saved}, nil
 	}
 	if attempt.MaterialType == MaterialWriting {

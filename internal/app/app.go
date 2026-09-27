@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -29,6 +30,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/writingpipeline"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -130,6 +132,23 @@ func New(
 	}
 	if cfg.SpeechEnabled {
 		attemptsService.WithSpeakingPipeline(jobs.NewSpeakingQueue(redisClient))
+	}
+	if redisClient != nil {
+		writingQueue := jobs.NewWritingQueue(redisClient)
+		attemptsService.WithWritingPipeline(writingQueue)
+
+		writingWorker := writingpipeline.NewWorker(
+			attemptsRepository,
+			attempts.NewWritingProvider(writingService),
+			aiEvaluator,
+			writingQueue,
+			logger,
+		)
+		go func() {
+			if err := writingWorker.Run(context.Background()); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("in-process writing worker stopped", "error", err)
+			}
+		}()
 	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)

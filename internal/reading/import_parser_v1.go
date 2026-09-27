@@ -676,15 +676,15 @@ func canonicalAnswerLimit(value string) (int, bool, bool) {
 	switch strings.ToUpper(strings.TrimSpace(value)) {
 	case "ONE_WORD_ONLY":
 		return 1, false, true
-	case "ONE_WORD_AND_OR_NUMBER":
+	case "ONE_WORD_OR_A_NUMBER", "ONE_WORD_AND_OR_NUMBER", "ONE_WORD_OR_NUMBER":
 		return 1, true, true
 	case "NO_MORE_THAN_TWO_WORDS":
 		return 2, false, true
-	case "NO_MORE_THAN_TWO_WORDS_AND_OR_NUMBER":
+	case "NO_MORE_THAN_TWO_WORDS_AND_OR_NUMBER", "NO_MORE_THAN_TWO_WORDS_OR_A_NUMBER", "NO_MORE_THAN_TWO_WORDS_OR_NUMBER":
 		return 2, true, true
 	case "NO_MORE_THAN_THREE_WORDS":
 		return 3, false, true
-	case "NO_MORE_THAN_THREE_WORDS_AND_OR_NUMBER":
+	case "NO_MORE_THAN_THREE_WORDS_AND_OR_NUMBER", "NO_MORE_THAN_THREE_WORDS_OR_A_NUMBER", "NO_MORE_THAN_THREE_WORDS_OR_NUMBER":
 		return 3, true, true
 	default:
 		return 0, false, false

@@ -34,6 +34,7 @@ type stubRepository struct {
 	writingEvaluations  map[uuid.UUID]WritingEvaluation
 	speakingEvaluations map[uuid.UUID]SpeakingEvaluation
 	recordings          map[uuid.UUID][]SpeakingRecording
+	writingJobs         map[uuid.UUID]WritingAssessmentJob
 	submitted           *SubmitResult
 	createErr           error
 }
@@ -46,6 +47,7 @@ func newStubRepository() *stubRepository {
 		writingEvaluations:  map[uuid.UUID]WritingEvaluation{},
 		speakingEvaluations: map[uuid.UUID]SpeakingEvaluation{},
 		recordings:          map[uuid.UUID][]SpeakingRecording{},
+		writingJobs:         map[uuid.UUID]WritingAssessmentJob{},
 	}
 }
 
@@ -158,6 +160,28 @@ func (s *stubRepository) GetWritingEvaluation(_ context.Context, attemptID uuid.
 		return WritingEvaluation{}, ErrNotFound
 	}
 	return eval, nil
+}
+
+func (s *stubRepository) QueueWritingAssessment(_ context.Context, attemptID uuid.UUID, answers []AnswerInput) error {
+	att, ok := s.attempts[attemptID]
+	if !ok {
+		return ErrNotFound
+	}
+	if att.Status != StatusInProgress {
+		return ErrAlreadySubmitted
+	}
+	att.Status = StatusProcessing
+	s.attempts[attemptID] = att
+	s.writingJobs[attemptID] = WritingAssessmentJob{Status: "QUEUED"}
+	return nil
+}
+
+func (s *stubRepository) GetWritingAssessmentJob(_ context.Context, attemptID uuid.UUID) (WritingAssessmentJob, error) {
+	job, ok := s.writingJobs[attemptID]
+	if !ok {
+		return WritingAssessmentJob{}, ErrNotFound
+	}
+	return job, nil
 }
 
 func (s *stubRepository) GetSpeakingEvaluation(_ context.Context, attemptID uuid.UUID) (SpeakingEvaluation, error) {
@@ -807,6 +831,55 @@ func TestWritingSubmitWithEvaluator(t *testing.T) {
 	}
 	if detail.WritingEvaluation == nil || detail.WritingEvaluation.OverallBand != 7.0 {
 		t.Fatalf("expected writing evaluation with overall band 7.0, got %+v", detail.WritingEvaluation)
+	}
+}
+
+type stubWritingQueue struct {
+	enqueued []uuid.UUID
+}
+
+func (q *stubWritingQueue) EnqueueWritingAssessment(_ context.Context, attemptID uuid.UUID) error {
+	q.enqueued = append(q.enqueued, attemptID)
+	return nil
+}
+
+func TestWritingSubmitWithAsyncPipeline(t *testing.T) {
+	repo := newStubRepository()
+	queue := &stubWritingQueue{}
+	svc := NewService(repo, map[string]MaterialProvider{
+		MaterialWriting: writingStubProvider(),
+	}).WithWritingPipeline(queue)
+
+	att, _, created, err := svc.Start(context.Background(), testUserID, MaterialWriting, testMaterialID)
+	if err != nil || !created {
+		t.Fatalf("start writing failed: %v", err)
+	}
+
+	submitted, err := svc.Submit(context.Background(), testUserID, att.ID, SaveAnswersInput{
+		Answers: []AnswerInput{
+			{QuestionID: questionChoiceID, Answer: map[string]any{"value": "essay task 1 response"}},
+			{QuestionID: questionMatchingID, Answer: map[string]any{"value": generateWords(260)}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("submit writing failed: %v", err)
+	}
+	if submitted.Status != StatusProcessing {
+		t.Fatalf("expected status %s, got %s", StatusProcessing, submitted.Status)
+	}
+	if len(queue.enqueued) != 1 || queue.enqueued[0] != att.ID {
+		t.Fatalf("expected attempt %s enqueued, got %v", att.ID, queue.enqueued)
+	}
+
+	detail, err := svc.Get(context.Background(), testUserID, att.ID)
+	if err != nil {
+		t.Fatalf("get detail failed: %v", err)
+	}
+	if detail.Status != StatusProcessing {
+		t.Fatalf("expected status %s, got %s", StatusProcessing, detail.Status)
+	}
+	if detail.WritingAssessment == nil || detail.WritingAssessment.Status != "QUEUED" {
+		t.Fatalf("expected writing assessment status QUEUED, got %+v", detail.WritingAssessment)
 	}
 }
 

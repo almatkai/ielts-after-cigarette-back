@@ -238,6 +238,13 @@ type SpeakingAssessmentJob struct {
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
+type WritingAssessmentJob struct {
+	Status       string `json:"status"`
+	Attempts     int    `json:"attempts"`
+	ErrorCode    string `json:"errorCode,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}
+
 type SpeakingRecording struct {
 	ID            uuid.UUID              `json:"id"`
 	AttemptID     uuid.UUID              `json:"-"`
@@ -287,6 +294,7 @@ type Detail struct {
 	SpeakingEvaluation *SpeakingEvaluation    `json:"speakingEvaluation,omitempty"`
 	Recordings         []SpeakingRecording    `json:"recordings,omitempty"`
 	SpeakingAssessment *SpeakingAssessmentJob `json:"speakingAssessment,omitempty"`
+	WritingAssessment  *WritingAssessmentJob  `json:"writingAssessment,omitempty"`
 }
 
 // MistakeReport combines a submitted attempt with the material needed by the

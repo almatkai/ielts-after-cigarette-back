@@ -190,7 +190,8 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 	if err != nil {
 		return Session{}, err
 	}
-	if session.CurrentSection < 1 || session.CurrentSection > len(sections) || sections[session.CurrentSection-1].Attempt.Status != attempts.StatusSubmitted {
+	currentStatus := sections[session.CurrentSection-1].Attempt.Status
+	if session.CurrentSection < 1 || session.CurrentSection > len(sections) || (currentStatus != attempts.StatusSubmitted && currentStatus != attempts.StatusProcessing) {
 		return Session{}, ErrSectionIncomplete
 	}
 	if session.CurrentSection == len(sections) {

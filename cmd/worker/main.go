@@ -19,6 +19,8 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speakingpipeline"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speech"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/writingpipeline"
 )
 
 func main() { os.Exit(run()) }
@@ -65,13 +67,33 @@ func run() int {
 	evaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
 		WithSpeakingModel(cfg.AISpeakingModel).WithSpeakingAudio(false)
 	speechClient := speech.NewClient(cfg.SpeechServiceURL, cfg.SpeechServiceToken, &http.Client{Timeout: cfg.SpeechTimeout})
-	worker := speakingpipeline.NewWorker(repository, provider, store, speechClient, evaluator, jobs.NewSpeakingQueue(redisClient), logger)
-	logger.Info("speaking worker started")
-	if err := worker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		logger.Error("speaking worker stopped", "error", err)
+	speakingWorker := speakingpipeline.NewWorker(repository, provider, store, speechClient, evaluator, jobs.NewSpeakingQueue(redisClient), logger)
+
+	writingRepository := writing.NewPostgresRepository(pool)
+	writingProvider := attempts.NewWritingProvider(writing.NewService(writingRepository))
+	writingWorker := writingpipeline.NewWorker(repository, writingProvider, evaluator, jobs.NewWritingQueue(redisClient), logger)
+
+	logger.Info("workers started", "speaking", true, "writing", true)
+
+	workerErrors := make(chan error, 2)
+	go func() {
+		if err := speakingWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			workerErrors <- err
+		}
+	}()
+	go func() {
+		if err := writingWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			workerErrors <- err
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return 0
+	case err := <-workerErrors:
+		logger.Error("worker stopped with error", "error", err)
 		return 1
 	}
-	return 0
 }
 
 func openStore(cfg config.Config) (objectstorage.Store, error) {

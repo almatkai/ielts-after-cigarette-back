@@ -156,16 +156,27 @@ func (r *PostgresRepository) SaveAnswers(ctx context.Context, attemptID uuid.UUI
 		return ErrAlreadySubmitted
 	}
 
-	for _, item := range answers {
-		answer, err := json.Marshal(item.Answer)
-		if err != nil {
-			return fmt.Errorf("marshal answer: %w", err)
+	if len(answers) > 0 {
+		batch := &pgx.Batch{}
+		for _, item := range answers {
+			answer, err := json.Marshal(item.Answer)
+			if err != nil {
+				return fmt.Errorf("marshal answer: %w", err)
+			}
+			batch.Queue(`INSERT INTO attempt_answers (attempt_id, question_id, answer)
+				VALUES ($1,$2,$3::jsonb)
+				ON CONFLICT (attempt_id, question_id) DO UPDATE SET answer = EXCLUDED.answer`,
+				attemptID, item.QuestionID, answer)
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO attempt_answers (attempt_id, question_id, answer)
-			VALUES ($1,$2,$3::jsonb)
-			ON CONFLICT (attempt_id, question_id) DO UPDATE SET answer = EXCLUDED.answer`,
-			attemptID, item.QuestionID, answer); err != nil {
-			return fmt.Errorf("save attempt answer: %w", err)
+		br := tx.SendBatch(ctx, batch)
+		for range answers {
+			if _, err := br.Exec(); err != nil {
+				_ = br.Close()
+				return fmt.Errorf("save attempt answer batch: %w", err)
+			}
+		}
+		if err := br.Close(); err != nil {
+			return fmt.Errorf("close attempt answer batch: %w", err)
 		}
 	}
 	return tx.Commit(ctx)
@@ -243,17 +254,28 @@ func (r *PostgresRepository) Submit(ctx context.Context, result SubmitResult) er
 		return ErrAlreadySubmitted
 	}
 
-	for _, item := range result.Answers {
-		answer, _ := json.Marshal(item.Answer)
-		if _, err := tx.Exec(ctx, `INSERT INTO attempt_answers
-			(attempt_id, question_id, answer, is_correct, points_awarded)
-			VALUES ($1,$2,$3::jsonb,$4,$5)
-			ON CONFLICT (attempt_id, question_id) DO UPDATE SET
-				answer = EXCLUDED.answer,
-				is_correct = EXCLUDED.is_correct,
-				points_awarded = EXCLUDED.points_awarded`,
-			result.AttemptID, item.QuestionID, answer, item.IsCorrect, item.PointsAwarded); err != nil {
-			return fmt.Errorf("save graded answer: %w", err)
+	if len(result.Answers) > 0 {
+		batch := &pgx.Batch{}
+		for _, item := range result.Answers {
+			answer, _ := json.Marshal(item.Answer)
+			batch.Queue(`INSERT INTO attempt_answers
+				(attempt_id, question_id, answer, is_correct, points_awarded)
+				VALUES ($1,$2,$3::jsonb,$4,$5)
+				ON CONFLICT (attempt_id, question_id) DO UPDATE SET
+					answer = EXCLUDED.answer,
+					is_correct = EXCLUDED.is_correct,
+					points_awarded = EXCLUDED.points_awarded`,
+				result.AttemptID, item.QuestionID, answer, item.IsCorrect, item.PointsAwarded)
+		}
+		br := tx.SendBatch(ctx, batch)
+		for range result.Answers {
+			if _, err := br.Exec(); err != nil {
+				_ = br.Close()
+				return fmt.Errorf("save graded answer batch: %w", err)
+			}
+		}
+		if err := br.Close(); err != nil {
+			return fmt.Errorf("close graded answer batch: %w", err)
 		}
 	}
 	command, err := tx.Exec(ctx, `UPDATE attempts SET status='SUBMITTED',
