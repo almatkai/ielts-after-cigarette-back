@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -129,6 +130,9 @@ func New(
 		attemptsService.WithSpeakingObjectStore(sharedObjectStore, speakingMediaLimit, aiEvaluator)
 	} else {
 		attemptsService.WithSpeakingRecordingStore(cfg.SpeakingMediaDir, speakingMediaLimit, aiEvaluator)
+	}
+	if sttService != nil {
+		attemptsService.WithSpeakingTranscriber(&speakingSTTAdapter{stt: sttService})
 	}
 	if cfg.SpeechEnabled {
 		attemptsService.WithSpeakingPipeline(jobs.NewSpeakingQueue(redisClient))
@@ -461,4 +465,16 @@ func cookieSameSite(value string) http.SameSite {
 	default:
 		return http.SameSiteLaxMode
 	}
+}
+
+type speakingSTTAdapter struct {
+	stt *listening.STTService
+}
+
+func (a *speakingSTTAdapter) Transcribe(ctx context.Context, filename string, audioStream io.Reader) (string, error) {
+	res, err := a.stt.Transcribe(ctx, filename, audioStream)
+	if err != nil {
+		return "", err
+	}
+	return res.Text, nil
 }

@@ -3,6 +3,7 @@ package attempts
 import (
 	"context"
 	"errors"
+	"io"
 	"math"
 	"strings"
 
@@ -17,10 +18,15 @@ type Service struct {
 	speakingEvaluator SpeakingEvaluator
 	speakingStore     objectstorage.Store
 	maxSpeakingMedia  int64
-	examGuard         ExamGuard
-	speakingJobs      SpeakingJobQueue
-	writingJobs       WritingJobQueue
-	gradingCache      *gradingCache
+	examGuard           ExamGuard
+	speakingJobs        SpeakingJobQueue
+	writingJobs         WritingJobQueue
+	speakingTranscriber SpeakingTranscriber
+	gradingCache        *gradingCache
+}
+
+type SpeakingTranscriber interface {
+	Transcribe(ctx context.Context, filename string, audioStream io.Reader) (string, error)
 }
 
 type SpeakingJobQueue interface {
@@ -62,6 +68,11 @@ func (s *Service) WithSpeakingObjectStore(store objectstorage.Store, maxBytes in
 	s.speakingStore = store
 	s.maxSpeakingMedia = maxBytes
 	s.speakingEvaluator = evaluator
+	return s
+}
+
+func (s *Service) WithSpeakingTranscriber(transcriber SpeakingTranscriber) *Service {
+	s.speakingTranscriber = transcriber
 	return s
 }
 
@@ -390,6 +401,17 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 		recording, hasRecording := recordingByPart[part.ID]
 		if transcript == "" && !hasRecording {
 			return Attempt{}, ErrSpeakingIncomplete
+		}
+		if transcript == "" && hasRecording && s.speakingTranscriber != nil && s.speakingStore != nil {
+			file, err := s.speakingStore.Open(ctx, recording.StorageKey)
+			if err == nil {
+				text, transcribeErr := s.speakingTranscriber.Transcribe(ctx, recording.OriginalName, file)
+				_ = file.Close()
+				if transcribeErr == nil && strings.TrimSpace(text) != "" {
+					transcript = strings.TrimSpace(text)
+					given[part.ID] = map[string]any{"value": transcript}
+				}
+			}
 		}
 		item := SpeakingPartAnswer{Part: part, Transcript: transcript}
 		if hasRecording && s.speakingJobs == nil {

@@ -9,6 +9,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -65,6 +67,18 @@ func NewSTTService(sttURL, sttKey, aiURL, aiKey, aiModel string) *STTService {
 func (s *STTService) Transcribe(ctx context.Context, filename string, audioStream io.Reader) (STTResult, error) {
 	if s.sttURL == "" {
 		return STTResult{}, errors.New("STT_API_URL is not configured")
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	if ext == ".webm" || ext == ".ogg" || ext == ".m4a" {
+		cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", "pipe:0", "-f", "wav", "-ar", "16000", "-ac", "1", "pipe:1")
+		cmd.Stdin = audioStream
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		if err := cmd.Run(); err == nil && out.Len() > 0 {
+			audioStream = &out
+			filename = strings.TrimSuffix(filename, ext) + ".wav"
+		}
 	}
 
 	var body bytes.Buffer
