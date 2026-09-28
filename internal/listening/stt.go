@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os/exec"
@@ -64,6 +65,38 @@ func NewSTTService(sttURL, sttKey, aiURL, aiKey, aiModel string) *STTService {
 	}
 }
 
+// convertToWav transcodes a compressed recording into 16 kHz mono PCM WAV so
+// the STT endpoint receives a format it reliably understands. The source
+// reader is fully consumed by ffmpeg, so a failure here must abort instead of
+// falling through: otherwise the caller would upload the already-drained
+// reader and send an empty payload to the STT API.
+func convertToWav(ctx context.Context, filename string, audioStream io.Reader) (io.Reader, string, error) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		return nil, "", fmt.Errorf("ffmpeg is required to transcode %s but was not found in PATH: %w", filename, err)
+	}
+
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", "pipe:0", "-f", "wav", "-ar", "16000", "-ac", "1", "pipe:1")
+	cmd.Stdin = audioStream
+	var out, errBuf bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil {
+		stderr := strings.TrimSpace(errBuf.String())
+		if stderr == "" {
+			stderr = "<no stderr output>"
+		}
+		slog.ErrorContext(ctx, "ffmpeg conversion failed", "filename", filename, "error", err, "stderr", stderr)
+		return nil, "", fmt.Errorf("ffmpeg conversion failed for %s: %w (stderr: %s)", filename, err, stderr)
+	}
+	if out.Len() == 0 {
+		slog.ErrorContext(ctx, "ffmpeg produced empty wav output", "filename", filename, "stderr", strings.TrimSpace(errBuf.String()))
+		return nil, "", fmt.Errorf("ffmpeg conversion produced empty output for %s", filename)
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	return &out, strings.TrimSuffix(filename, ext) + ".wav", nil
+}
+
 func (s *STTService) Transcribe(ctx context.Context, filename string, audioStream io.Reader) (STTResult, error) {
 	if s.sttURL == "" {
 		return STTResult{}, errors.New("STT_API_URL is not configured")
@@ -71,14 +104,12 @@ func (s *STTService) Transcribe(ctx context.Context, filename string, audioStrea
 
 	ext := strings.ToLower(filepath.Ext(filename))
 	if ext == ".webm" || ext == ".ogg" || ext == ".m4a" {
-		cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", "pipe:0", "-f", "wav", "-ar", "16000", "-ac", "1", "pipe:1")
-		cmd.Stdin = audioStream
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		if err := cmd.Run(); err == nil && out.Len() > 0 {
-			audioStream = &out
-			filename = strings.TrimSuffix(filename, ext) + ".wav"
+		converted, convertedName, err := convertToWav(ctx, filename, audioStream)
+		if err != nil {
+			return STTResult{}, err
 		}
+		audioStream = converted
+		filename = convertedName
 	}
 
 	var body bytes.Buffer

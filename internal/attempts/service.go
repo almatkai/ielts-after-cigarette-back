@@ -402,7 +402,13 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 		if transcript == "" && !hasRecording {
 			return Attempt{}, ErrSpeakingIncomplete
 		}
-		if transcript == "" && hasRecording && s.speakingTranscriber != nil && s.speakingStore != nil {
+		// Synchronous transcription is only a fallback for deployments without
+		// the speaking pipeline. When a queue is configured the worker
+		// transcribes asynchronously, and doing it here would block the HTTP
+		// request for the full STT round-trip (risking gateway timeouts) while
+		// the result is discarded: QueueSpeakingAssessment persists
+		// input.Answers, not the transcripts computed in this loop.
+		if s.speakingJobs == nil && transcript == "" && hasRecording && s.speakingTranscriber != nil && s.speakingStore != nil {
 			file, err := s.speakingStore.Open(ctx, recording.StorageKey)
 			if err == nil {
 				text, transcribeErr := s.speakingTranscriber.Transcribe(ctx, recording.OriginalName, file)

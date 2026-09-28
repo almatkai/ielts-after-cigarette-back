@@ -43,9 +43,16 @@ func (r *PostgresRepository) QueueWritingAssessment(ctx context.Context, attempt
 	return tx.Commit(ctx)
 }
 
+// PendingWritingAssessmentIDs returns QUEUED jobs that are ready to be (re)queued
+// into the worker queue. A grace period on updated_at keeps the 5-second
+// recoverPending tick from re-pushing attempt IDs that are still sitting in
+// Redis behind a slow LLM call. updated_at (not created_at) is the right
+// column: it is refreshed on both enqueue and failure, so retried jobs with
+// backoff are still picked up promptly.
 func (r *PostgresRepository) PendingWritingAssessmentIDs(ctx context.Context, limit int) ([]uuid.UUID, error) {
 	rows, err := r.pool.Query(ctx, `SELECT attempt_id FROM writing_assessment_jobs
 		WHERE status='QUEUED' AND attempts < 3 AND next_attempt_at <= CURRENT_TIMESTAMP
+		AND updated_at < CURRENT_TIMESTAMP - INTERVAL '30 seconds'
 		ORDER BY next_attempt_at, created_at LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
