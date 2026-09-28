@@ -16,6 +16,10 @@ type Repository interface {
 	List(context.Context, bool) ([]Test, error)
 	Get(context.Context, uuid.UUID, bool) (Test, error)
 	GetVersion(context.Context, uuid.UUID, uuid.UUID) (Test, error)
+	// GradingStructures loads the structure of many pinned versions with a
+	// bounded number of queries, which the mistakes page needs for the review
+	// of every historical attempt at once.
+	GradingStructures(context.Context, []VersionRef) (map[VersionRef]Test, error)
 	PublishedVersionID(context.Context, uuid.UUID) (uuid.UUID, error)
 	Create(context.Context, uuid.UUID, SaveInput) (Test, error)
 	Update(context.Context, uuid.UUID, uuid.UUID, SaveInput) (Test, error)
@@ -269,21 +273,41 @@ func insertVersion(ctx context.Context, tx pgx.Tx, testID, versionID uuid.UUID, 
 	return nil
 }
 
+const listeningPartsSelect = `SELECT p.test_version_id,p.id,p.position,p.title,p.audio_asset_id,p.transcript,p.transcript_segments,
+	g.id,g.position,g.question_type,g.instructions,g.context,g.config,g.image_asset_id,
+	q.id,q.position,q.number,q.prompt,q.content,q.answer,q.explanation,q.points
+	FROM listening_parts p
+	LEFT JOIN listening_question_groups g ON g.part_id=p.id
+	LEFT JOIN listening_questions q ON q.group_id=g.id
+	WHERE p.test_version_id = ANY($1) ORDER BY p.test_version_id,p.position,g.position,q.position`
+
+// parts loads the parts of one test version.
 func (r *PostgresRepository) parts(ctx context.Context, versionID uuid.UUID) ([]Part, error) {
-	rows, err := r.pool.Query(ctx, `SELECT p.id,p.position,p.title,p.audio_asset_id,p.transcript,p.transcript_segments,
-		g.id,g.position,g.question_type,g.instructions,g.context,g.config,g.image_asset_id,
-		q.id,q.position,q.number,q.prompt,q.content,q.answer,q.explanation,q.points
-		FROM listening_parts p
-		LEFT JOIN listening_question_groups g ON g.part_id=p.id
-		LEFT JOIN listening_questions q ON q.group_id=g.id
-		WHERE p.test_version_id=$1 ORDER BY p.position,g.position,q.position`, versionID)
+	byVersion, err := r.partsByVersion(ctx, []uuid.UUID{versionID})
+	if err != nil {
+		return nil, err
+	}
+	parts, ok := byVersion[versionID]
+	if !ok {
+		return []Part{}, nil
+	}
+	return parts, nil
+}
+
+// partsByVersion loads the parts, groups and questions of many versions in one
+// query. A version the query returns no part for is absent from the result and
+// the caller decides what an empty structure means.
+func (r *PostgresRepository) partsByVersion(ctx context.Context, versionIDs []uuid.UUID) (map[uuid.UUID][]Part, error) {
+	rows, err := r.pool.Query(ctx, listeningPartsSelect, versionIDs)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	parts := []Part{}
-	partIndex, groupIndex := map[uuid.UUID]int{}, map[uuid.UUID][2]int{}
+	parts := make(map[uuid.UUID][]Part, len(versionIDs))
+	partIndex := map[[2]uuid.UUID]int{}
+	groupIndex := map[[2]uuid.UUID][2]int{}
 	for rows.Next() {
+		var versionID uuid.UUID
 		var part Part
 		var groupID, questionID *uuid.UUID
 		var groupPosition, questionPosition, questionNumber, points *int
@@ -292,15 +316,16 @@ func (r *PostgresRepository) parts(ctx context.Context, versionID uuid.UUID) ([]
 		var imageID *uuid.UUID
 		var transcript string
 		var transcriptSegmentsRaw []byte
-		if err := rows.Scan(&part.ID, &part.Position, &part.Title, &part.AudioAssetID, &transcript, &transcriptSegmentsRaw,
+		if err := rows.Scan(&versionID, &part.ID, &part.Position, &part.Title, &part.AudioAssetID, &transcript, &transcriptSegmentsRaw,
 			&groupID, &groupPosition, &groupType, &instructions, &contextText, &config, &imageID,
 			&questionID, &questionPosition, &questionNumber, &prompt, &content, &answer, &explanation, &points); err != nil {
 			return nil, err
 		}
-		pi, ok := partIndex[part.ID]
+		partKey := [2]uuid.UUID{versionID, part.ID}
+		pi, ok := partIndex[partKey]
 		if !ok {
-			pi = len(parts)
-			partIndex[part.ID] = pi
+			pi = len(parts[versionID])
+			partIndex[partKey] = pi
 			part.Groups = []QuestionGroup{}
 			part.Transcript = transcript
 			if len(transcriptSegmentsRaw) > 0 {
@@ -309,28 +334,32 @@ func (r *PostgresRepository) parts(ctx context.Context, versionID uuid.UUID) ([]
 			if part.TranscriptSegments == nil {
 				part.TranscriptSegments = []STTSegment{}
 			}
-			parts = append(parts, part)
+			parts[versionID] = append(parts[versionID], part)
 		}
 		if groupID == nil {
 			continue
 		}
-		key, ok := groupIndex[*groupID]
+		groupKey := [2]uuid.UUID{versionID, *groupID}
+		location, ok := groupIndex[groupKey]
 		if !ok {
 			var cfg map[string]any
 			_ = json.Unmarshal(config, &cfg)
 			group := QuestionGroup{ID: *groupID, Position: *groupPosition, Type: *groupType, Instructions: *instructions, Context: *contextText, Config: cfg, ImageAssetID: imageID, Questions: []Question{}}
-			parts[pi].Groups = append(parts[pi].Groups, group)
-			key = [2]int{pi, len(parts[pi].Groups) - 1}
-			groupIndex[*groupID] = key
+			parts[versionID][pi].Groups = append(parts[versionID][pi].Groups, group)
+			location = [2]int{pi, len(parts[versionID][pi].Groups) - 1}
+			groupIndex[groupKey] = location
 		}
 		if questionID != nil {
 			var c, a map[string]any
 			_ = json.Unmarshal(content, &c)
 			_ = json.Unmarshal(answer, &a)
-			parts[key[0]].Groups[key[1]].Questions = append(parts[key[0]].Groups[key[1]].Questions, Question{ID: *questionID, Position: *questionPosition, Number: *questionNumber, Prompt: *prompt, Content: c, Answer: a, Explanation: *explanation, Points: *points})
+			parts[versionID][location[0]].Groups[location[1]].Questions = append(parts[versionID][location[0]].Groups[location[1]].Questions, Question{ID: *questionID, Position: *questionPosition, Number: *questionNumber, Prompt: *prompt, Content: c, Answer: a, Explanation: *explanation, Points: *points})
 		}
 	}
-	return parts, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return parts, nil
 }
 
 func (r *PostgresRepository) CreateMedia(ctx context.Context, actorID uuid.UUID, media Media) (Media, error) {

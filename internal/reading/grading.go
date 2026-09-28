@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/google/uuid"
 )
@@ -117,15 +118,7 @@ func (r *PostgresRepository) loadGradingVersions(
 		if len(versionIDs) == 0 {
 			break
 		}
-		materials, err := r.gradingVersionRows(ctx, versionIDs)
-		if err != nil {
-			return nil, nil, err
-		}
-		groups, err := r.gradingQuestionGroups(ctx, versionIDs)
-		if err != nil {
-			return nil, nil, err
-		}
-		links, err := r.gradingPassageLinks(ctx, versionIDs)
+		materials, groups, links, err := r.loadLevel(ctx, versionIDs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -146,6 +139,43 @@ func (r *PostgresRepository) loadGradingVersions(
 		pending = next
 	}
 	return loaded, passages, nil
+}
+
+// loadLevel fetches the version rows, the question groups and the passage links
+// of one nesting level. The three queries are independent and only the links
+// are needed to descend, so they run together and a level costs one round trip
+// instead of three.
+func (r *PostgresRepository) loadLevel(
+	ctx context.Context,
+	versionIDs []uuid.UUID,
+) (map[uuid.UUID]Material, map[uuid.UUID][]QuestionGroup, map[uuid.UUID][]VersionRef, error) {
+	var (
+		materials map[uuid.UUID]Material
+		groups    map[uuid.UUID][]QuestionGroup
+		links     map[uuid.UUID][]VersionRef
+		errs      [3]error
+	)
+	var wait sync.WaitGroup
+	wait.Add(3)
+	go func() {
+		defer wait.Done()
+		materials, errs[0] = r.gradingVersionRows(ctx, versionIDs)
+	}()
+	go func() {
+		defer wait.Done()
+		groups, errs[1] = r.gradingQuestionGroups(ctx, versionIDs)
+	}()
+	go func() {
+		defer wait.Done()
+		links, errs[2] = r.gradingPassageLinks(ctx, versionIDs)
+	}()
+	wait.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	return materials, groups, links, nil
 }
 
 func (r *PostgresRepository) gradingVersionRows(ctx context.Context, versionIDs []uuid.UUID) (map[uuid.UUID]Material, error) {

@@ -66,6 +66,12 @@ func (s *Service) GetVersion(ctx context.Context, id, versionID uuid.UUID) (Test
 	return s.repository.GetVersion(ctx, id, versionID)
 }
 
+// GradingStructures returns the full structure (with answers) of many pinned
+// versions using a bounded number of queries.
+func (s *Service) GradingStructures(ctx context.Context, refs []VersionRef) (map[VersionRef]Test, error) {
+	return s.repository.GradingStructures(ctx, refs)
+}
+
 // GetVersionPublic returns the public structure (without answers) of a
 // specific version.
 func (s *Service) GetVersionPublic(ctx context.Context, id, versionID uuid.UUID) (PublicTest, error) {

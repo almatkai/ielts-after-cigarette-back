@@ -69,6 +69,41 @@ func (p listeningProvider) GradingStructure(ctx context.Context, materialID, ver
 	if err != nil {
 		return GradingMaterial{}, err
 	}
+	return gradingMaterialFromListening(test), nil
+}
+
+// GradingStructures loads many listening versions with a bounded number of
+// queries, which is what the mistakes page needs for historical attempts.
+func (p listeningProvider) GradingStructures(ctx context.Context, refs []MaterialRef) (map[MaterialRef]GradingMaterial, error) {
+	versionRefs := make([]listening.VersionRef, 0, len(refs))
+	for _, ref := range refs {
+		versionRefs = append(versionRefs, listening.VersionRef{
+			MaterialID: ref.MaterialID,
+			VersionID:  ref.VersionID,
+		})
+	}
+	tests, err := p.service.GradingStructures(ctx, versionRefs)
+	if errors.Is(err, listening.ErrNotFound) {
+		return nil, ErrMaterialNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := make(map[MaterialRef]GradingMaterial, len(refs))
+	for _, ref := range refs {
+		test, ok := tests[listening.VersionRef{MaterialID: ref.MaterialID, VersionID: ref.VersionID}]
+		if !ok {
+			return nil, ErrMaterialNotFound
+		}
+		items[ref] = gradingMaterialFromListening(test)
+	}
+	return items, nil
+}
+
+// gradingMaterialFromListening flattens a listening test into the module-neutral
+// grading structure. Questions are numbered across the whole test, so parts and
+// groups only contribute their audio, transcript and question type.
+func gradingMaterialFromListening(test listening.Test) GradingMaterial {
 	questions := []GradingQuestion{}
 	for _, part := range test.Parts {
 		for _, group := range part.Groups {
@@ -101,7 +136,7 @@ func (p listeningProvider) GradingStructure(ctx context.Context, materialID, ver
 			}
 		}
 	}
-	return GradingMaterial{ExamType: test.ExamType, Questions: questions}, nil
+	return GradingMaterial{ExamType: test.ExamType, Questions: questions}
 }
 
 type readingProvider struct {
