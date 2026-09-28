@@ -12,12 +12,12 @@ import (
 )
 
 type Service struct {
-	repository        Repository
-	providers         map[string]MaterialProvider
-	evaluator         WritingEvaluator
-	speakingEvaluator SpeakingEvaluator
-	speakingStore     objectstorage.Store
-	maxSpeakingMedia  int64
+	repository          Repository
+	providers           map[string]MaterialProvider
+	evaluator           WritingEvaluator
+	speakingEvaluator   SpeakingEvaluator
+	speakingStore       objectstorage.Store
+	maxSpeakingMedia    int64
 	examGuard           ExamGuard
 	speakingJobs        SpeakingJobQueue
 	writingJobs         WritingJobQueue

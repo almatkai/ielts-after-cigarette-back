@@ -363,4 +363,3 @@ func (s *Service) TranscribeTest(ctx context.Context, testID, actorID uuid.UUID)
 
 	return updatedTest, nil
 }
-
