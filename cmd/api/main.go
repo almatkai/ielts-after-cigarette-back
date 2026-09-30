@@ -30,7 +30,7 @@ func run() int {
 		return 1
 	}
 
-	startupCtx, startupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer startupCancel()
 
 	pool, err := database.Open(startupCtx, cfg.DatabaseURL)
