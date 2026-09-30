@@ -199,6 +199,53 @@ func (h *Handler) Mistakes(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (h *Handler) MistakeAttempts(w http.ResponseWriter, r *http.Request) {
+	materialType := r.URL.Query().Get("materialType")
+	if materialType == "" {
+		materialType = MaterialReading
+	}
+	if materialType != MaterialReading && materialType != MaterialListening && materialType != MaterialWriting && materialType != MaterialSpeaking {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", map[string]string{"materialType": "must be listening, reading, writing, or speaking"})
+		return
+	}
+	page, pageOK := boundedQueryInt(r, "page", 1, 100000)
+	limit, limitOK := boundedQueryInt(r, "limit", 12, 50)
+	if !pageOK || !limitOK {
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Invalid pagination", map[string]string{"page": "must be between 1 and 100000", "limit": "must be between 1 and 50"})
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	result, err := h.service.MistakeAttempts(r.Context(), actor, materialType, page, limit)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
+func boundedQueryInt(r *http.Request, key string, fallback, max int) (int, bool) {
+	raw := r.URL.Query().Get(key)
+	if raw == "" {
+		return fallback, true
+	}
+	value, err := strconv.Atoi(raw)
+	return value, err == nil && value >= 1 && value <= max
+}
+
+func (h *Handler) MistakeDetail(w http.ResponseWriter, r *http.Request) {
+	attemptID, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	result, err := h.service.MistakeDetail(r.Context(), actor, attemptID)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, result)
+}
+
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	attemptID, ok := h.id(w, r)
 	if !ok {

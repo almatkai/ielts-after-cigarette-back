@@ -256,6 +256,8 @@ func New(
 			protected.Get("/attempts/{attemptID}/recordings/{partID}", attemptsHandler.SpeakingRecording)
 			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)
 			protected.Get("/attempts/mistakes", attemptsHandler.Mistakes)
+			protected.Get("/attempts/mistakes/attempts", attemptsHandler.MistakeAttempts)
+			protected.Get("/attempts/{attemptID}/mistakes", attemptsHandler.MistakeDetail)
 			protected.Get("/attempts", attemptsHandler.List)
 			protected.Get("/attempts/{attemptID}", attemptsHandler.Get)
 			protected.Get("/attempts/{attemptID}/material", attemptsHandler.Material)
