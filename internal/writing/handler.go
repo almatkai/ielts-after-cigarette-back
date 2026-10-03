@@ -222,6 +222,15 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 	publishedOnly := role != auth.RoleEditor && role != auth.RoleAdmin
 	media, object, err := h.service.Media(r.Context(), id, publishedOnly)
 	if err != nil {
+		if errors.Is(err, ErrMediaObjectMissing) {
+			h.logger.ErrorContext(r.Context(), "writing media object missing from storage",
+				"request_id", httpx.RequestID(r.Context()),
+				"media_id", id.String(),
+				"error", err,
+			)
+			httpx.WriteError(w, r, http.StatusNotFound, "MEDIA_NOT_FOUND", "Media file is missing from storage", nil)
+			return
+		}
 		h.writeError(w, r, err)
 		return
 	}

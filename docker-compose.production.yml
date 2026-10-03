@@ -72,6 +72,9 @@ services:
       MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES}
       LISTENING_MEDIA_DIR: /data/listening-media
       SPEAKING_MEDIA_DIR: /data/speaking-media
+      # Shared team database requires shared object storage: without these,
+      # the backend falls back to the local filesystem volume and cannot see
+      # files uploaded through another environment (answers 404 MEDIA_NOT_FOUND).
       OBJECT_STORAGE_BACKEND: ${OBJECT_STORAGE_BACKEND:-filesystem}
       OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-}
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-}

@@ -391,7 +391,10 @@ func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (
 	}
 	object, err := s.mediaStore.Open(ctx, media.StorageKey)
 	if err != nil {
-		return Media{}, nil, err
+		if objectstorage.IsNotFound(err) {
+			return Media{}, nil, fmt.Errorf("%w: id=%s key=%s: %v", ErrMediaObjectMissing, id, media.StorageKey, err)
+		}
+		return Media{}, nil, fmt.Errorf("open writing media id=%s key=%s: %w", id, media.StorageKey, err)
 	}
 	return media, object, nil
 }

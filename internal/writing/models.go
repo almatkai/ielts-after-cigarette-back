@@ -12,7 +12,10 @@ var (
 	ErrSlugExists       = errors.New("writing material slug already exists")
 	ErrRevisionConflict = errors.New("writing material revision conflict")
 	ErrMediaNotFound    = errors.New("writing media not found")
-	ErrUnsupportedMedia = errors.New("unsupported writing media type")
+	// ErrMediaObjectMissing means the database row exists but the file is
+	// absent from this environment's object storage. Handlers answer 404, not 500.
+	ErrMediaObjectMissing = errors.New("writing media object is missing from storage")
+	ErrUnsupportedMedia   = errors.New("unsupported writing media type")
 )
 
 const (
