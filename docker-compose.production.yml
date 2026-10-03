@@ -71,10 +71,10 @@ services:
       MEDIA_UPLOAD_TIMEOUT: ${MEDIA_UPLOAD_TIMEOUT:-5m}
       MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES}
       LISTENING_MEDIA_DIR: /data/listening-media
+      WRITING_MEDIA_DIR: /data/writing-media
       SPEAKING_MEDIA_DIR: /data/speaking-media
-      # Shared team database requires shared object storage: without these,
-      # the backend falls back to the local filesystem volume and cannot see
-      # files uploaded through another environment (answers 404 MEDIA_NOT_FOUND).
+      # Production media lives on this server in persistent Docker volumes.
+      # Keep OBJECT_STORAGE_BACKEND=filesystem in the production environment.
       OBJECT_STORAGE_BACKEND: ${OBJECT_STORAGE_BACKEND:-filesystem}
       OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-}
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-}
@@ -112,6 +112,7 @@ services:
       - "${BACKEND_PORT}:8080"
     volumes:
       - listening_media:/data/listening-media
+      - writing_media:/data/writing-media
       - speaking_media:/data/speaking-media
     depends_on:
       postgres:
@@ -130,4 +131,5 @@ volumes:
   postgres_data:
   redis_data:
   listening_media:
+  writing_media:
   speaking_media:
