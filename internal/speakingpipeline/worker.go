@@ -222,7 +222,10 @@ func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 	}
 	evaluation.AttemptID = attemptID
 	evaluation.PronunciationAvailable = false
-	evaluation.Criteria.Pronunciation = attempts.SpeakingCriterion{}
+	evaluation.Criteria.Pronunciation = attempts.SpeakingCriterion{
+		Band:     0,
+		Feedback: "Наша система пока не может определить Pronunciation (произношение). Оценка сформирована по беглости, словарному запасу и грамматической точности.",
+	}
 	band := evaluation.OverallBand
 	if err := w.repository.Submit(ctx, attempts.SubmitResult{
 		AttemptID: attemptID, UserID: attempt.UserID, Skill: attempts.MaterialSpeaking,

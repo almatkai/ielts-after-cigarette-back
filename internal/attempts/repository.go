@@ -481,6 +481,8 @@ func (row speakingEvaluationRow) decode() (SpeakingEvaluation, error) {
 	evaluation.PronunciationAvailable = stored.PronunciationAvailable && row.pronunciationBand != nil
 	if row.pronunciationBand != nil {
 		evaluation.Criteria.Pronunciation.Band = *row.pronunciationBand
+	} else if evaluation.Criteria.Pronunciation.Feedback == "" {
+		evaluation.Criteria.Pronunciation.Feedback = "Наша система пока не может определить Pronunciation (произношение). Оценка сформирована по беглости, словарному запасу и грамматической точности."
 	}
 	return evaluation, nil
 }

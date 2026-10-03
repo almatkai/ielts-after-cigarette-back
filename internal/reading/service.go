@@ -2,12 +2,14 @@ package reading
 
 import (
 	"context"
+	"html"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/testcontent"
 	"github.com/google/uuid"
 )
 
@@ -152,7 +154,7 @@ func publicMaterial(material Material) PublicMaterial {
 	result := PublicMaterial{
 		ID: material.ID, Slug: material.Slug, ExamType: material.ExamType,
 		Difficulty: material.Difficulty, Kind: material.Kind, Title: material.Title,
-		Description: material.Description, Body: material.Body,
+		Description: material.Description, Body: html.UnescapeString(material.Body),
 		DurationMinutes: material.DurationMinutes,
 		QuestionGroups:  []PublicQuestionGroup{}, Passages: []PublicMaterial{},
 	}
@@ -164,7 +166,7 @@ func publicMaterial(material Material) PublicMaterial {
 		for _, question := range group.Questions {
 			publicGroup.Questions = append(publicGroup.Questions, PublicQuestion{
 				ID: question.ID, Position: question.Position, Prompt: question.Prompt,
-				Content: question.Content, Points: question.Points,
+				Content: testcontent.PublicContent(question.Content), Points: question.Points,
 			})
 		}
 		result.QuestionGroups = append(result.QuestionGroups, publicGroup)
@@ -266,6 +268,9 @@ func validateInput(input SaveInput, requireRevision bool) map[string]string {
 	details := map[string]string{}
 	if input.Kind != KindPassage && input.Kind != KindTest {
 		details["kind"] = "must be PASSAGE or TEST"
+	}
+	if input.RefreshPassages && (input.Kind != KindTest || !requireRevision) {
+		details["refreshPassages"] = "is only supported when updating a TEST"
 	}
 	if len(input.Slug) > 160 || !slugPattern.MatchString(input.Slug) {
 		details["slug"] = "must contain lowercase Latin letters, numbers, and single hyphens"

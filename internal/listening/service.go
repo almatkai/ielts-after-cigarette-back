@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/testcontent"
 	"github.com/google/uuid"
 )
 
@@ -233,9 +234,9 @@ func publicTest(item Test) PublicTest {
 			Groups:             []PublicQuestionGroup{},
 		}
 		for _, group := range part.Groups {
-			pg := PublicQuestionGroup{ID: group.ID, Position: group.Position, Type: group.Type, Instructions: group.Instructions, Context: group.Context, Config: group.Config, ImageAssetID: group.ImageAssetID, Questions: []PublicQuestion{}}
+			pg := PublicQuestionGroup{ID: group.ID, Position: group.Position, Type: group.Type, Instructions: group.Instructions, Context: group.Context, Config: testcontent.PublicContent(group.Config), ImageAssetID: group.ImageAssetID, Questions: []PublicQuestion{}}
 			for _, q := range group.Questions {
-				pg.Questions = append(pg.Questions, PublicQuestion{ID: q.ID, Position: q.Position, Number: q.Number, Prompt: q.Prompt, Content: q.Content, Points: q.Points})
+				pg.Questions = append(pg.Questions, PublicQuestion{ID: q.ID, Position: q.Position, Number: q.Number, Prompt: q.Prompt, Content: testcontent.PublicContent(q.Content), Points: q.Points})
 			}
 			pp.Groups = append(pp.Groups, pg)
 		}

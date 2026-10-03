@@ -389,6 +389,12 @@ optimistic locking.
 revision возвращает `409 REVISION_CONFLICT`, повторяющийся slug —
 `409 READING_SLUG_EXISTS`.
 
+При обновлении `kind: "TEST"` можно передать `refreshPassages: true`, чтобы
+новая версия теста ссылалась на текущие версии его passages. Без этого флага
+сохраняются прежние ссылки. Порядок и ID passages не меняются; старые версии
+теста, опубликованный снимок и попытки учеников остаются неизменными.
+Флаг разрешён только для обновления TEST, иначе — `422 VALIDATION_ERROR`.
+
 ### `POST /admin/reading/materials/{id}/publish`
 
 ```json

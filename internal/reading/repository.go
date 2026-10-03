@@ -305,12 +305,15 @@ func (r *PostgresRepository) Update(ctx context.Context, id, actorID uuid.UUID, 
 			INSERT INTO reading_test_passages (
 				test_material_version_id, position, passage_material_id, passage_material_version_id
 			)
-			SELECT $1, position, passage_material_id, passage_material_version_id
-			FROM reading_test_passages
-			WHERE test_material_version_id = (
+			SELECT $1, tp.position, tp.passage_material_id,
+				CASE WHEN $3 THEN passage.current_version_id
+					ELSE tp.passage_material_version_id END
+			FROM reading_test_passages tp
+			JOIN reading_materials passage ON passage.id = tp.passage_material_id
+			WHERE tp.test_material_version_id = (
 				SELECT current_version_id FROM reading_materials WHERE id = $2
 			)
-		`, versionID, id); err != nil {
+		`, versionID, id, input.RefreshPassages); err != nil {
 			return Material{}, fmt.Errorf("copy reading test passages: %w", err)
 		}
 	}

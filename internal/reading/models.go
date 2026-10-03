@@ -107,6 +107,9 @@ type SaveInput struct {
 	SourceURL       *string         `json:"sourceUrl"`
 	QuestionGroups  []QuestionGroup `json:"questionGroups,omitempty"`
 	Revision        int64           `json:"revision,omitempty"`
+	// RefreshPassages pins a new test version to the passages' current versions.
+	// Existing test versions and attempts retain their original snapshots.
+	RefreshPassages bool `json:"refreshPassages,omitempty"`
 }
 
 // MaterialSummary is the public list shape: no passage body, no questions.

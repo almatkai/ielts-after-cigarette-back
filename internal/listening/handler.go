@@ -185,6 +185,8 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, media)
 }
 func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
+	// Draft media must not survive in shared or browser caches across sessions.
+	w.Header().Set("Cache-Control", "private, no-store")
 	id, err := uuid.Parse(chi.URLParam(r, "mediaID"))
 	if err != nil {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_ID", "Media ID must be UUID", nil)

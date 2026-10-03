@@ -1,0 +1,135 @@
+{
+  "baseUrl": "http://localhost:8090",
+  "continueOnError": false,
+  "items": [
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — Academic Reading Test 1",
+      "source": "/tmp/cambridge16-academicreading226.v1.txt",
+      "examType": "academic",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-academic-reading-test-1",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-reading-test-226/"
+    },
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — Academic Reading Test 2",
+      "source": "/tmp/cambridge16-academicreading227.v1.txt",
+      "examType": "academic",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-academic-reading-test-2",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-reading-test-227/"
+    },
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — Academic Reading Test 3",
+      "source": "/tmp/cambridge16-academicreading228.v1.txt",
+      "examType": "academic",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-academic-reading-test-3",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-reading-test-228/"
+    },
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — Academic Reading Test 4",
+      "source": "/tmp/cambridge16-academicreading229.v1.txt",
+      "examType": "academic",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-academic-reading-test-4",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-reading-test-229/"
+    },
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — General Reading Test 1",
+      "source": "/tmp/cambridge16-generalreading103.v1.txt",
+      "examType": "general",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-general-reading-test-1",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-general-reading-test-103/"
+    },
+    {
+      "kind": "listening",
+      "title": "Cambridge IELTS 16 — Listening Test 1",
+      "source": "/tmp/cambridge16-listening185.v1.txt",
+      "examType": "academic",
+      "slug": "cambridge-16-listening-test-1"
+    },
+    {
+      "kind": "listening",
+      "title": "Cambridge IELTS 16 — Listening Test 2",
+      "source": "/tmp/cambridge16-listening186.v1.txt",
+      "examType": "academic",
+      "slug": "cambridge-16-listening-test-2"
+    },
+    {
+      "kind": "writing",
+      "title": "Cambridge IELTS 16 — Academic Writing Test 1",
+      "source": "/tmp/cambridge16-writing-import.json"
+    },
+    {
+      "kind": "writing",
+      "title": "Cambridge IELTS 16 — Academic Writing Test 2",
+      "source": "/tmp/cambridge16-writing-import.json"
+    },
+    {
+      "kind": "writing",
+      "title": "Cambridge IELTS 16 — Academic Writing Test 3",
+      "source": "/tmp/cambridge16-writing-import.json"
+    },
+    {
+      "kind": "writing",
+      "title": "Cambridge IELTS 16 — Academic Writing Test 4",
+      "source": "/tmp/cambridge16-writing-import.json"
+    },
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — General Reading Test 2",
+      "source": "/tmp/cambridge16-generalreading104.v1.txt",
+      "examType": "general",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-general-reading-test-2",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-general-reading-test-104/"
+    },
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — General Reading Test 3",
+      "source": "/tmp/cambridge16-generalreading105.v1.txt",
+      "examType": "general",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-general-reading-test-3",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-general-reading-test-105/"
+    },
+    {
+      "kind": "reading",
+      "title": "Cambridge IELTS 16 — General Reading Test 4",
+      "source": "/tmp/cambridge16-generalreading106.v1.txt",
+      "examType": "general",
+      "difficulty": "intermediate",
+      "durationMinutes": 60,
+      "slugPrefix": "cambridge-16-general-reading-test-4",
+      "sourceTitle": "Official IELTS Tests Book 16 — IELTS MASTER",
+      "sourceUrl": "https://practicepteonline.com/ielts-general-reading-test-106/"
+    },
+    {
+      "kind": "listening",
+      "title": "Cambridge IELTS 16 — Listening Test 4",
+      "source": "/tmp/cambridge16-listening188.v1.txt",
+      "examType": "academic",
+      "slug": "cambridge-16-listening-test-4"
+    }
+  ]
+}

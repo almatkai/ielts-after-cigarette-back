@@ -415,7 +415,10 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 	}
 	if !e.speakingAudio {
 		evaluation.PronunciationAvailable = false
-		evaluation.Criteria.Pronunciation = SpeakingCriterion{}
+		evaluation.Criteria.Pronunciation = SpeakingCriterion{
+			Band:     0,
+			Feedback: "Наша система пока не может определить Pronunciation (произношение). Оценка сформирована по беглости, словарному запасу и грамматической точности.",
+		}
 		evaluation.OverallBand = roundToHalf((evaluation.Criteria.Fluency.Band + evaluation.Criteria.LexicalResource.Band + evaluation.Criteria.Grammar.Band) / 3)
 	}
 	return evaluation, nil
