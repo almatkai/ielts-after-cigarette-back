@@ -91,6 +91,14 @@ jobs:
       SHUTDOWN_TIMEOUT: ${{ vars.SHUTDOWN_TIMEOUT }}
       REQUEST_TIMEOUT: ${{ vars.REQUEST_TIMEOUT }}
       MAX_REQUEST_BODY_BYTES: ${{ vars.MAX_REQUEST_BODY_BYTES }}
+      STT_API_KEY: ${{ secrets.STT_API_KEY }}
+      STT_API_URL: ${{ vars.STT_API_URL }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_CHAT_COMPLETIONS_URL: ${{ vars.AI_CHAT_COMPLETIONS_URL }}
+      AI_MODEL: ${{ vars.AI_MODEL }}
+      AI_SPEAKING_MODEL: ${{ vars.AI_SPEAKING_MODEL }}
+      AI_SPEAKING_AUDIO_ENABLED: ${{ vars.AI_SPEAKING_AUDIO_ENABLED }}
+      AI_TIMEOUT: ${{ vars.AI_TIMEOUT }}
       AUTH_RATE_LIMIT: ${{ vars.AUTH_RATE_LIMIT }}
       AUTH_RATE_WINDOW: ${{ vars.AUTH_RATE_WINDOW }}
       PHONE_VERIFICATION_SECRET: ${{ secrets.PHONE_VERIFICATION_SECRET }}
@@ -137,6 +145,14 @@ jobs:
             printf 'SHUTDOWN_TIMEOUT=%s\n' "$SHUTDOWN_TIMEOUT"
             printf 'REQUEST_TIMEOUT=%s\n' "$REQUEST_TIMEOUT"
             printf 'MAX_REQUEST_BODY_BYTES=%s\n' "$MAX_REQUEST_BODY_BYTES"
+            printf 'STT_API_KEY=%s\n' "$STT_API_KEY"
+            printf 'STT_API_URL=%s\n' "$STT_API_URL"
+            printf 'AI_API_KEY=%s\n' "$AI_API_KEY"
+            printf 'AI_CHAT_COMPLETIONS_URL=%s\n' "$AI_CHAT_COMPLETIONS_URL"
+            printf 'AI_MODEL=%s\n' "$AI_MODEL"
+            printf 'AI_SPEAKING_MODEL=%s\n' "$AI_SPEAKING_MODEL"
+            printf 'AI_SPEAKING_AUDIO_ENABLED=%s\n' "$AI_SPEAKING_AUDIO_ENABLED"
+            printf 'AI_TIMEOUT=%s\n' "$AI_TIMEOUT"
             printf 'AUTH_RATE_LIMIT=%s\n' "$AUTH_RATE_LIMIT"
             printf 'AUTH_RATE_WINDOW=%s\n' "$AUTH_RATE_WINDOW"
             printf 'PHONE_VERIFICATION_SECRET=%s\n' "$PHONE_VERIFICATION_SECRET"

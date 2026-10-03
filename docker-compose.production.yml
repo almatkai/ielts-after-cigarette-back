@@ -98,6 +98,8 @@ services:
       INFOBIP_WHATSAPP_LANGUAGE: ${INFOBIP_WHATSAPP_LANGUAGE}
       INFOBIP_TIMEOUT: ${INFOBIP_TIMEOUT}
       SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
+      STT_API_KEY: ${STT_API_KEY:-}
+      STT_API_URL: ${STT_API_URL:-https://llm.alem.ai/v1/audio/transcriptions}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_CHAT_COMPLETIONS_URL: ${AI_CHAT_COMPLETIONS_URL:-https://openrouter.ai/api/v1/chat/completions}
       AI_MODEL: ${AI_MODEL:-openrouter/free}
