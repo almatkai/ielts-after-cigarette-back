@@ -19,6 +19,10 @@ chmod 600 production.env
 # external workers, backups, monitoring and the private metrics listener all
 # run through this one flow, exactly like the manual operations wrapper.
 overlay=(docker-compose.observability.yml docker-compose.pgstats.yml docker-compose.server.yml)
+if [[ -f operations.env && ! -f ${overlay[0]} ]]; then
+	echo "operations.env exists but an overlay file is missing; refusing partial deploy" >&2
+	exit 1
+fi
 if [[ -f operations.env && -f ${overlay[0]} && -f ${overlay[1]} && -f ${overlay[2]} ]]; then
 	chmod 600 operations.env
 	profiles=(--profile workers --profile backups --profile monitoring)
@@ -30,7 +34,7 @@ else
 	full_operational=false
 fi
 
-compose=(docker compose --env-file production.env)
+compose=(docker compose -f docker-compose.production.yml --env-file production.env)
 if [[ $full_operational == true ]]; then
 	compose+=(--env-file operations.env)
 	for file in "${overlay[@]}"; do
