@@ -33,6 +33,38 @@ func TestOnlyGoogleAuthEntryPointsArePublic(t *testing.T) {
 	}
 }
 
+func TestFullMocksCannotBeSelectedOrManuallyCreated(t *testing.T) {
+	router := New(config.Config{JWTSecret: "test-secret-at-least-32-characters-long"}, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	routes := map[string]bool{}
+	if err := chi.Walk(router.(chi.Routes), func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		routes[method+" "+route] = true
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, route := range []string{
+		"GET /api/v1/full-mocks", "GET /api/v1/full-mocks/{mockID}",
+		"POST /api/v1/full-mocks/{mockID}/sessions", "POST /api/v1/admin/full-mocks",
+		"PUT /api/v1/admin/full-mocks/{mockID}", "POST /api/v1/admin/full-mocks/{mockID}/publish",
+	} {
+		if routes[route] {
+			t.Fatalf("manual mock route is still reachable: %s", route)
+		}
+	}
+	for _, methodPath := range []struct{ method, path string }{
+		{"GET", "/api/v1/full-mocks/overview"}, {"POST", "/api/v1/full-mocks/start"},
+	} {
+		if !routes[methodPath.method+" "+methodPath.path] {
+			t.Fatalf("generated mock route missing: %+v", methodPath)
+		}
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(methodPath.method, methodPath.path, nil))
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("unprotected mock endpoint: %d", response.Code)
+		}
+	}
+}
+
 func TestIsMediaUpload(t *testing.T) {
 	t.Parallel()
 

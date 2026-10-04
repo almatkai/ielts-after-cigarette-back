@@ -252,9 +252,8 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 		api.Group(func(protected chi.Router) {
 			protected.Use(auth.Authenticate(tokens))
-			protected.Get("/full-mocks", fullMockHandler.ListPublic)
-			protected.Get("/full-mocks/{mockID}", fullMockHandler.GetPublic)
-			protected.Post("/full-mocks/{mockID}/sessions", fullMockHandler.Start)
+			protected.Get("/full-mocks/overview", fullMockHandler.Overview)
+			protected.Post("/full-mocks/start", fullMockHandler.StartGenerated)
 			protected.Get("/full-mock-sessions/{sessionID}", fullMockHandler.GetSession)
 			protected.Get("/full-mock-sessions/{sessionID}/sections/{sectionPosition}", fullMockHandler.Section)
 			protected.Post("/full-mock-sessions/{sessionID}/advance", fullMockHandler.Advance)
@@ -293,10 +292,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
 				adminRouter.Get("/access", adminHandler.Access)
 				adminRouter.Get("/full-mocks", fullMockHandler.List)
-				adminRouter.Post("/full-mocks", fullMockHandler.Create)
 				adminRouter.Get("/full-mocks/{mockID}", fullMockHandler.Get)
-				adminRouter.Put("/full-mocks/{mockID}", fullMockHandler.Update)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/full-mocks/{mockID}/publish", fullMockHandler.Publish)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/full-mocks/{mockID}/archive", fullMockHandler.Archive)
 				adminRouter.Get("/reading/materials", readingHandler.List)
 				adminRouter.Post("/reading/materials", readingHandler.Create)

@@ -175,7 +175,7 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 	if session.Status != SessionInProgress {
 		return Session{}, ErrSessionCompleted
 	}
-	test, err := s.repository.Get(ctx, session.MockTestID)
+	test, err := s.sessionTest(ctx, session)
 	if err != nil {
 		return Session{}, err
 	}
@@ -190,8 +190,11 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 	if err != nil {
 		return Session{}, err
 	}
+	if session.CurrentSection < 1 || session.CurrentSection > len(sections) {
+		return Session{}, ErrSectionIncomplete
+	}
 	currentStatus := sections[session.CurrentSection-1].Attempt.Status
-	if session.CurrentSection < 1 || session.CurrentSection > len(sections) || (currentStatus != attempts.StatusSubmitted && currentStatus != attempts.StatusProcessing) {
+	if currentStatus != attempts.StatusSubmitted && currentStatus != attempts.StatusProcessing {
 		return Session{}, ErrSectionIncomplete
 	}
 	if session.CurrentSection == len(sections) {
@@ -219,7 +222,7 @@ func (s *Service) Finish(ctx context.Context, userID, sessionID uuid.UUID) (Sess
 	if session.Status != SessionInProgress {
 		return Session{}, ErrSessionCompleted
 	}
-	test, err := s.repository.Get(ctx, session.MockTestID)
+	test, err := s.sessionTest(ctx, session)
 	if err != nil {
 		return Session{}, err
 	}
@@ -248,7 +251,7 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 	if session.Status != SessionInProgress || position != session.CurrentSection {
 		return SessionSection{}, nil, ErrSectionLocked
 	}
-	test, err := s.repository.Get(ctx, session.MockTestID)
+	test, err := s.sessionTest(ctx, session)
 	if err != nil {
 		return SessionSection{}, nil, err
 	}
@@ -313,7 +316,7 @@ func (s *Service) ValidateAttemptAccess(ctx context.Context, userID, attemptID u
 }
 
 func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Session) (Session, error) {
-	test, err := s.repository.Get(ctx, session.MockTestID)
+	test, err := s.sessionTest(ctx, session)
 	if err != nil {
 		return Session{}, err
 	}
@@ -329,6 +332,20 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
 	if err != nil {
 		return Session{}, err
+	}
+	if session.MockTestID == uuid.Nil {
+		for _, section := range sections {
+			switch section.Skill {
+			case attempts.MaterialListening:
+				test.ListeningMaterialID = section.Attempt.MaterialID
+			case attempts.MaterialReading:
+				test.ReadingMaterialID = section.Attempt.MaterialID
+			case attempts.MaterialWriting:
+				test.WritingMaterialID = section.Attempt.MaterialID
+			case attempts.MaterialSpeaking:
+				test.SpeakingMaterialID = section.Attempt.MaterialID
+			}
+		}
 	}
 	session.MockTest = test
 	session.Sections = sections

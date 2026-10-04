@@ -35,6 +35,10 @@ type Repository interface {
 	FindExamAttemptMeta(ctx context.Context, attemptID uuid.UUID) (*ExamAttemptMeta, error)
 }
 
+const sessionColumns = `id, COALESCE(mock_test_id, '00000000-0000-0000-0000-000000000000'::uuid),
+	user_id, status, current_section, started_at, submitted_at,
+	COALESCE(exam_type,''), COALESCE(title,''), COALESCE(duration_minutes,0)`
+
 type PostgresRepository struct{ pool *pgxpool.Pool }
 
 func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
@@ -164,19 +168,20 @@ func (r *PostgresRepository) Archive(ctx context.Context, id uuid.UUID, revision
 }
 
 func (r *PostgresRepository) FindActiveSession(ctx context.Context, userID, testID uuid.UUID) (Session, error) {
-	return r.getSession(ctx, `SELECT id, mock_test_id, user_id, status, current_section, started_at, submitted_at
+	return r.getSession(ctx, `SELECT `+sessionColumns+`
 		FROM full_mock_sessions WHERE user_id=$1 AND mock_test_id=$2 AND status=$3`, userID, testID, SessionInProgress)
 }
 
 func (r *PostgresRepository) GetSession(ctx context.Context, id uuid.UUID) (Session, error) {
-	return r.getSession(ctx, `SELECT id, mock_test_id, user_id, status, current_section, started_at, submitted_at
+	return r.getSession(ctx, `SELECT `+sessionColumns+`
 		FROM full_mock_sessions WHERE id=$1`, id)
 }
 
 func (r *PostgresRepository) getSession(ctx context.Context, query string, args ...any) (Session, error) {
 	var session Session
 	err := r.pool.QueryRow(ctx, query, args...).Scan(&session.ID, &session.MockTestID, &session.UserID, &session.Status,
-		&session.CurrentSection, &session.StartedAt, &session.SubmittedAt)
+		&session.CurrentSection, &session.StartedAt, &session.SubmittedAt,
+		&session.ExamType, &session.Title, &session.DurationMinutes)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Session{}, ErrSessionNotFound
 	}
@@ -329,10 +334,10 @@ type ExamAttemptMeta struct {
 func (r *PostgresRepository) FindExamAttemptMeta(ctx context.Context, attemptID uuid.UUID) (*ExamAttemptMeta, error) {
 	var meta ExamAttemptMeta
 	err := r.pool.QueryRow(ctx, `SELECT s.id, s.user_id, s.status, s.current_section, s.started_at,
-		t.duration_minutes, sec.position, sec.skill
+		COALESCE(s.duration_minutes, t.duration_minutes), sec.position, sec.skill
 		FROM full_mock_session_sections sec
 		JOIN full_mock_sessions s ON s.id = sec.session_id
-		JOIN full_mock_tests t ON t.id = s.mock_test_id
+		LEFT JOIN full_mock_tests t ON t.id = s.mock_test_id
 		WHERE sec.attempt_id = $1`, attemptID).Scan(
 		&meta.SessionID, &meta.UserID, &meta.SessionStatus, &meta.CurrentSection,
 		&meta.StartedAt, &meta.DurationMinutes, &meta.SectionPosition, &meta.SectionSkill,
