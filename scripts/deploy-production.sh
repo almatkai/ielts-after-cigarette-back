@@ -62,7 +62,8 @@ for _ in $(seq 1 30); do
 		if [[ $full_operational == true ]]; then
 			# The external worker carries assessment jobs; a missing container
 			# must fail the deploy rather than stall processing silently.
-			if ! docker inspect -f '{{.State.Running}}' "$(docker compose --env-file production.env --env-file operations.env -f "${overlay[@]}" --profile workers --profile backups --profile monitoring ps -q worker | head -1)" >/dev/null 2>&1; then
+			worker_id=$("${compose[@]}" ps -q worker | head -1)
+			if [[ -z $worker_id ]] || [[ $(docker inspect -f '{{.State.Running}}' "$worker_id" 2>/dev/null) != true ]]; then
 				echo "worker did not start" >&2
 				"${compose[@]}" ps -a
 				"${compose[@]}" logs --tail=50 worker
