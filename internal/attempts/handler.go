@@ -356,10 +356,6 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		if httpx.ClientGone(w, r, err) {
 			return
 		}
-		h.logger.ErrorContext(r.Context(), "attempts request failed",
-			"request_id", httpx.RequestID(r.Context()),
-			"error", err,
-		)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Request failed", nil)
+		httpx.InternalError(w, r, h.logger, err)
 	}
 }

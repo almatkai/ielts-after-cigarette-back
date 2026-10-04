@@ -102,9 +102,5 @@ func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, operation 
 		httpx.WriteError(w, r, http.StatusNotFound, "PROFILE_NOT_FOUND", "Profile was not found", nil)
 		return
 	}
-	h.logger.ErrorContext(r.Context(), operation,
-		"request_id", httpx.RequestID(r.Context()),
-		"error", err,
-	)
-	httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+	httpx.InternalError(w, r, h.logger.With("operation", operation), err)
 }

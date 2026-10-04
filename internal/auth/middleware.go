@@ -41,7 +41,7 @@ func Authenticate(tokens *TokenManager) func(http.Handler) http.Handler {
 				return
 			}
 			userID, _ := uuid.Parse(claims.Subject)
-			ctx := context.WithValue(r.Context(), userIDKey, userID)
+			ctx := context.WithValue(httpx.WithActor(r.Context(), userID.String()), userIDKey, userID)
 			ctx = context.WithValue(ctx, roleKey, claims.Role)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -56,7 +56,7 @@ func AuthenticateOptional(tokens *TokenManager) func(http.Handler) http.Handler 
 			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
 				if claims, err := tokens.ParseAccessToken(parts[1]); err == nil {
 					userID, _ := uuid.Parse(claims.Subject)
-					ctx := context.WithValue(r.Context(), userIDKey, userID)
+					ctx := context.WithValue(httpx.WithActor(r.Context(), userID.String()), userIDKey, userID)
 					ctx = context.WithValue(ctx, roleKey, claims.Role)
 					r = r.WithContext(ctx)
 				}

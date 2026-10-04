@@ -41,7 +41,12 @@ type statusRecorder struct {
 	status int
 }
 
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
+
 func (r *statusRecorder) WriteHeader(status int) {
+	if r.status != 0 {
+		return
+	}
 	r.status = status
 	r.ResponseWriter.WriteHeader(status)
 }
@@ -59,6 +64,9 @@ func AccessLog(logger *slog.Logger) func(http.Handler) http.Handler {
 			started := time.Now()
 			recorder := &statusRecorder{ResponseWriter: w}
 			next.ServeHTTP(recorder, r)
+			if recorder.status == 0 {
+				recorder.status = http.StatusOK
+			}
 			logger.InfoContext(r.Context(), "http request",
 				"request_id", RequestID(r.Context()),
 				"method", r.Method,
@@ -75,11 +83,17 @@ func Recover(logger *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if recovered := recover(); recovered != nil {
+					stack := string(debug.Stack())
 					logger.ErrorContext(r.Context(), "panic recovered",
 						"request_id", RequestID(r.Context()),
 						"panic", recovered,
-						"stack", string(debug.Stack()),
+						"stack", stack,
 					)
+					if error, ok := recovered.(error); ok {
+						reportError(r.Context(), ErrorEvent{Error: error, RequestID: RequestID(r.Context()), Method: r.Method, Path: r.URL.Path, Panic: recovered, Origin: "http"})
+					} else {
+						reportError(r.Context(), ErrorEvent{RequestID: RequestID(r.Context()), Method: r.Method, Path: r.URL.Path, Panic: recovered, Origin: "http"})
+					}
 					WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
 				}
 			}()
@@ -104,6 +118,7 @@ func CORS(origins []string) func(http.Handler) http.Handler {
 				}
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Expose-Headers", "X-Request-ID, ETag")
 				w.Header().Set("Vary", "Origin")
 				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")

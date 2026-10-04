@@ -48,11 +48,7 @@ func (h *Handler) Check(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.logger.ErrorContext(r.Context(), "check waitlist",
-			"request_id", httpx.RequestID(r.Context()),
-			"error", err,
-		)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+		httpx.InternalError(w, r, h.logger.With("operation", "check waitlist"), err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, result)
@@ -62,11 +58,7 @@ func (h *Handler) Check(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AdminList(w http.ResponseWriter, r *http.Request) {
 	entries, err := h.service.ListForAdmin(r.Context())
 	if err != nil {
-		h.logger.ErrorContext(r.Context(), "list waitlist entries",
-			"request_id", httpx.RequestID(r.Context()),
-			"error", err,
-		)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+		httpx.InternalError(w, r, h.logger.With("operation", "list waitlist entries"), err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"entries": entries, "total": len(entries)})
@@ -81,11 +73,7 @@ func (h *Handler) writeAdminError(w http.ResponseWriter, r *http.Request, err er
 	case errors.Is(err, ErrAdminEmailInvalid):
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Request validation failed", map[string]string{"email": "must be a valid email address"})
 	case err != nil:
-		h.logger.ErrorContext(r.Context(), "admin request",
-			"request_id", httpx.RequestID(r.Context()),
-			"error", err,
-		)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+		httpx.InternalError(w, r, h.logger.With("operation", "admin request"), err)
 	default:
 		return false
 	}
@@ -149,11 +137,7 @@ func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		h.logger.ErrorContext(r.Context(), "join waitlist",
-			"request_id", httpx.RequestID(r.Context()),
-			"error", err,
-		)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+		httpx.InternalError(w, r, h.logger.With("operation", "join waitlist"), err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusCreated, entry)
