@@ -7,6 +7,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/google/uuid"
 )
@@ -23,6 +24,7 @@ type Service struct {
 	writingJobs         WritingJobQueue
 	speakingTranscriber SpeakingTranscriber
 	gradingCache        *gradingCache
+	sharedGradingCache  *cache.JSON
 }
 
 type SpeakingTranscriber interface {
@@ -48,6 +50,14 @@ func NewService(repository Repository, providers map[string]MaterialProvider, ev
 		service.evaluator = evaluators[0]
 	}
 	return service
+}
+
+// WithGradingCache adds Redis L2 beneath the bounded in-process cache.
+// Configure before serving requests. The schema prefix must change when the
+// grading representation changes. Only immutable material versions are shared.
+func (s *Service) WithGradingCache(shared *cache.JSON) *Service {
+	s.sharedGradingCache = shared
+	return s
 }
 
 func (s *Service) SetExamGuard(guard ExamGuard) {
