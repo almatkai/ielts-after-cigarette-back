@@ -25,6 +25,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/jobs"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/observability"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
@@ -53,6 +54,18 @@ func New(
 	if len(sharedObjectStores) > 0 {
 		sharedObjectStore = sharedObjectStores[0]
 	}
+	return NewWithOptions(cfg, pool, redisClient, logger, Options{ObjectStore: sharedObjectStore})
+}
+
+type Options struct {
+	ObjectStore   objectstorage.Store
+	GradingCache  *cache.JSON
+	Metrics       *observability.Metrics
+	WorkerContext context.Context
+}
+
+func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Client, logger *slog.Logger, options Options) http.Handler {
+	sharedObjectStore := options.ObjectStore
 	tokens := auth.NewTokenManager(
 		cfg.JWTSecret,
 		cfg.JWTIssuer,
@@ -125,7 +138,7 @@ func New(
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
 		attempts.MaterialWriting:   attempts.NewWritingProvider(writingService),
 		attempts.MaterialSpeaking:  attempts.NewSpeakingProvider(speakingService),
-	}, aiEvaluator)
+	}, aiEvaluator).WithGradingCache(options.GradingCache)
 	if sharedObjectStore != nil {
 		attemptsService.WithSpeakingObjectStore(sharedObjectStore, speakingMediaLimit, aiEvaluator)
 	} else {
@@ -141,18 +154,24 @@ func New(
 		writingQueue := jobs.NewWritingQueue(redisClient)
 		attemptsService.WithWritingPipeline(writingQueue)
 
-		writingWorker := writingpipeline.NewWorker(
-			attemptsRepository,
-			attempts.NewWritingProvider(writingService),
-			aiEvaluator,
-			writingQueue,
-			logger,
-		)
-		go func() {
-			if err := writingWorker.Run(context.Background()); err != nil && !errors.Is(err, context.Canceled) {
-				logger.Error("in-process writing worker stopped", "error", err)
+		if !cfg.WritingWorkerExternal {
+			writingWorker := writingpipeline.NewWorker(
+				attemptsRepository,
+				attempts.NewWritingProvider(writingService),
+				aiEvaluator,
+				writingQueue,
+				logger,
+			)
+			workerCtx := options.WorkerContext
+			if workerCtx == nil {
+				workerCtx = context.Background()
 			}
-		}()
+			go func() {
+				if err := writingWorker.Run(workerCtx); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("in-process writing worker stopped", "error", err)
+				}
+			}()
+		}
 	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)
@@ -200,6 +219,9 @@ func New(
 
 	router := chi.NewRouter()
 	router.Use(httpx.RequestIDMiddleware)
+	if options.Metrics != nil {
+		router.Use(options.Metrics.Middleware)
+	}
 	router.Use(httpx.Recover(logger))
 	router.Use(httpx.AccessLog(logger))
 	router.Use(httpx.CORS(cfg.CORSAllowedOrigins))
