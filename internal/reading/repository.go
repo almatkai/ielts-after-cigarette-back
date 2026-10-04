@@ -66,7 +66,7 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID) (Material, e
 	if err != nil {
 		return Material{}, fmt.Errorf("get reading material: %w", err)
 	}
-	material.QuestionGroups, err = r.questionGroups(ctx, material.ID, material.CurrentVersionNumber)
+	material.QuestionGroups, err = r.questionGroups(ctx, material.CurrentVersionID)
 	if err != nil {
 		return Material{}, err
 	}
@@ -119,7 +119,7 @@ func (r *PostgresRepository) GetPublished(ctx context.Context, id uuid.UUID) (Ma
 	if err != nil {
 		return Material{}, fmt.Errorf("get published reading material: %w", err)
 	}
-	material.QuestionGroups, err = r.questionGroups(ctx, material.ID, material.CurrentVersionNumber)
+	material.QuestionGroups, err = r.questionGroups(ctx, *material.PublishedVersionID)
 	if err != nil {
 		return Material{}, err
 	}
@@ -141,9 +141,8 @@ func (r *PostgresRepository) GetVersion(ctx context.Context, id, versionID uuid.
 	if err != nil {
 		return Material{}, fmt.Errorf("get reading material version: %w", err)
 	}
-	// CurrentVersionNumber here holds the number of the joined version, so
-	// questionGroups loads exactly that version's structure.
-	material.QuestionGroups, err = r.questionGroups(ctx, material.ID, material.CurrentVersionNumber)
+	// Load the pinned version, not the material's current draft.
+	material.QuestionGroups, err = r.questionGroups(ctx, versionID)
 	if err != nil {
 		return Material{}, err
 	}
@@ -424,18 +423,17 @@ func materialScanTargets(material *Material) []any {
 }
 
 func insertQuestionGroups(ctx context.Context, tx pgx.Tx, versionID uuid.UUID, groups []QuestionGroup, actorID uuid.UUID) error {
+	batch := &pgx.Batch{}
 	for groupIndex, group := range groups {
 		groupID := uuid.New()
 		position := group.Position
 		if position < 1 {
 			position = groupIndex + 1
 		}
-		if _, err := tx.Exec(ctx, `
+		batch.Queue(`
 			INSERT INTO reading_question_groups (id, material_version_id, position, question_type, instructions, created_by)
 			VALUES ($1, $2, $3, $4, $5, $6)
-		`, groupID, versionID, position, group.Type, group.Instructions, actorID); err != nil {
-			return fmt.Errorf("insert reading question group: %w", err)
-		}
+		`, groupID, versionID, position, group.Type, group.Instructions, actorID)
 		for questionIndex, question := range group.Questions {
 			content, err := json.Marshal(question.Content)
 			if err != nil {
@@ -453,27 +451,30 @@ func insertQuestionGroups(ctx context.Context, tx pgx.Tx, versionID uuid.UUID, g
 			if points < 1 {
 				points = 1
 			}
-			if _, err := tx.Exec(ctx, `
+			batch.Queue(`
 				INSERT INTO reading_questions (id, group_id, position, prompt, content, answer, explanation, points, created_by)
 				VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9)
-			`, uuid.New(), groupID, qPosition, question.Prompt, content, answer, question.Explanation, points, actorID); err != nil {
-				return fmt.Errorf("insert reading question: %w", err)
-			}
+			`, uuid.New(), groupID, qPosition, question.Prompt, content, answer, question.Explanation, points, actorID)
 		}
+	}
+	if batch.Len() == 0 {
+		return nil
+	}
+	if err := tx.SendBatch(ctx, batch).Close(); err != nil {
+		return fmt.Errorf("insert reading question groups: %w", err)
 	}
 	return nil
 }
 
-func (r *PostgresRepository) questionGroups(ctx context.Context, materialID uuid.UUID, versionNumber int) ([]QuestionGroup, error) {
+func (r *PostgresRepository) questionGroups(ctx context.Context, versionID uuid.UUID) ([]QuestionGroup, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT g.id, g.position, g.question_type, g.instructions,
 			q.id, q.position, q.prompt, q.content, q.answer, q.explanation, q.points
 		FROM reading_question_groups g
-		JOIN reading_material_versions v ON v.id = g.material_version_id
 		LEFT JOIN reading_questions q ON q.group_id = g.id
-		WHERE v.material_id = $1 AND v.version_number = $2
+		WHERE g.material_version_id = $1
 		ORDER BY g.position, q.position
-	`, materialID, versionNumber)
+	`, versionID)
 	if err != nil {
 		return nil, fmt.Errorf("list reading question groups: %w", err)
 	}
@@ -536,13 +537,19 @@ func (r *PostgresRepository) testPassages(ctx context.Context, testVersionID uui
 		return nil, fmt.Errorf("iterate reading test passages: %w", err)
 	}
 	rows.Close()
-	passages := make([]Material, 0, len(refs))
+	// Reuse the bulk loader so the query count does not grow per passage.
+	// Close the link rows first: the loader needs connections from the pool.
+	versionRefs := make([]VersionRef, 0, len(refs))
 	for _, ref := range refs {
-		passage, err := r.GetVersion(ctx, ref.materialID, ref.versionID)
-		if err != nil {
-			return nil, err
-		}
-		passages = append(passages, passage)
+		versionRefs = append(versionRefs, VersionRef{MaterialID: ref.materialID, VersionID: ref.versionID})
+	}
+	loaded, err := r.GradingStructures(ctx, versionRefs)
+	if err != nil {
+		return nil, err
+	}
+	passages := make([]Material, 0, len(refs))
+	for _, ref := range versionRefs {
+		passages = append(passages, loaded[ref])
 	}
 	return passages, nil
 }

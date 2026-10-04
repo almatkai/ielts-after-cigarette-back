@@ -2,8 +2,10 @@ package attempts
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -196,17 +198,39 @@ func (s *Service) gradingMaterialsOfType(
 		}
 		missing = append(missing, ref)
 	}
-	if len(missing) > 0 {
-		fetched, err := s.loadGradingMaterials(ctx, provider, missing)
+	keys := make([]string, 0, len(missing))
+	for _, ref := range missing {
+		keys = append(keys, sharedGradingKey(materialType, ref))
+	}
+	cached := s.sharedGradingCache.GetMany(ctx, keys)
+	unloaded := make([]MaterialRef, 0, len(missing))
+	for _, ref := range missing {
+		var material GradingMaterial
+		if data, ok := cached[sharedGradingKey(materialType, ref)]; ok && json.Unmarshal([]byte(data), &material) == nil && material.ExamType != "" {
+			s.gradingCache.put(materialType, ref, material)
+			loaded[ref] = material
+		} else {
+			unloaded = append(unloaded, ref)
+		}
+	}
+	if len(unloaded) > 0 {
+		fetched, err := s.loadGradingMaterials(ctx, provider, unloaded)
 		if err != nil {
 			return nil, err
 		}
+		shared := make(map[string]any, len(fetched))
 		for ref, material := range fetched {
 			s.gradingCache.put(materialType, ref, material)
 			loaded[ref] = material
+			shared[sharedGradingKey(materialType, ref)] = material
 		}
+		s.sharedGradingCache.PutMany(ctx, shared, 24*time.Hour)
 	}
 	return loaded, nil
+}
+
+func sharedGradingKey(materialType string, ref MaterialRef) string {
+	return "iac:grading:v1:" + materialType + ":" + ref.MaterialID.String() + ":" + ref.VersionID.String()
 }
 
 // loadGradingMaterials prefers a module's bulk loader and falls back to one

@@ -269,11 +269,23 @@ func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (
 	if err != nil {
 		return Media{}, nil, err
 	}
+	object, err := s.OpenMedia(ctx, media)
+	return media, object, err
+}
+
+func (s *Service) MediaMetadata(ctx context.Context, id uuid.UUID, publishedOnly bool) (Media, error) {
+	return s.repository.GetMedia(ctx, id, publishedOnly)
+}
+
+func (s *Service) OpenMedia(ctx context.Context, media Media) (objectstorage.ReadSeekCloser, error) {
 	object, err := s.mediaStore.Open(ctx, media.StorageKey)
 	if err != nil {
-		return Media{}, nil, err
+		if objectstorage.IsNotFound(err) {
+			return nil, fmt.Errorf("%w: id=%s key=%s: %v", ErrMediaObjectMissing, media.ID, media.StorageKey, err)
+		}
+		return nil, fmt.Errorf("open listening media id=%s key=%s: %w", media.ID, media.StorageKey, err)
 	}
-	return media, object, nil
+	return object, nil
 }
 
 func (s *Service) TranscribeTest(ctx context.Context, testID, actorID uuid.UUID) (Test, error) {

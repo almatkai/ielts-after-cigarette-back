@@ -1,0 +1,158 @@
+# Overlay: use WITH docker-compose.production.yml. Nothing is deployed by editing it.
+services:
+  backend:
+    environment:
+      METRICS_ADDR: :9090
+    logging:
+      driver: json-file
+      options: {max-size: '20m', max-file: '5'}
+
+  worker:
+    profiles: [workers]
+    image: ${BACKEND_IMAGE}
+    entrypoint: [/app/worker]
+    # Shares backend configuration and media mounts via Compose extends.
+    extends:
+      file: docker-compose.production.yml
+      service: backend
+    ports: !reset []
+    healthcheck:
+      disable: true
+    environment:
+      DB_MAX_CONNS: ${WORKER_DB_MAX_CONNS:-5}
+      METRICS_ADDR: ''
+      SPEECH_ENABLED: ${SPEECH_ENABLED:-false}
+      SPEECH_SERVICE_URL: ${SPEECH_SERVICE_URL:-http://speech-service:8001}
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:-}
+      SPEECH_TIMEOUT: ${SPEECH_TIMEOUT:-5m}
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: '20m', max-file: '5'}
+
+  backup:
+    profiles: [backups]
+    build: ./ops/backup
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_S3_URI: ${BACKUP_S3_URI:-}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_LOCAL_RETENTION_DAYS: ${BACKUP_LOCAL_RETENTION_DAYS:-7}
+      AWS_ACCESS_KEY_ID: ${BACKUP_AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${BACKUP_AWS_REGION:-us-east-1}
+      AWS_ENDPOINT_URL: ${BACKUP_AWS_ENDPOINT_URL:-}
+    volumes:
+      - database_backups:/backups
+      - backup_status:/status
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}
+
+  docker-log-proxy:
+    profiles: [monitoring]
+    image: tecnativa/docker-socket-proxy:0.3.0
+    environment:
+      CONTAINERS: '1'
+      EVENTS: '1'
+      INFO: '1'
+      PING: '1'
+      VERSION: '1'
+      NETWORKS: '1'
+      POST: '0'
+    volumes: [/var/run/docker.sock:/var/run/docker.sock:ro]
+    networks: [log-control]
+    mem_limit: 64m
+    restart: unless-stopped
+
+  backup-metrics:
+    profiles: [monitoring]
+    image: prom/node-exporter:v1.9.1
+    command: ['--collector.disable-defaults', '--collector.textfile', '--collector.textfile.directory=/status']
+    volumes: [backup_status:/status:ro]
+    restart: unless-stopped
+
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v3.5.0
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.path=/prometheus', '--storage.tsdb.retention.time=15d']
+    volumes:
+      - ./ops/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+
+  loki:
+    profiles: [monitoring]
+    image: grafana/loki:3.5.3
+    command: ['-config.file=/etc/loki/config.yml']
+    volumes:
+      - ./ops/monitoring/loki.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+
+  alloy:
+    profiles: [monitoring]
+    image: grafana/alloy:v1.10.2
+    command: ['run', '--storage.path=/var/lib/alloy', '/etc/alloy/config.alloy']
+    volumes:
+      - ./ops/monitoring/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy
+    networks: [default, log-control]
+    depends_on: [loki, docker-log-proxy]
+    restart: unless-stopped
+
+  alertbridge:
+    profiles: [monitoring]
+    build: ./ops/alertbridge
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in operations.env}
+      PROMETHEUS_URL: http://prometheus:9090
+      STATE_DIR: /data
+      POLL_SECONDS: '30'
+    volumes: [alertbridge_state:/data]
+    networks: [default, glitchtip]
+    mem_limit: 64m
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '3'}
+
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set a strong Grafana password before using this overlay}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    ports: ['127.0.0.1:3300:3000']
+    volumes:
+      - ./ops/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/iac.yml:ro
+      - ./ops/monitoring/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/iac.yml:ro
+      - ./ops/monitoring/grafana/overview.json:/var/lib/grafana/dashboards/iac.json:ro
+      - grafana_data:/var/lib/grafana
+    depends_on: [prometheus, loki]
+    restart: unless-stopped
+
+networks:
+  log-control:
+    internal: true
+  glitchtip:
+    external: true
+    name: glitchtip_default
+
+volumes:
+  database_backups:
+  backup_status:
+  alertbridge_state:
+  prometheus_data:
+  loki_data:
+  alloy_data:
+  grafana_data:

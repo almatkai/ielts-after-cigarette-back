@@ -181,6 +181,25 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
+	if r.URL.Query().Has("limit") || r.URL.Query().Has("cursor") {
+		limit := 50
+		var err error
+		if raw := r.URL.Query().Get("limit"); raw != "" {
+			limit, err = strconv.Atoi(raw)
+		}
+		cursor, cursorErr := ParseHistoryCursor(r.URL.Query().Get("cursor"))
+		if err != nil || cursorErr != nil || limit < 1 || limit > 100 {
+			httpx.WriteError(w, r, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Invalid pagination", nil)
+			return
+		}
+		result, err := h.service.History(r.Context(), actor, materialType, limit, cursor)
+		if err != nil {
+			h.writeError(w, r, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, result)
+		return
+	}
 	items, err := h.service.List(r.Context(), actor, materialType)
 	if err != nil {
 		h.writeError(w, r, err)
@@ -260,6 +279,21 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, detail)
 }
 
+func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
+	attemptID, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	status, err := h.service.Status(r.Context(), actor, attemptID)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(w, http.StatusOK, status)
+}
+
 func (h *Handler) decodeAnswers(w http.ResponseWriter, r *http.Request) (SaveAnswersInput, bool) {
 	var input SaveAnswersInput
 	if err := httpx.DecodeJSON(w, r, h.maxBody, &input); err != nil {
@@ -322,10 +356,6 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		if httpx.ClientGone(w, r, err) {
 			return
 		}
-		h.logger.ErrorContext(r.Context(), "attempts request failed",
-			"request_id", httpx.RequestID(r.Context()),
-			"error", err,
-		)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Request failed", nil)
+		httpx.InternalError(w, r, h.logger, err)
 	}
 }

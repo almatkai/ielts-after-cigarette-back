@@ -736,10 +736,19 @@ IELTS для skill'а попытки: у listening одна таблица, у r
 
 ### `GET /attempts?materialType=listening`
 
-История попыток пользователя, новые первые. `materialType` — `listening` или
-`reading`, другие значения — `422 VALIDATION_ERROR`; без параметра возвращаются
-попытки всех типов. `testTitle`/`testSlug` — название и slug теста или
-reading-материала. Ответ `200`:
+История попыток пользователя. `materialType` — `listening`, `reading`,
+`writing` или `speaking`, другие значения — `422 VALIDATION_ERROR`; без
+параметра возвращаются попытки всех типов. `testTitle`/`testSlug` — название и
+slug материала. Без `limit` и `cursor` сохранён прежний полный ответ.
+
+Для постраничного чтения: `GET /attempts?limit=50&cursor=<nextCursor>`.
+`limit` — 1–100 (по умолчанию 50, если указан только `cursor`). Ответ содержит
+`items` и необязательный `nextCursor`; отсутствие курсора означает конец
+истории. Курсор непрозрачный: его нужно передавать без изменений вместе с тем
+же `materialType`. Порядок страниц — `(COALESCE(submitted_at, started_at), id)`
+по убыванию, как в истории на странице Progress. Неверные параметры дают
+`422 VALIDATION_ERROR`. Все страницы ограничены текущим пользователем.
+Ответ `200`:
 
 ```json
 {
@@ -789,6 +798,31 @@ Writing/Speaking с сохранённой оценкой. Сортировка:
 остальные поля вопроса остаются как в полном разборе. Пустые списки — `[]`.
 Контракт полного разбора и старый bulk endpoint `/attempts/mistakes`
 сохранены для совместимости.
+
+### `GET /attempts/{attemptId}/status`
+
+Лёгкий snapshot для ожидания фоновой AI-оценки (требует Bearer token).
+Возвращает только ID, статус попытки и, если есть, `writingAssessment` или
+`speakingAssessment` для активной попытки:
+
+```json
+{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "status": "PROCESSING",
+  "writingAssessment": {"status": "QUEUED", "attempts": 0}
+}
+```
+
+Статусы попытки: `IN_PROGRESS`, `PROCESSING`, `SUBMITTED`, `ABANDONED`.
+Job: `QUEUED`, `PROCESSING`, `READY`, `FAILED`; может содержать `errorCode` и
+`errorMessage`. Отсутствующий job не включается в ответ. Ответ не содержит
+answers, recordings, transcripts или evaluations; `Cache-Control: no-store`.
+Чужая и несуществующая попытка одинаково возвращают `404 NOT_FOUND`.
+
+Клиент опрашивает только пока попытка `PROCESSING`, с интервалом 2 → 5 → 10 с.
+После выхода из `PROCESSING` один раз загружает полный detail — в том числе
+при возврате в `IN_PROGRESS` после неудачной оценки. Сначала деплоится backend
+с этой ручкой, затем frontend, использующий её.
 
 ### `GET /attempts/{attemptId}`
 

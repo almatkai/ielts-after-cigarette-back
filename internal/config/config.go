@@ -12,7 +12,14 @@ import (
 type Config struct {
 	Environment             string
 	HTTPAddr                string
+	MetricsAddr             string
+	WritingWorkerExternal   bool
+	SentryDSN               string
+	SentryWorkerDSN         string
+	SentryEnvironment       string
+	SentryRelease           string
 	DatabaseURL             string
+	DatabaseMaxConns        int64
 	RedisURL                string
 	JWTSecret               string
 	JWTIssuer               string
@@ -72,6 +79,11 @@ func Load() (Config, error) {
 	cfg := Config{
 		Environment:             env("APP_ENV", "development"),
 		HTTPAddr:                env("HTTP_ADDR", ":8080"),
+		MetricsAddr:             os.Getenv("METRICS_ADDR"),
+		SentryDSN:               os.Getenv("SENTRY_DSN"),
+		SentryWorkerDSN:         env("SENTRY_WORKER_DSN", os.Getenv("SENTRY_DSN")),
+		SentryEnvironment:       env("SENTRY_ENVIRONMENT", "production"),
+		SentryRelease:           env("SENTRY_RELEASE", ""),
 		DatabaseURL:             os.Getenv("DATABASE_URL"),
 		RedisURL:                os.Getenv("REDIS_URL"),
 		JWTSecret:               os.Getenv("JWT_SECRET"),
@@ -108,6 +120,12 @@ func Load() (Config, error) {
 	}
 
 	var err error
+	if cfg.DatabaseMaxConns, err = int64Env("DB_MAX_CONNS", 20); err != nil {
+		return Config{}, err
+	}
+	if cfg.DatabaseMaxConns < 1 || cfg.DatabaseMaxConns > 10000 {
+		return Config{}, errors.New("DB_MAX_CONNS must be between 1 and 10000")
+	}
 	if cfg.AccessTokenTTL, err = durationEnv("ACCESS_TOKEN_TTL", 15*time.Minute); err != nil {
 		return Config{}, err
 	}
@@ -166,6 +184,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.AISpeakingAudioEnabled, err = boolEnv("AI_SPEAKING_AUDIO_ENABLED", true); err != nil {
+		return Config{}, err
+	}
+	if cfg.WritingWorkerExternal, err = boolEnv("WRITING_WORKER_EXTERNAL", false); err != nil {
 		return Config{}, err
 	}
 	if cfg.SpeechEnabled, err = boolEnv("SPEECH_ENABLED", false); err != nil {

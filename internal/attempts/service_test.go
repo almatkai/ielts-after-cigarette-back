@@ -82,6 +82,20 @@ func (s *stubRepository) Get(_ context.Context, id uuid.UUID) (Attempt, error) {
 	return attempt, nil
 }
 
+func (s *stubRepository) GetStatus(_ context.Context, userID, attemptID uuid.UUID) (StatusDetail, error) {
+	attempt, ok := s.attempts[attemptID]
+	if !ok || attempt.UserID != userID {
+		return StatusDetail{}, ErrNotFound
+	}
+	result := StatusDetail{ID: attempt.ID, Status: attempt.Status}
+	if attempt.MaterialType == MaterialWriting && (attempt.Status == StatusInProgress || attempt.Status == StatusProcessing) {
+		if job, ok := s.writingJobs[attemptID]; ok {
+			result.WritingAssessment = &job
+		}
+	}
+	return result, nil
+}
+
 func (s *stubRepository) ListByUser(_ context.Context, userID uuid.UUID, materialType string) ([]Summary, error) {
 	items := []Summary{}
 	for _, attempt := range s.attempts {

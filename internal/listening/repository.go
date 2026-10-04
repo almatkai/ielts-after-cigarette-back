@@ -238,36 +238,36 @@ func insertVersion(ctx context.Context, tx pgx.Tx, testID, versionID uuid.UUID, 
 		VALUES ($1,$2,$3,$4,$5,$6,$7)`, versionID, testID, number, input.Title, input.Description, input.DurationMinutes, actorID); err != nil {
 		return fmt.Errorf("insert listening version: %w", err)
 	}
+	batch := &pgx.Batch{}
 	for partIndex, part := range input.Parts {
 		partID := uuid.New()
 		transcriptSegments, _ := json.Marshal(part.TranscriptSegments)
 		if part.TranscriptSegments == nil {
 			transcriptSegments = []byte("[]")
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO listening_parts
+		batch.Queue(`INSERT INTO listening_parts
 			(id,test_version_id,position,title,audio_asset_id,transcript,transcript_segments) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)`,
-			partID, versionID, partIndex+1, part.Title, part.AudioAssetID, part.Transcript, transcriptSegments); err != nil {
-			return fmt.Errorf("insert listening part: %w", err)
-		}
+			partID, versionID, partIndex+1, part.Title, part.AudioAssetID, part.Transcript, transcriptSegments)
 		for groupIndex, group := range part.Groups {
 			groupID := uuid.New()
 			config, _ := json.Marshal(group.Config)
-			if _, err := tx.Exec(ctx, `INSERT INTO listening_question_groups
+			batch.Queue(`INSERT INTO listening_question_groups
 				(id,part_id,position,question_type,instructions,context,config,image_asset_id)
 				VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)`, groupID, partID, groupIndex+1,
-				group.Type, group.Instructions, group.Context, config, group.ImageAssetID); err != nil {
-				return fmt.Errorf("insert listening group: %w", err)
-			}
+				group.Type, group.Instructions, group.Context, config, group.ImageAssetID)
 			for questionIndex, question := range group.Questions {
 				content, _ := json.Marshal(question.Content)
 				answer, _ := json.Marshal(question.Answer)
-				if _, err := tx.Exec(ctx, `INSERT INTO listening_questions
+				batch.Queue(`INSERT INTO listening_questions
 					(id,group_id,position,number,prompt,content,answer,explanation,points)
 					VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9)`, uuid.New(), groupID,
-					questionIndex+1, question.Number, question.Prompt, content, answer, question.Explanation, question.Points); err != nil {
-					return fmt.Errorf("insert listening question: %w", err)
-				}
+					questionIndex+1, question.Number, question.Prompt, content, answer, question.Explanation, question.Points)
 			}
+		}
+	}
+	if batch.Len() > 0 {
+		if err := tx.SendBatch(ctx, batch).Close(); err != nil {
+			return fmt.Errorf("insert listening structure: %w", err)
 		}
 	}
 	return nil

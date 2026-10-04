@@ -7,6 +7,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/google/uuid"
 )
@@ -23,6 +24,7 @@ type Service struct {
 	writingJobs         WritingJobQueue
 	speakingTranscriber SpeakingTranscriber
 	gradingCache        *gradingCache
+	sharedGradingCache  *cache.JSON
 }
 
 type SpeakingTranscriber interface {
@@ -48,6 +50,14 @@ func NewService(repository Repository, providers map[string]MaterialProvider, ev
 		service.evaluator = evaluators[0]
 	}
 	return service
+}
+
+// WithGradingCache adds Redis L2 beneath the bounded in-process cache.
+// Configure before serving requests. The schema prefix must change when the
+// grading representation changes. Only immutable material versions are shared.
+func (s *Service) WithGradingCache(shared *cache.JSON) *Service {
+	s.sharedGradingCache = shared
+	return s
 }
 
 func (s *Service) SetExamGuard(guard ExamGuard) {
@@ -552,15 +562,12 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 		}
 		return Detail{Attempt: attempt, Answers: saved, WritingEvaluation: &evaluation}, nil
 	}
-	provider, err := s.provider(attempt.MaterialType)
+	ref := MaterialRef{MaterialID: attempt.MaterialID, VersionID: attempt.MaterialVersionID}
+	materials, err := s.gradingMaterialsOfType(ctx, attempt.MaterialType, map[MaterialRef][]uuid.UUID{ref: nil})
 	if err != nil {
 		return Detail{}, err
 	}
-	material, err := provider.GradingStructure(ctx, attempt.MaterialID, attempt.MaterialVersionID)
-	if err != nil {
-		return Detail{}, err
-	}
-	return Detail{Attempt: attempt, Review: reviewFromMaterial(material, saved)}, nil
+	return Detail{Attempt: attempt, Review: reviewFromMaterial(materials[ref], saved)}, nil
 }
 
 // reviewFromMaterial joins a graded material with the saved answers into the

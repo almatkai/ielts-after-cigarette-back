@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/google/uuid"
 )
 
@@ -80,17 +81,27 @@ func (w *Worker) recoverPending(ctx context.Context) {
 		w.logger.Error("recover writing jobs", "error", err)
 		return
 	}
-	ids, err := w.repository.PendingWritingAssessmentIDs(ctx, 20)
-	if err == nil {
-		for _, id := range ids {
-			_ = w.queue.EnqueueWritingAssessment(ctx, id)
+	ids, err := w.repository.PendingWritingAssessmentIDs(ctx, 1)
+	if err != nil {
+		w.logger.Error("list pending writing assessments", "error", err)
+		return
+	}
+	// PostgreSQL is the durable queue; Redis only reduces wake-up latency.
+	// Process recovered jobs directly, so Redis outages cannot stall grading.
+	for _, id := range ids {
+		if ctx.Err() != nil {
+			return
 		}
+		w.processAssessment(ctx, id)
 	}
 }
 
 func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 	claimed, err := w.repository.ClaimWritingAssessment(ctx, attemptID)
 	if err != nil || !claimed {
+		if err != nil {
+			w.logger.Error("claim writing assessment", "attempt_id", attemptID, "error", err)
+		}
 		return
 	}
 	stopHeartbeat := keepLease(ctx, func(ctx context.Context) error {
@@ -181,7 +192,10 @@ func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 
 func (w *Worker) failAssessment(ctx context.Context, attemptID uuid.UUID, err error) {
 	w.logger.Error("writing assessment failed", "attempt_id", attemptID, "error", err)
-	_ = w.repository.FailWritingAssessment(ctx, attemptID, truncate(err.Error(), 2000))
+	httpx.ReportBackground(ctx, "writing_assessment", "attempt_id", attemptID, err)
+	if updateErr := w.repository.FailWritingAssessment(ctx, attemptID, truncate(err.Error(), 2000)); updateErr != nil && ctx.Err() == nil {
+		w.logger.Error("persist writing assessment failure", "attempt_id", attemptID, "error", updateErr)
+	}
 }
 
 func keepLease(ctx context.Context, renew func(context.Context) error) context.CancelFunc {

@@ -33,11 +33,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		if httpx.ClientGone(w, r, err) {
 			return
 		}
-		h.logger.ErrorContext(r.Context(), "get dashboard",
-			"request_id", httpx.RequestID(r.Context()),
-			"error", err,
-		)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+		httpx.InternalError(w, r, h.logger, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, response)

@@ -12,7 +12,11 @@ var (
 	ErrSlugExists       = errors.New("listening test slug already exists")
 	ErrRevisionConflict = errors.New("listening test revision conflict")
 	ErrMediaNotFound    = errors.New("listening media not found")
-	ErrUnsupportedMedia = errors.New("unsupported listening media type")
+	// ErrMediaObjectMissing means the database row exists but the file is
+	// absent from this environment's object storage (wrong backend, bucket,
+	// or the upload went to another environment). Handlers answer 404, not 500.
+	ErrMediaObjectMissing = errors.New("listening media object is missing from storage")
+	ErrUnsupportedMedia   = errors.New("unsupported listening media type")
 )
 
 const (

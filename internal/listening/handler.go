@@ -8,6 +8,7 @@ import (
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -194,8 +195,26 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 	}
 	role := auth.Role(r.Context())
 	publishedOnly := role != auth.RoleEditor && role != auth.RoleAdmin
-	media, object, err := h.service.Media(r.Context(), id, publishedOnly)
+	media, err := h.service.MediaMetadata(r.Context(), id, publishedOnly)
+	var object objectstorage.ReadSeekCloser
+	if err == nil {
+		if publishedOnly && httpx.RevalidateMedia(w, r, media.ID) {
+			return
+		}
+		object, err = h.service.OpenMedia(r.Context(), media)
+	}
 	if err != nil {
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Del("ETag")
+		if errors.Is(err, ErrMediaObjectMissing) {
+			h.logger.ErrorContext(r.Context(), "listening media object missing from storage",
+				"request_id", httpx.RequestID(r.Context()),
+				"media_id", id.String(),
+				"error", err,
+			)
+			httpx.WriteError(w, r, http.StatusNotFound, "MEDIA_NOT_FOUND", "Media file is missing from storage", nil)
+			return
+		}
 		h.writeError(w, r, err)
 		return
 	}
@@ -242,7 +261,6 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		if httpx.ClientGone(w, r, err) {
 			return
 		}
-		h.logger.Error("listening request failed", "error", err)
-		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Request failed", nil)
+		httpx.InternalError(w, r, h.logger, err)
 	}
 }

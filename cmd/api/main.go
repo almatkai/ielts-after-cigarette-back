@@ -14,7 +14,9 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/database"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/observability"
 )
 
 func main() {
@@ -33,7 +35,7 @@ func run() int {
 	startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer startupCancel()
 
-	pool, err := database.Open(startupCtx, cfg.DatabaseURL)
+	pool, err := database.Open(startupCtx, cfg.DatabaseURL, int32(cfg.DatabaseMaxConns))
 	if err != nil {
 		logger.Error("connect to PostgreSQL", "error", err)
 		return 1
@@ -75,17 +77,46 @@ func run() int {
 		sharedObjectStore = minioStore
 	}
 
+	sharedCache, err := cache.NewJSON(cfg.RedisURL, logger)
+	if err != nil {
+		logger.Error("configure material cache", "error", err)
+		return 1
+	}
+	defer sharedCache.Close()
+	workerCtx, stopWorkers := context.WithCancel(context.Background())
+	defer stopWorkers()
+	errorSink, flushErrors, err := observability.SentryErrorSink(cfg.SentryDSN, cfg.SentryEnvironment, cfg.SentryRelease, logger)
+	if err != nil {
+		logger.Error("configure error sink", "error", err)
+		return 1
+	}
+	httpx.SetErrorReporter(errorSink)
+	defer flushErrors(context.Background())
+	metrics := observability.New(pool)
+	var metricsServer *http.Server
+	if cfg.MetricsAddr != "" {
+		mux := http.NewServeMux()
+		mux.Handle("GET /metrics", metrics.Handler())
+		metricsServer = &http.Server{Addr: cfg.MetricsAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second}
+		defer metricsServer.Close()
+	}
 	serverTimeout := max(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second) + time.Second
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           app.New(cfg, pool, redisClient, logger, sharedObjectStore),
+		Handler:           app.NewWithOptions(cfg, pool, redisClient, logger, app.Options{ObjectStore: sharedObjectStore, GradingCache: sharedCache, Metrics: metrics, WorkerContext: workerCtx}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       serverTimeout,
 		WriteTimeout:      serverTimeout,
 		IdleTimeout:       60 * time.Second,
 	}
 
-	serverErrors := make(chan error, 1)
+	serverErrors := make(chan error, 2)
+	if metricsServer != nil {
+		go func() {
+			logger.Info("private metrics listener starting", "address", cfg.MetricsAddr)
+			serverErrors <- metricsServer.ListenAndServe()
+		}()
+	}
 	go func() {
 		logger.Info("HTTP server starting", "address", cfg.HTTPAddr, "environment", cfg.Environment)
 		serverErrors <- server.ListenAndServe()
@@ -111,6 +142,10 @@ func run() int {
 		logger.Error("graceful shutdown failed", "error", err)
 		_ = server.Close()
 		return 1
+	}
+	stopWorkers()
+	if metricsServer != nil {
+		_ = metricsServer.Shutdown(shutdownCtx)
 	}
 	logger.Info("HTTP server stopped")
 	return 0

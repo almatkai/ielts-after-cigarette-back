@@ -65,7 +65,7 @@ func (r *PostgresRepository) GradingStructures(ctx context.Context, refs []Versi
 	}
 	for _, ref := range refs {
 		material, ok := versions[ref.VersionID]
-		if !ok {
+		if !ok || material.ID != ref.MaterialID {
 			return nil, ErrNotFound
 		}
 		material.Passages = passageMaterials(versions, passages, ref.VersionID, 0)
