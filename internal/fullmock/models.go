@@ -26,6 +26,8 @@ var (
 	ErrSectionLocked     = errors.New("full mock section is locked")
 	ErrRevisionConflict  = errors.New("full mock revision conflict")
 	ErrSlugExists        = errors.New("full mock slug already exists")
+	ErrBankIncomplete    = errors.New("published full tests are missing for one or more skills")
+	ErrExamTypeRequired  = errors.New("select an exam type in your profile")
 )
 
 type Test struct {
@@ -67,6 +69,23 @@ type StartInput struct {
 	Restart bool `json:"restart"`
 }
 
+// Counts refer to distinct available materials, not the number of attempts.
+type BankStatus struct {
+	Skill       string `json:"skill"`
+	Total       int    `json:"total"`
+	Completed   int    `json:"completed"`
+	Remaining   int    `json:"remaining"`
+	IsExhausted bool   `json:"isExhausted"`
+}
+
+type Overview struct {
+	ExamType        string       `json:"examType"`
+	DurationMinutes int          `json:"durationMinutes"`
+	Ready           bool         `json:"ready"`
+	Banks           []BankStatus `json:"banks"`
+	ActiveSession   *Session     `json:"activeSession"`
+}
+
 type SessionSection struct {
 	Position int              `json:"position"`
 	Skill    string           `json:"skill"`
@@ -74,15 +93,18 @@ type SessionSection struct {
 }
 
 type Session struct {
-	ID             uuid.UUID        `json:"id"`
-	MockTestID     uuid.UUID        `json:"mockTestId"`
-	UserID         uuid.UUID        `json:"-"`
-	Status         string           `json:"status"`
-	CurrentSection int              `json:"currentSection"`
-	StartedAt      time.Time        `json:"startedAt"`
-	SubmittedAt    *time.Time       `json:"submittedAt"`
-	DeadlineAt     time.Time        `json:"deadlineAt"`
-	MockTest       Test             `json:"mockTest"`
-	Sections       []SessionSection `json:"sections"`
-	OverallBand    *float64         `json:"overallBand"`
+	ID              uuid.UUID        `json:"id"`
+	MockTestID      uuid.UUID        `json:"mockTestId"`
+	ExamType        string           `json:"-"`
+	Title           string           `json:"-"`
+	DurationMinutes int              `json:"-"`
+	UserID          uuid.UUID        `json:"-"`
+	Status          string           `json:"status"`
+	CurrentSection  int              `json:"currentSection"`
+	StartedAt       time.Time        `json:"startedAt"`
+	SubmittedAt     *time.Time       `json:"submittedAt"`
+	DeadlineAt      time.Time        `json:"deadlineAt"`
+	MockTest        Test             `json:"mockTest"`
+	Sections        []SessionSection `json:"sections"`
+	OverallBand     *float64         `json:"overallBand"`
 }

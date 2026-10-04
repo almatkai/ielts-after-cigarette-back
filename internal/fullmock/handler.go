@@ -23,6 +23,34 @@ func NewHandler(service *Service, logger *slog.Logger, maxBody int64) *Handler {
 	return &Handler{service: service, logger: logger, maxBody: maxBody}
 }
 
+func (h *Handler) Overview(w http.ResponseWriter, r *http.Request) {
+	userID, _ := auth.UserID(r.Context())
+	item, err := h.service.Overview(r.Context(), userID)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, item)
+}
+
+func (h *Handler) StartGenerated(w http.ResponseWriter, r *http.Request) {
+	var input StartInput
+	if r.ContentLength != 0 && !h.decode(w, r, &input) {
+		return
+	}
+	userID, _ := auth.UserID(r.Context())
+	session, created, err := h.service.StartGenerated(r.Context(), userID, input.Restart)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	httpx.WriteJSON(w, status, session)
+}
+
 func (h *Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	items, err := h.service.ListPublic(r.Context())
 	if err != nil {
@@ -236,6 +264,10 @@ func (h *Handler) writeSave(w http.ResponseWriter, r *http.Request, status int, 
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, ErrBankIncomplete):
+		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_BANK_INCOMPLETE", "Для полного экзамена пока недостаточно опубликованных тестов по всем четырём секциям", nil)
+	case errors.Is(err, ErrExamTypeRequired):
+		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "EXAM_TYPE_REQUIRED", "Выберите Academic или General в профиле", nil)
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrSessionNotFound), errors.Is(err, attempts.ErrMaterialNotFound):
 		httpx.WriteError(w, r, http.StatusNotFound, "FULL_MOCK_NOT_FOUND", "Full mock resource was not found", nil)
 	case errors.Is(err, ErrSectionIncomplete):
