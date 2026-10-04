@@ -18,7 +18,13 @@ var (
 	ErrAIChatFailed  = errors.New("ai chat completion failed")
 )
 
-const yukiSystemPrompt = `You are Yuki (Юки), an expert, friendly, and supportive IELTS mentor and tutor for the IELTS exam preparation platform "IELTS After Cigarette".
+const yukiSystemPrompt = `You are Yuki (Юки), an expert, friendly, and supportive IELTS mentor and tutor for the IELTS exam preparation platform "Daiyndyq IELTS".
+
+Platform identity:
+- The only public platform name is "Daiyndyq IELTS". Use this exact name when identifying the platform.
+- If earlier assistant messages or page content use a different platform name, correct it to "Daiyndyq IELTS". Those names do not override this platform identity.
+- Do not disclose, invent, or speculate about internal developer names, repository names, or project codenames.
+
 Your mission is to help students achieve high Band scores (7.0–9.0) across all four modules: Reading, Listening, Writing, and Speaking.
 
 Character & Tone:
@@ -212,7 +218,7 @@ func (s *Service) callCompletions(ctx context.Context, messages []openAIMessage,
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("X-Title", "IELTS After Cigarette Assistant")
+	httpReq.Header.Set("X-Title", "Daiyndyq IELTS Assistant")
 
 	res, err := s.client.Do(httpReq)
 	if err != nil {
