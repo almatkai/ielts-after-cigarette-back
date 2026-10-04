@@ -1,0 +1,13 @@
+{
+  "uid": "iac-operations", "title": "IAC Operations", "schemaVersion": 39,
+  "version": 1, "refresh": "30s", "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {"id":1,"type":"timeseries","title":"API requests / second","gridPos":{"x":0,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"refId":"A","expr":"sum by (status) (rate(iac_http_requests_total[5m]))","legendFormat":"{{status}}"}]},
+    {"id":2,"type":"timeseries","title":"API p95 by route (seconds)","gridPos":{"x":12,"y":0,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"refId":"A","expr":"histogram_quantile(0.95, sum by (le,route) (rate(iac_http_duration_seconds_bucket[5m])))","legendFormat":"{{route}}"}]},
+    {"id":3,"type":"timeseries","title":"DB connections","gridPos":{"x":0,"y":8,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"refId":"A","expr":"iac_db_connections_acquired","legendFormat":"busy"},{"refId":"B","expr":"iac_db_connections_max","legendFormat":"max"},{"refId":"C","expr":"iac_db_connections","legendFormat":"total"}]},
+    {"id":4,"type":"timeseries","title":"Durable jobs","gridPos":{"x":12,"y":8,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"refId":"A","expr":"iac_jobs","legendFormat":"{{kind}} / {{status}}"}]},
+    {"id":5,"type":"timeseries","title":"Oldest active job (seconds)","gridPos":{"x":0,"y":16,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"refId":"A","expr":"iac_jobs_oldest_active_seconds","legendFormat":"{{kind}}"}]},
+    {"id":6,"type":"stat","title":"Uploaded backup age (check off-host warning)","gridPos":{"x":12,"y":16,"w":12,"h":8},"datasource":{"type":"prometheus","uid":"prometheus"},"fieldConfig":{"defaults":{"unit":"s"},"overrides":[]},"targets":[{"refId":"A","expr":"time() - iac_backup_last_success_timestamp_seconds","instant":true}]},
+    {"id":7,"type":"logs","title":"API and worker errors (filter by request_id in Explore)","gridPos":{"x":0,"y":24,"w":24,"h":10},"datasource":{"type":"loki","uid":"loki"},"targets":[{"refId":"A","expr":"{service=~\"backend|worker\"} | json | level=\"ERROR\""}]}
+  ]
+}

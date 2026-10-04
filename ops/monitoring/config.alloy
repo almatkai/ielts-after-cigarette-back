@@ -1,0 +1,33 @@
+discovery.docker "iac" {
+  host = "http://docker-log-proxy:2375"
+}
+
+discovery.relabel "iac" {
+  targets = discovery.docker.iac.targets
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex = "ielts-api-production"
+    action = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex = "backend|worker|backup"
+    action = "keep"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label = "service"
+  }
+}
+
+loki.source.docker "iac" {
+  host = "http://docker-log-proxy:2375"
+  targets = discovery.relabel.iac.output
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
