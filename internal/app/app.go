@@ -260,6 +260,7 @@ func New(
 			protected.Get("/attempts/{attemptID}/mistakes", attemptsHandler.MistakeDetail)
 			protected.Get("/attempts", attemptsHandler.List)
 			protected.Get("/attempts/{attemptID}", attemptsHandler.Get)
+			protected.Get("/attempts/{attemptID}/status", attemptsHandler.Status)
 			protected.Get("/attempts/{attemptID}/material", attemptsHandler.Material)
 			protected.Get("/users/me", authHandler.Me)
 			protected.Get("/profile", userHandler.Get)

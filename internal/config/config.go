@@ -13,6 +13,7 @@ type Config struct {
 	Environment             string
 	HTTPAddr                string
 	DatabaseURL             string
+	DatabaseMaxConns        int64
 	RedisURL                string
 	JWTSecret               string
 	JWTIssuer               string
@@ -108,6 +109,12 @@ func Load() (Config, error) {
 	}
 
 	var err error
+	if cfg.DatabaseMaxConns, err = int64Env("DB_MAX_CONNS", 20); err != nil {
+		return Config{}, err
+	}
+	if cfg.DatabaseMaxConns < 1 || cfg.DatabaseMaxConns > 10000 {
+		return Config{}, errors.New("DB_MAX_CONNS must be between 1 and 10000")
+	}
 	if cfg.AccessTokenTTL, err = durationEnv("ACCESS_TOKEN_TTL", 15*time.Minute); err != nil {
 		return Config{}, err
 	}

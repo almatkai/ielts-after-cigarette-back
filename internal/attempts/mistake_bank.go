@@ -56,11 +56,13 @@ const mistakeAttemptsSQL = `
 				UNION ALL
 				SELECT q.id FROM reading_question_groups g
 				JOIN reading_questions q ON q.group_id = g.id
-				WHERE a.material_type = 'reading' AND (
-					g.material_version_id = a.material_version_id OR
-					g.material_version_id IN (SELECT passage_material_version_id FROM reading_test_passages
-						WHERE test_material_version_id = a.material_version_id)
-				)
+				JOIN (
+					SELECT a.material_version_id AS version_id
+					UNION
+					SELECT passage_material_version_id FROM reading_test_passages
+					WHERE test_material_version_id = a.material_version_id
+				) versions ON versions.version_id = g.material_version_id
+				WHERE a.material_type = 'reading'
 			) questions
 			LEFT JOIN attempt_answers answer ON answer.attempt_id = a.id AND answer.question_id = questions.id
 			WHERE answer.is_correct IS DISTINCT FROM TRUE

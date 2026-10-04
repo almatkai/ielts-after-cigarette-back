@@ -46,6 +46,14 @@ func (r *stubAttemptsRepo) Get(_ context.Context, id uuid.UUID) (attempts.Attemp
 	return a, nil
 }
 
+func (r *stubAttemptsRepo) GetStatus(ctx context.Context, userID, attemptID uuid.UUID) (attempts.StatusDetail, error) {
+	attempt, err := r.Get(ctx, attemptID)
+	if err != nil || attempt.UserID != userID {
+		return attempts.StatusDetail{}, attempts.ErrNotFound
+	}
+	return attempts.StatusDetail{ID: attempt.ID, Status: attempt.Status}, nil
+}
+
 func (r *stubAttemptsRepo) ListByUser(_ context.Context, userID uuid.UUID, materialType string) ([]attempts.Summary, error) {
 	var items []attempts.Summary
 	for _, a := range r.attempts {

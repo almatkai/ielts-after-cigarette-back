@@ -7,11 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// gradingCacheTTL keeps a loaded material version around for a few minutes. A
+// gradingCacheTTL keeps a loaded material version around for an hour. A
 // reading test costs several round trips to load, the mistakes page is visited
 // repeatedly in one session, and a published material version is immutable:
 // updating a material always inserts a new version row, which the cache keys on.
-const gradingCacheTTL = 2 * time.Minute
+const gradingCacheTTL = time.Hour
 
 // gradingCacheSize bounds the memory used by the cache; the oldest arbitrary
 // entries are dropped once it is full.

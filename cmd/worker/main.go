@@ -40,7 +40,7 @@ func run() int {
 	defer stop()
 	startupCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	pool, err := database.Open(startupCtx, cfg.DatabaseURL)
+	pool, err := database.Open(startupCtx, cfg.DatabaseURL, int32(cfg.DatabaseMaxConns))
 	if err != nil {
 		logger.Error("connect to PostgreSQL", "error", err)
 		return 1

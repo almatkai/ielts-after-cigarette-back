@@ -7,6 +7,7 @@ import (
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -213,6 +214,7 @@ func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	id, err := uuid.Parse(chi.URLParam(r, "mediaID"))
 	if err != nil {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_ID", "Media ID must be UUID", nil)
@@ -220,8 +222,17 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 	}
 	role := auth.Role(r.Context())
 	publishedOnly := role != auth.RoleEditor && role != auth.RoleAdmin
-	media, object, err := h.service.Media(r.Context(), id, publishedOnly)
+	media, err := h.service.MediaMetadata(r.Context(), id, publishedOnly)
+	var object objectstorage.ReadSeekCloser
+	if err == nil {
+		if publishedOnly && httpx.RevalidateMedia(w, r, media.ID) {
+			return
+		}
+		object, err = h.service.OpenMedia(r.Context(), media)
+	}
 	if err != nil {
+		w.Header().Set("Cache-Control", "private, no-store")
+		w.Header().Del("ETag")
 		if errors.Is(err, ErrMediaObjectMissing) {
 			h.logger.ErrorContext(r.Context(), "writing media object missing from storage",
 				"request_id", httpx.RequestID(r.Context()),

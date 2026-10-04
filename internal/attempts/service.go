@@ -552,15 +552,12 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 		}
 		return Detail{Attempt: attempt, Answers: saved, WritingEvaluation: &evaluation}, nil
 	}
-	provider, err := s.provider(attempt.MaterialType)
+	ref := MaterialRef{MaterialID: attempt.MaterialID, VersionID: attempt.MaterialVersionID}
+	materials, err := s.gradingMaterialsOfType(ctx, attempt.MaterialType, map[MaterialRef][]uuid.UUID{ref: nil})
 	if err != nil {
 		return Detail{}, err
 	}
-	material, err := provider.GradingStructure(ctx, attempt.MaterialID, attempt.MaterialVersionID)
-	if err != nil {
-		return Detail{}, err
-	}
-	return Detail{Attempt: attempt, Review: reviewFromMaterial(material, saved)}, nil
+	return Detail{Attempt: attempt, Review: reviewFromMaterial(materials[ref], saved)}, nil
 }
 
 // reviewFromMaterial joins a graded material with the saved answers into the

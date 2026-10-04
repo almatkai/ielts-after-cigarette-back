@@ -389,14 +389,26 @@ func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (
 	if err != nil {
 		return Media{}, nil, err
 	}
+	object, err := s.OpenMedia(ctx, media)
+	return media, object, err
+}
+
+func (s *Service) MediaMetadata(ctx context.Context, id uuid.UUID, publishedOnly bool) (Media, error) {
+	return s.repository.GetMedia(ctx, id, publishedOnly)
+}
+
+func (s *Service) OpenMedia(ctx context.Context, media Media) (objectstorage.ReadSeekCloser, error) {
+	if s.mediaStore == nil {
+		return nil, errors.New("writing media storage is not configured")
+	}
 	object, err := s.mediaStore.Open(ctx, media.StorageKey)
 	if err != nil {
 		if objectstorage.IsNotFound(err) {
-			return Media{}, nil, fmt.Errorf("%w: id=%s key=%s: %v", ErrMediaObjectMissing, id, media.StorageKey, err)
+			return nil, fmt.Errorf("%w: id=%s key=%s: %v", ErrMediaObjectMissing, media.ID, media.StorageKey, err)
 		}
-		return Media{}, nil, fmt.Errorf("open writing media id=%s key=%s: %w", id, media.StorageKey, err)
+		return nil, fmt.Errorf("open writing media id=%s key=%s: %w", media.ID, media.StorageKey, err)
 	}
-	return media, object, nil
+	return object, nil
 }
 
 func oneOf(value string, values ...string) bool {

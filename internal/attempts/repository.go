@@ -38,6 +38,7 @@ type Repository interface {
 	FindInProgress(context.Context, uuid.UUID, string, uuid.UUID) (Attempt, error)
 	Create(context.Context, Attempt) (Attempt, error)
 	Get(context.Context, uuid.UUID) (Attempt, error)
+	GetStatus(context.Context, uuid.UUID, uuid.UUID) (StatusDetail, error)
 	ListByUser(context.Context, uuid.UUID, string) ([]Summary, error)
 	SaveAnswers(context.Context, uuid.UUID, []AnswerInput) error
 	ListAnswers(context.Context, uuid.UUID) ([]Answer, error)
@@ -104,21 +105,9 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID) (Attempt, er
 }
 
 func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, materialType string) ([]Summary, error) {
-	rows, err := r.pool.Query(ctx, `SELECT a.id, a.user_id, a.material_type, a.material_id,
-		a.material_version_id, a.status, a.score, a.max_score, a.band::double precision,
-		a.started_at, a.submitted_at,
-		COALESCE(lv.title, rv.title, wv.title, sv.title, ''), COALESCE(lt.slug, rm.slug, wm.slug, sm.slug, '')
-		FROM attempts a
-		LEFT JOIN listening_tests lt ON lt.id = a.material_id AND a.material_type = 'listening'
-		LEFT JOIN listening_test_versions lv ON lv.id = a.material_version_id AND a.material_type = 'listening'
-		LEFT JOIN reading_materials rm ON rm.id = a.material_id AND a.material_type = 'reading'
-		LEFT JOIN reading_material_versions rv ON rv.id = a.material_version_id AND a.material_type = 'reading'
-		LEFT JOIN writing_materials wm ON wm.id = a.material_id AND a.material_type = 'writing'
-		LEFT JOIN writing_material_versions wv ON wv.id = a.material_version_id AND a.material_type = 'writing'
-		LEFT JOIN speaking_materials sm ON sm.id = a.material_id AND a.material_type = 'speaking'
-		LEFT JOIN speaking_material_versions sv ON sv.id = a.material_version_id AND a.material_type = 'speaking'
-		WHERE a.user_id = $1 AND ($2 = '' OR a.material_type = $2)
-		ORDER BY a.started_at DESC`, userID, materialType)
+	rows, err := r.pool.Query(ctx, `WITH selected AS (
+		SELECT * FROM attempts WHERE user_id=$1 AND ($2='' OR material_type=$2)
+	) `+summarySelect+` ORDER BY a.started_at DESC`, userID, materialType)
 	if err != nil {
 		return nil, fmt.Errorf("list attempts: %w", err)
 	}
@@ -138,48 +127,50 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, m
 }
 
 func (r *PostgresRepository) SaveAnswers(ctx context.Context, attemptID uuid.UUID, answers []AnswerInput) error {
-	tx, err := r.pool.Begin(ctx)
-	if err != nil {
-		return err
+	// Keep the same row lock as Submit, but acquire it and upsert in one
+	// atomic statement. Ownership and exam expiration remain in the service.
+	// Duplicate question IDs preserve the old last-answer-wins behavior.
+	type payloadAnswer struct {
+		QuestionID uuid.UUID      `json:"question_id"`
+		Answer     map[string]any `json:"answer"`
 	}
-	defer tx.Rollback(ctx)
-
+	payload := make([]payloadAnswer, 0, len(answers))
+	indices := make(map[uuid.UUID]int, len(answers))
+	for _, item := range answers {
+		if index, ok := indices[item.QuestionID]; ok {
+			payload[index].Answer = item.Answer
+		} else {
+			indices[item.QuestionID] = len(payload)
+			payload = append(payload, payloadAnswer{item.QuestionID, item.Answer})
+		}
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal answers: %w", err)
+	}
 	var status string
-	err = tx.QueryRow(ctx, `SELECT status FROM attempts WHERE id=$1 FOR UPDATE`, attemptID).Scan(&status)
+	err = r.pool.QueryRow(ctx, `
+		WITH locked AS MATERIALIZED (
+			SELECT status FROM attempts WHERE id=$1 FOR UPDATE
+		), saved AS (
+			INSERT INTO attempt_answers (attempt_id, question_id, answer)
+			SELECT $1, input.question_id, input.answer
+			FROM jsonb_to_recordset($2::jsonb) AS input(question_id uuid, answer jsonb)
+			CROSS JOIN locked WHERE locked.status='IN_PROGRESS'
+			ON CONFLICT (attempt_id, question_id) DO UPDATE SET answer=EXCLUDED.answer
+		)
+		SELECT status FROM locked
+	`, attemptID, encoded).Scan(&status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("lock attempt for saving answers: %w", err)
+		return fmt.Errorf("save attempt answers: %w", err)
 	}
 	if status != StatusInProgress {
 		return ErrAlreadySubmitted
 	}
-
-	if len(answers) > 0 {
-		batch := &pgx.Batch{}
-		for _, item := range answers {
-			answer, err := json.Marshal(item.Answer)
-			if err != nil {
-				return fmt.Errorf("marshal answer: %w", err)
-			}
-			batch.Queue(`INSERT INTO attempt_answers (attempt_id, question_id, answer)
-				VALUES ($1,$2,$3::jsonb)
-				ON CONFLICT (attempt_id, question_id) DO UPDATE SET answer = EXCLUDED.answer`,
-				attemptID, item.QuestionID, answer)
-		}
-		br := tx.SendBatch(ctx, batch)
-		for range answers {
-			if _, err := br.Exec(); err != nil {
-				_ = br.Close()
-				return fmt.Errorf("save attempt answer batch: %w", err)
-			}
-		}
-		if err := br.Close(); err != nil {
-			return fmt.Errorf("close attempt answer batch: %w", err)
-		}
-	}
-	return tx.Commit(ctx)
+	return nil
 }
 
 func (r *PostgresRepository) ListAnswers(ctx context.Context, attemptID uuid.UUID) ([]Answer, error) {
