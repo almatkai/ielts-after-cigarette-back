@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
@@ -60,7 +61,7 @@ func run() int {
 	defer redisClient.Close()
 	repository := attempts.NewPostgresRepository(pool)
 	evaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
-		WithSpeakingModel(cfg.AISpeakingModel).WithSpeakingAudio(false)
+		WithSpeakingModel(cfg.AISpeakingModel).WithSpeakingAudio(false).WithProviders(aiproviders.NewConfigured(pool, cfg, logger))
 	writingRepository := writing.NewPostgresRepository(pool)
 	writingProvider := attempts.NewWritingProvider(writing.NewService(writingRepository))
 	writingWorker := writingpipeline.NewWorker(repository, writingProvider, evaluator, jobs.NewWritingQueue(redisClient), logger)

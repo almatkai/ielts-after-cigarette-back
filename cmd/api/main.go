@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/app"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
@@ -100,7 +101,7 @@ func run() int {
 		metricsServer = &http.Server{Addr: cfg.MetricsAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second}
 		defer metricsServer.Close()
 	}
-	serverTimeout := max(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second) + time.Second
+	serverTimeout := max(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second, aiproviders.ChainTimeout+15*time.Second) + time.Second
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           app.NewWithOptions(cfg, pool, redisClient, logger, app.Options{ObjectStore: sharedObjectStore, GradingCache: sharedCache, Metrics: metrics, WorkerContext: workerCtx}),

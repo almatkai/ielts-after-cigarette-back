@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -73,6 +74,10 @@ type Config struct {
 	SpeechServiceURL        string
 	SpeechServiceToken      string
 	SpeechTimeout           time.Duration
+
+	AIProviderEncryptionKey         string
+	AIProviderPreviousEncryptionKey string
+	AIProviderTelemetryOptional     bool
 }
 
 func Load() (Config, error) {
@@ -117,6 +122,9 @@ func Load() (Config, error) {
 		STTAPIURL:               env("STT_API_URL", "https://llm.alem.ai/v1/audio/transcriptions"),
 		SpeechServiceURL:        env("SPEECH_SERVICE_URL", "http://speech-service:8001"),
 		SpeechServiceToken:      os.Getenv("SPEECH_SERVICE_TOKEN"),
+
+		AIProviderEncryptionKey:         os.Getenv("AI_PROVIDER_ENCRYPTION_KEY"),
+		AIProviderPreviousEncryptionKey: os.Getenv("AI_PROVIDER_PREVIOUS_ENCRYPTION_KEY"),
 	}
 
 	var err error
@@ -184,6 +192,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.AISpeakingAudioEnabled, err = boolEnv("AI_SPEAKING_AUDIO_ENABLED", true); err != nil {
+		return Config{}, err
+	}
+	if cfg.AIProviderTelemetryOptional, err = boolEnv("AI_PROVIDER_TELEMETRY_OPTIONAL", false); err != nil {
 		return Config{}, err
 	}
 	if cfg.WritingWorkerExternal, err = boolEnv("WRITING_WORKER_EXTERNAL", false); err != nil {
@@ -295,6 +306,26 @@ func (c Config) Validate() error {
 	}
 	if c.InfobipTimeout <= 0 {
 		problems = append(problems, "INFOBIP_TIMEOUT must be positive")
+	}
+	if c.AIProviderTelemetryOptional && !strings.EqualFold(c.Environment, "development") {
+		problems = append(problems, "AI_PROVIDER_TELEMETRY_OPTIONAL is only allowed in development")
+	}
+	if c.AIProviderEncryptionKey != "" || c.AIProviderPreviousEncryptionKey != "" {
+		for _, encoded := range []string{c.AIProviderEncryptionKey, c.AIProviderPreviousEncryptionKey} {
+			if encoded == "" {
+				continue
+			}
+			key, err := base64.StdEncoding.DecodeString(encoded)
+			if err != nil || len(key) != 32 {
+				problems = append(problems, "AI provider encryption keys must be base64-encoded 32-byte keys")
+			}
+		}
+		if c.AIProviderEncryptionKey == "" {
+			problems = append(problems, "AI_PROVIDER_ENCRYPTION_KEY is required with a previous key")
+		}
+		if strings.TrimSpace(c.SentryDSN) == "" && !(c.AIProviderTelemetryOptional && strings.EqualFold(c.Environment, "development")) {
+			problems = append(problems, "SENTRY_DSN (GlitchTip) is required for database AI providers")
+		}
 	}
 	if strings.TrimSpace(c.AIAPIKey) != "" {
 		if c.AITimeout <= 0 {
