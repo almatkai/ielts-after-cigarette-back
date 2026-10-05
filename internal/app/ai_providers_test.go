@@ -47,3 +47,28 @@ func TestAIProviderManagementIsAdminOnly(t *testing.T) {
 		t.Fatalf("admin cannot list: %d %s", response.Code, response.Body.String())
 	}
 }
+
+func TestAnalyticsIsAdminOnly(t *testing.T) {
+	cfg := config.Config{JWTSecret: "test-secret-at-least-32-characters-long", JWTIssuer: "test", JWTAudience: "test", AccessTokenTTL: time.Hour}
+	router := New(cfg, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	tokens := auth.NewTokenManager(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience, time.Hour, time.Hour)
+	for _, url := range []string{"/api/v1/admin/analytics/overview", "/api/v1/admin/analytics/realtime", "/api/v1/admin/analytics/export/users"} {
+		for _, role := range []string{"", auth.RoleStudent, auth.RoleEditor} {
+			req := httptest.NewRequest("GET", url, nil)
+			want := http.StatusUnauthorized
+			if role != "" {
+				token, _, err := tokens.NewAccessToken(uuid.New(), role)
+				if err != nil {
+					t.Fatal(err)
+				}
+				req.Header.Set("Authorization", "Bearer "+token)
+				want = http.StatusForbidden
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, req)
+			if response.Code != want {
+				t.Fatalf("%s role=%q status=%d expected=%d", url, role, response.Code, want)
+			}
+		}
+	}
+}

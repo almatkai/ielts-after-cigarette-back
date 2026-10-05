@@ -14,6 +14,7 @@ import (
 
 	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/analytics"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
@@ -213,6 +214,9 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	)
 	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository, waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID), cfg.SuperAdminEmails), logger, cfg.MaxRequestBody)
 
+	analyticsTracker := analytics.NewTracker(redisClient, pool, logger)
+	analyticsHandler := analytics.NewHandler(analytics.NewRepository(pool), analyticsTracker, logger, cfg.MaxRequestBody)
+
 	healthChecks := []health.Check{}
 	if sharedObjectStore != nil {
 		healthChecks = append(healthChecks, sharedObjectStore.Check)
@@ -246,6 +250,8 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant")).Post("/assistant/chat", assistantHandler.Chat)
 		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant")).Post("/assistant/chat/stream", assistantHandler.Stream)
 
+		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
+
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
@@ -256,6 +262,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 		api.Group(func(protected chi.Router) {
 			protected.Use(auth.Authenticate(tokens))
+			protected.Use(analyticsTracker.Middleware)
 			protected.Get("/full-mocks/overview", fullMockHandler.Overview)
 			protected.Post("/full-mocks/start", fullMockHandler.StartGenerated)
 			protected.Get("/full-mock-sessions/{sessionID}", fullMockHandler.GetSession)
@@ -348,6 +355,9 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 				adminRouter.Post("/listening/tests/{testID}/transcribe", listeningHandler.Transcribe)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/publish", listeningHandler.Publish)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/archive", listeningHandler.Archive)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/overview", analyticsHandler.Overview)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/realtime", analyticsHandler.Realtime)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/export/{dataset}", analyticsHandler.Export)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/waitlist", waitlistHandler.AdminList)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/super-admins", waitlistHandler.AdminListAdmins)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/super-admins", waitlistHandler.AdminAddAdmin)
@@ -434,6 +444,21 @@ func rateLimit(
 			if !allowed {
 				w.Header().Set("Retry-After", strconv.Itoa(int(cfg.AuthRateWindow.Seconds())))
 				httpx.WriteError(w, r, http.StatusTooManyRequests, "RATE_LIMITED", "Too many authentication attempts", nil)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// analyticsRateLimit caps heartbeats per IP so a script cannot inflate the
+// online counter. Unlike auth limits it fails open: analytics is optional.
+func analyticsRateLimit(limiter limiter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			allowed, err := limiter.Allow(r.Context(), "rate-limit:public:analytics:"+remoteIP(r), 60, time.Minute)
+			if err == nil && !allowed {
+				w.WriteHeader(http.StatusNoContent)
 				return
 			}
 			next.ServeHTTP(w, r)
