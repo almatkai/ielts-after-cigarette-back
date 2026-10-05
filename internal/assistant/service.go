@@ -7,10 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 )
 
 var (
@@ -77,10 +78,11 @@ type openAIMessage struct {
 }
 
 type Service struct {
-	endpoint string
-	apiKey   string
-	model    string
-	client   *http.Client
+	providers *aiproviders.Service
+	endpoint  string
+	apiKey    string
+	model     string
+	client    *http.Client
 }
 
 func NewService(endpoint, apiKey, model string, client *http.Client) *Service {
@@ -95,46 +97,31 @@ func NewService(endpoint, apiKey, model string, client *http.Client) *Service {
 	}
 }
 
+func (s *Service) WithProviders(providers *aiproviders.Service) *Service {
+	s.providers = providers
+	return s
+}
+
 func (s *Service) IsAvailable() bool {
-	return s.endpoint != "" && s.apiKey != "" && s.model != ""
+	return s.providers != nil || s.endpoint != "" && s.apiKey != "" && s.model != ""
 }
 
 func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {
+	if s.providers != nil {
+		result, err := aiproviders.Execute(ctx, s.providers, "assistant", func(callCtx context.Context, p aiproviders.Provider) (ChatResponse, error) {
+			copy := NewService(p.Endpoint, p.APIKey, p.Model, s.providers.Client(p))
+			return copy.Chat(callCtx, req)
+		})
+		if errors.Is(err, aiproviders.ErrUnavailable) {
+			return ChatResponse{}, ErrAIUnavailable
+		}
+		return result, err
+	}
 	if !s.IsAvailable() {
 		return ChatResponse{}, ErrAIUnavailable
 	}
 
-	// Prepare initial message history
-	messages := make([]openAIMessage, 0, len(req.Messages)+3)
-
-	sysContent := yukiSystemPrompt
-	messages = append(messages, openAIMessage{
-		Role:    string(RoleSystem),
-		Content: &sysContent,
-	})
-
-	// Add up to last 20 messages to keep context concise
-	startIdx := 0
-	if len(req.Messages) > 20 {
-		startIdx = len(req.Messages) - 20
-	}
-	for _, m := range req.Messages[startIdx:] {
-		text := strings.TrimSpace(m.Content)
-		if text == "" && m.Role != RoleTool {
-			continue
-		}
-		role := string(m.Role)
-		if role == "" {
-			role = string(RoleUser)
-		}
-		contentStr := text
-		messages = append(messages, openAIMessage{
-			Role:       role,
-			Content:    &contentStr,
-			ToolCallID: m.ToolCallID,
-			Name:       m.Name,
-		})
-	}
+	messages := initialMessages(req)
 
 	var recordedToolCalls []ToolCallInfo
 
@@ -183,7 +170,7 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, erro
 		finalContent = strings.TrimSpace(*respMsg.Content)
 	}
 	if finalContent == "" {
-		finalContent = "Я внимательно изучил контекст. Чем конкретно я могу тебе помочь по текущему заданию?"
+		return ChatResponse{}, fmt.Errorf("%w: empty completion", ErrAIChatFailed)
 	}
 
 	return ChatResponse{
@@ -232,8 +219,7 @@ func (s *Service) callCompletions(ctx context.Context, messages []openAIMessage,
 	}
 
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
-		slog.Default().ErrorContext(ctx, "ai completion error", "status", res.StatusCode, "body", string(respBytes))
-		return nil, fmt.Errorf("%w: provider status %d", ErrAIChatFailed, res.StatusCode)
+		return nil, fmt.Errorf("%w: %w", ErrAIChatFailed, &aiproviders.HTTPError{Status: res.StatusCode})
 	}
 
 	var completion struct {

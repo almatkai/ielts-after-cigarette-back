@@ -13,6 +13,7 @@ import (
 	"time"
 
 	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
@@ -130,9 +131,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	if speakingMediaLimit < 1 || speakingMediaLimit > 12<<20 {
 		speakingMediaLimit = 12 << 20
 	}
+	aiProviders := aiproviders.NewConfigured(pool, cfg, logger)
+	aiProvidersHandler := aiproviders.NewHandler(aiProviders, logger)
 	aiEvaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
 		WithSpeakingModel(cfg.AISpeakingModel).
-		WithSpeakingAudio(cfg.AISpeakingAudioEnabled && !cfg.SpeechEnabled)
+		WithSpeakingAudio(cfg.AISpeakingAudioEnabled && !cfg.SpeechEnabled).WithProviders(aiProviders)
 	attemptsService := attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
@@ -179,7 +182,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	attemptsService.SetExamGuard(fullMockService)
 	fullMockHandler := fullmock.NewHandler(fullMockService, logger, cfg.MaxRequestBody)
 
-	assistantService := assistant.NewService(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout})
+	assistantService := assistant.NewService(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).WithProviders(aiProviders)
 	assistantHandler := assistant.NewHandler(assistantService, logger, cfg.MaxRequestBody)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
@@ -225,7 +228,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	router.Use(httpx.Recover(logger))
 	router.Use(httpx.AccessLog(logger))
 	router.Use(httpx.CORS(cfg.CORSAllowedOrigins))
-	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second))
+	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, max(cfg.AITimeout+15*time.Second, aiproviders.ChainTimeout+15*time.Second)))
 	// History endpoints answer with tens of kilobytes to megabytes of JSON
 	// (a mistakes page carries the review of every attempt), so compress the
 	// text responses. Audio and other binary media keep their own types and are
@@ -240,7 +243,8 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
-		api.With(auth.AuthenticateOptional(tokens)).Post("/assistant/chat", assistantHandler.Chat)
+		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant")).Post("/assistant/chat", assistantHandler.Chat)
+		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant")).Post("/assistant/chat/stream", assistantHandler.Stream)
 
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
@@ -291,6 +295,19 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Route("/admin", func(adminRouter chi.Router) {
 				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
 				adminRouter.Get("/access", adminHandler.Access)
+				adminRouter.Group(func(aiAdmin chi.Router) {
+					aiAdmin.Use(auth.RequireAnyRole(auth.RoleAdmin))
+					aiAdmin.Get("/ai-providers", aiProvidersHandler.List)
+					aiAdmin.Post("/ai-providers", aiProvidersHandler.Save)
+					aiAdmin.Post("/ai-providers/test", aiProvidersHandler.Test)
+					aiAdmin.Post("/ai-providers/order", aiProvidersHandler.Reorder)
+					aiAdmin.Get("/ai-providers/routing", aiProvidersHandler.Routing)
+					aiAdmin.Put("/ai-providers/routing", aiProvidersHandler.SaveRouting)
+					aiAdmin.Get("/ai-providers/stats", aiProvidersHandler.Stats)
+					aiAdmin.Put("/ai-providers/{providerID}", aiProvidersHandler.Save)
+					aiAdmin.Delete("/ai-providers/{providerID}", aiProvidersHandler.Delete)
+					aiAdmin.Post("/ai-providers/{providerID}/test", aiProvidersHandler.Test)
+				})
 				adminRouter.Get("/full-mocks", fullMockHandler.List)
 				adminRouter.Get("/full-mocks/{mockID}", fullMockHandler.Get)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/full-mocks/{mockID}/archive", fullMockHandler.Archive)
@@ -374,7 +391,7 @@ func isAIEvaluation(r *http.Request) bool {
 	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/v1/attempts/") && strings.HasSuffix(r.URL.Path, "/submit") {
 		return true
 	}
-	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/assistant/chat" {
+	if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/assistant/chat" || r.URL.Path == "/api/v1/assistant/chat/stream" || strings.HasPrefix(r.URL.Path, "/api/v1/admin/ai-providers")) {
 		return true
 	}
 	return false

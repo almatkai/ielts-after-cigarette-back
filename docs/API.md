@@ -618,9 +618,8 @@ Academic Task 1 материал содержит `visualType` и может с�
 ```
 
 При `POST /attempts/{attemptId}/submit` оба задания обязательны. Backend
-отправляет их в настроенный OpenAI-compatible AI provider и возвращает попытку с итоговым band. Если
-`AI_API_KEY` (или legacy `OPENROUTER_API_KEY`) не настроен, ответ — `503 AI_NOT_CONFIGURED`; при ошибке
-провайдера — `502 AI_EVALUATION_FAILED`. Детали сданной Writing-попытки
+отправляет их через [цепочку OpenAI-compatible провайдеров](AI_PROVIDERS.md) и возвращает попытку с итоговым band. DB-провайдеры настраиваются в админке; `AI_*`/legacy `OPENROUTER_*` остаются последним резервом.
+Если подходящих провайдеров нет — `503 AI_NOT_CONFIGURED`; если вся цепочка не смогла оценить работу — `502 AI_EVALUATION_FAILED`. Детали сданной Writing-попытки
 (`GET /attempts/{attemptId}`) включают `writingEvaluation`: four criteria
 `taskResponse`, `coherence`, `lexicalResource`, `grammar`, их band и feedback,
 а также summary и рекомендации по каждой задаче.
@@ -657,6 +656,10 @@ Academic Task 1 материал содержит `visualType` и может с�
 расшифровку и рекомендации по каждой части. Если AI не настроен —
 `503 AI_NOT_CONFIGURED`; если оценка не была получена —
 `502 AI_EVALUATION_FAILED`.
+
+## AI providers и Юки SSE
+
+Админские CRUD/test маршруты, шифрование ключей, приоритеты/scopes, env fallback и протокол `POST /api/v1/assistant/chat/stream` описаны в [AI_PROVIDERS.md](AI_PROVIDERS.md). Доступ к конфигурации — только `ADMIN`. Старый JSON chat endpoint сохранён; оба используют последовательный fallback с безопасным репортингом каждой ошибки в GlitchTip.
 
 ## Full Mock Test
 

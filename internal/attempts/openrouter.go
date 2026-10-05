@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 	"github.com/google/uuid"
 )
 
@@ -33,6 +34,7 @@ type WritingEvaluator interface {
 }
 
 type OpenRouterEvaluator struct {
+	providers     *aiproviders.Service
 	endpoint      string
 	apiKey        string
 	model         string
@@ -74,7 +76,30 @@ func NewChatCompletionsEvaluator(endpoint, apiKey, model string, client *http.Cl
 	}
 }
 
+func (e *OpenRouterEvaluator) WithProviders(providers *aiproviders.Service) *OpenRouterEvaluator {
+	e.providers = providers
+	return e
+}
+
 func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluationRequest) (WritingEvaluation, error) {
+	if e.providers != nil {
+		result, err := aiproviders.Execute(ctx, e.providers, "writing", func(callCtx context.Context, p aiproviders.Provider) (WritingEvaluation, error) {
+			copy := *e
+			copy.providers = nil
+			copy.endpoint = p.Endpoint
+			copy.apiKey = p.APIKey
+			copy.model = p.Model
+			copy.client = e.providers.Client(p)
+			return copy.Evaluate(callCtx, input)
+		})
+		if errors.Is(err, aiproviders.ErrUnavailable) {
+			return WritingEvaluation{}, ErrAIUnavailable
+		}
+		if err != nil {
+			return WritingEvaluation{}, fmt.Errorf("%w: %w", ErrAIEvaluationFailed, err)
+		}
+		return result, nil
+	}
 	if e.apiKey == "" || e.model == "" {
 		return WritingEvaluation{}, ErrAIUnavailable
 	}
@@ -121,7 +146,7 @@ func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluat
 		return WritingEvaluation{}, fmt.Errorf("%w: read AI provider response", ErrAIEvaluationFailed)
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return WritingEvaluation{}, fmt.Errorf("%w: AI provider status %d", ErrAIEvaluationFailed, response.StatusCode)
+		return WritingEvaluation{}, fmt.Errorf("%w: %w", ErrAIEvaluationFailed, &aiproviders.HTTPError{Status: response.StatusCode})
 	}
 	var completion struct {
 		Model   string `json:"model"`
@@ -311,6 +336,25 @@ type SpeakingEvaluator interface {
 }
 
 func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input SpeakingEvaluationRequest) (SpeakingEvaluation, error) {
+	if e.providers != nil {
+		result, err := aiproviders.Execute(ctx, e.providers, "speaking", func(callCtx context.Context, p aiproviders.Provider) (SpeakingEvaluation, error) {
+			copy := *e
+			copy.providers = nil
+			copy.endpoint = p.Endpoint
+			copy.apiKey = p.APIKey
+			copy.model = p.Model
+			copy.speakingModel = p.Model
+			copy.client = e.providers.Client(p)
+			return copy.EvaluateSpeaking(callCtx, input)
+		})
+		if errors.Is(err, aiproviders.ErrUnavailable) {
+			return SpeakingEvaluation{}, ErrAIUnavailable
+		}
+		if err != nil {
+			return SpeakingEvaluation{}, fmt.Errorf("%w: %w", ErrAIEvaluationFailed, err)
+		}
+		return result, nil
+	}
 	if e.apiKey == "" || e.speakingModel == "" {
 		return SpeakingEvaluation{}, ErrAIUnavailable
 	}
@@ -388,7 +432,7 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 		return SpeakingEvaluation{}, fmt.Errorf("%w: read AI provider response", ErrAIEvaluationFailed)
 	}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return SpeakingEvaluation{}, fmt.Errorf("%w: AI provider status %d", ErrAIEvaluationFailed, response.StatusCode)
+		return SpeakingEvaluation{}, fmt.Errorf("%w: %w", ErrAIEvaluationFailed, &aiproviders.HTTPError{Status: response.StatusCode})
 	}
 	var completion struct {
 		Model   string `json:"model"`
@@ -408,6 +452,22 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 	evaluation, err := decodeSpeakingEvaluation(completion.Choices[0].Message.Content)
 	if err != nil {
 		return SpeakingEvaluation{}, err
+	}
+	if len(evaluation.Parts) != len(input.Parts) {
+		return SpeakingEvaluation{}, fmt.Errorf("%w: expected one evaluation per speaking part", ErrAIEvaluationFailed)
+	}
+	expected := make(map[uuid.UUID]struct{}, len(input.Parts))
+	for _, part := range input.Parts {
+		expected[part.Part.ID] = struct{}{}
+	}
+	for _, part := range evaluation.Parts {
+		if _, ok := expected[part.PartID]; !ok {
+			return SpeakingEvaluation{}, fmt.Errorf("%w: evaluation references an unknown speaking part", ErrAIEvaluationFailed)
+		}
+		delete(expected, part.PartID)
+	}
+	if len(expected) != 0 {
+		return SpeakingEvaluation{}, fmt.Errorf("%w: evaluation omitted a speaking part", ErrAIEvaluationFailed)
 	}
 	evaluation.Model = completion.Model
 	if evaluation.Model == "" {

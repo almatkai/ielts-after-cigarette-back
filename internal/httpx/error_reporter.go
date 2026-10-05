@@ -19,7 +19,9 @@ type ErrorEvent struct {
 	RecordingID uuid.UUID
 	// Origin names the reporting site: "http" for handlers, plus a specific
 	// background pipeline name from the workers.
-	Origin string
+	Origin     string
+	ProviderID uuid.UUID
+	AIPurpose  string
 }
 
 // ErrorReporter is a non-blocking sink for unexpected server errors. A future
@@ -65,6 +67,12 @@ func ReportBackground(ctx context.Context, origin string, fields ...any) {
 			if id, ok := fields[i+1].(uuid.UUID); ok {
 				event.AttemptID = id
 			}
+		case "provider_id":
+			if id, ok := fields[i+1].(uuid.UUID); ok {
+				event.ProviderID = id
+			}
+		case "ai_purpose":
+			event.AIPurpose, _ = fields[i+1].(string)
 		case "recording_id":
 			if id, ok := fields[i+1].(uuid.UUID); ok {
 				event.RecordingID = id

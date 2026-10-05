@@ -39,6 +39,12 @@ func SentryErrorSink(dsn, environment, release string, logger *slog.Logger) (htt
 		localHub.ConfigureScope(func(scope *sentry.Scope) {
 			scope.SetTag("request_id", event.RequestID)
 			scope.SetTag("origin", event.Origin)
+			if event.ProviderID != [16]byte{} {
+				scope.SetTag("ai_provider_id", event.ProviderID.String())
+			}
+			if event.AIPurpose != "" {
+				scope.SetTag("ai_purpose", event.AIPurpose)
+			}
 			scope.SetTag("path", event.Path)
 			if event.ActorID != "" {
 				scope.SetUser(sentry.User{ID: event.ActorID})
