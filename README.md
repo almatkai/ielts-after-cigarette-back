@@ -194,7 +194,8 @@ docker build -t ielts-api:local .
 | POST | `/api/v1/phone-verifications` | нет | отправить WhatsApp-код |
 | POST | `/api/v1/phone-verifications/{id}/confirm` | нет | подтвердить код |
 | POST | `/api/v1/waitlist` | нет | вступить в waitlist с proof token |
-| POST | `/api/v1/auth/google` | нет | вход через Google или начало регистрации |
+| POST | `/api/v1/auth/google` | нет | вход через Google: JSON popup callback или form POST redirect с проверкой `g_csrf_token` |
+| GET | `/api/v1/auth/google/pending` | HttpOnly registration cookie | восстановить профиль после Google redirect |
 | POST | `/api/v1/auth/google/complete` | нет | завершение регистрации через Google |
 | POST | `/api/v1/auth/refresh` | нет | атомарная ротация refresh token |
 | POST | `/api/v1/auth/logout` | нет | отзыв текущей refresh-сессии |

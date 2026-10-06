@@ -119,6 +119,10 @@ type googleLoginRequest struct {
 }
 
 func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		h.googleRedirect(w, r)
+		return
+	}
 	var request googleLoginRequest
 	if err := httpx.DecodeJSON(w, r, h.maxBytes, &request); err != nil {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "Request body must be valid JSON", nil)
@@ -207,6 +211,9 @@ func (h *Handler) CompleteGoogleRegistration(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	h.setRefreshCookie(w, result.RefreshToken)
+	if _, err := r.Cookie(h.cookie.Name + "_google_registration"); err == nil {
+		h.setGoogleRegistrationCookie(w, "")
+	}
 	httpx.WriteJSON(w, http.StatusCreated, result)
 }
 
@@ -248,6 +255,9 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.clearRefreshCookie(w)
+	if _, err := r.Cookie(h.cookie.Name + "_google_registration"); err == nil {
+		h.setGoogleRegistrationCookie(w, "")
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

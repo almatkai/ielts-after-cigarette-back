@@ -242,7 +242,9 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	}
 	router.Use(httpx.Recover(logger))
 	router.Use(httpx.AccessLog(logger))
-	router.Use(httpx.CORS(cfg.CORSAllowedOrigins))
+	router.Use(httpx.CORS(cfg.CORSAllowedOrigins, httpx.FormPostOrigin{
+		Path: "/api/v1/auth/google", Origin: "https://accounts.google.com",
+	}))
 	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, max(cfg.AITimeout+15*time.Second, aiproviders.ChainTimeout+15*time.Second)))
 	// History endpoints answer with tens of kilobytes to megabytes of JSON
 	// (a mistakes page carries the review of every attempt), so compress the
@@ -266,6 +268,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
+			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Get("/google/pending", authHandler.PendingGoogleRegistration)
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/google/complete", authHandler.CompleteGoogleRegistration)
 			public.With(rateLimit(rateLimiter, logger, cfg, "refresh")).Post("/refresh", authHandler.Refresh)
 			public.Post("/logout", authHandler.Logout)
