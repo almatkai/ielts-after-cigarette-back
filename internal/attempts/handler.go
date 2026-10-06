@@ -351,6 +351,8 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		httpx.WriteError(w, r, http.StatusBadGateway, "AI_EVALUATION_FAILED", "AI assessment could not be completed", nil)
 	case errors.Is(err, ErrAlreadySubmitted):
 		httpx.WriteError(w, r, http.StatusConflict, "ATTEMPT_ALREADY_SUBMITTED", "Attempt was already submitted", nil)
+	case errors.Is(err, ErrDailyLimitExceeded):
+		httpx.WriteError(w, r, http.StatusTooManyRequests, "DAILY_LIMIT_EXCEEDED", "Достигнут дневной лимит проверок. Лимит обновится в полночь.", nil)
 	default:
 		// A cancelled request means the client is gone, not a server failure.
 		if httpx.ClientGone(w, r, err) {

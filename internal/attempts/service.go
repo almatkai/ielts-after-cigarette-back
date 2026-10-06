@@ -7,10 +7,17 @@ import (
 	"math"
 	"strings"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/ailimits"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/google/uuid"
 )
+
+type DailyLimiter interface {
+	Allow(ctx context.Context, scope, id string) (ailimits.Result, error)
+	Check(ctx context.Context, scope, id string) (ailimits.Result, error)
+}
 
 type Service struct {
 	repository          Repository
@@ -25,6 +32,7 @@ type Service struct {
 	speakingTranscriber SpeakingTranscriber
 	gradingCache        *gradingCache
 	sharedGradingCache  *cache.JSON
+	dailyLimiter        DailyLimiter
 }
 
 type SpeakingTranscriber interface {
@@ -96,6 +104,16 @@ func (s *Service) WithWritingPipeline(queue WritingJobQueue) *Service {
 	return s
 }
 
+func (s *Service) WithDailyLimiter(limiter DailyLimiter) *Service {
+	s.dailyLimiter = limiter
+	return s
+}
+
+func isPrivileged(ctx context.Context) bool {
+	role := auth.Role(ctx)
+	return role == auth.RoleAdmin || role == auth.RoleEditor
+}
+
 func (s *Service) provider(materialType string) (MaterialProvider, error) {
 	provider, ok := s.providers[materialType]
 	if !ok {
@@ -120,6 +138,25 @@ func (s *Service) Start(ctx context.Context, userID uuid.UUID, materialType stri
 	created := false
 	attempt, err := s.repository.FindInProgress(ctx, userID, materialType, materialID)
 	if errors.Is(err, ErrNotFound) {
+		if s.dailyLimiter != nil && !isPrivileged(ctx) {
+			if materialType == MaterialWriting {
+				res, chkErr := s.dailyLimiter.Check(ctx, "writing", userID.String())
+				if chkErr != nil {
+					return Attempt{}, nil, false, chkErr
+				}
+				if !res.Allowed {
+					return Attempt{}, nil, false, ErrDailyLimitExceeded
+				}
+			} else if materialType == MaterialSpeaking {
+				res, chkErr := s.dailyLimiter.Check(ctx, "speaking", userID.String())
+				if chkErr != nil {
+					return Attempt{}, nil, false, chkErr
+				}
+				if !res.Allowed {
+					return Attempt{}, nil, false, ErrDailyLimitExceeded
+				}
+			}
+		}
 		attempt, err = s.repository.Create(ctx, Attempt{
 			ID:                uuid.New(),
 			UserID:            userID,
@@ -341,6 +378,15 @@ func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input Save
 		request.Tasks = append(request.Tasks, WritingTaskAnswer{Task: task, Text: text})
 		answers = append(answers, Answer{QuestionID: task.ID, Answer: map[string]any{"value": text}})
 	}
+	if s.dailyLimiter != nil && !isPrivileged(ctx) {
+		res, limitErr := s.dailyLimiter.Allow(ctx, "writing", attempt.UserID.String())
+		if limitErr != nil {
+			return Attempt{}, limitErr
+		}
+		if !res.Allowed {
+			return Attempt{}, ErrDailyLimitExceeded
+		}
+	}
 	if s.writingJobs != nil {
 		repository, ok := s.repository.(interface {
 			QueueWritingAssessment(context.Context, uuid.UUID, []AnswerInput) error
@@ -438,6 +484,15 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 			item.Audio = audio
 		}
 		request.Parts = append(request.Parts, item)
+	}
+	if s.dailyLimiter != nil && !isPrivileged(ctx) {
+		res, limitErr := s.dailyLimiter.Allow(ctx, "speaking", attempt.UserID.String())
+		if limitErr != nil {
+			return Attempt{}, limitErr
+		}
+		if !res.Allowed {
+			return Attempt{}, ErrDailyLimitExceeded
+		}
 	}
 	if s.speakingJobs != nil {
 		repository, ok := s.repository.(interface {

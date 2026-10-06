@@ -46,6 +46,10 @@ type Config struct {
 	ObjectStorageRegion     string
 	ObjectStorageUseSSL     bool
 	MaxMediaUploadBytes     int64
+	DailyLimitAssistant     int64
+	DailyLimitGuestAssistant int64
+	DailyLimitWriting       int64
+	DailyLimitSpeaking      int64
 	AuthRateLimit           int64
 	AuthRateWindow          time.Duration
 	PhoneVerificationSecret string
@@ -176,6 +180,18 @@ func Load() (Config, error) {
 	if cfg.MaxMediaUploadBytes, err = int64Env("MAX_MEDIA_UPLOAD_BYTES", 50<<20); err != nil {
 		return Config{}, err
 	}
+	if cfg.DailyLimitAssistant, err = int64Env("DAILY_LIMIT_ASSISTANT", 100); err != nil {
+		return Config{}, err
+	}
+	if cfg.DailyLimitGuestAssistant, err = int64Env("DAILY_LIMIT_GUEST_ASSISTANT", 15); err != nil {
+		return Config{}, err
+	}
+	if cfg.DailyLimitWriting, err = int64Env("DAILY_LIMIT_WRITING", 25); err != nil {
+		return Config{}, err
+	}
+	if cfg.DailyLimitSpeaking, err = int64Env("DAILY_LIMIT_SPEAKING", 25); err != nil {
+		return Config{}, err
+	}
 	if cfg.AuthRateLimit, err = int64Env("AUTH_RATE_LIMIT", 10); err != nil {
 		return Config{}, err
 	}
@@ -276,6 +292,9 @@ func (c Config) Validate() error {
 	}
 	if c.AuthRateLimit <= 0 || c.AuthRateWindow <= 0 {
 		problems = append(problems, "auth rate limit values must be positive")
+	}
+	if c.DailyLimitAssistant < 0 || c.DailyLimitGuestAssistant < 0 || c.DailyLimitWriting < 0 || c.DailyLimitSpeaking < 0 {
+		problems = append(problems, "daily limit values cannot be negative")
 	}
 	if len(c.PhoneVerificationSecret) < 32 {
 		problems = append(problems, "PHONE_VERIFICATION_SECRET must contain at least 32 characters")

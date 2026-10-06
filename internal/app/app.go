@@ -13,6 +13,7 @@ import (
 	"time"
 
 	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/ailimits"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/analytics"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
@@ -137,12 +138,22 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	aiEvaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
 		WithSpeakingModel(cfg.AISpeakingModel).
 		WithSpeakingAudio(cfg.AISpeakingAudioEnabled && !cfg.SpeechEnabled).WithProviders(aiProviders)
+	dailyLimiter := cache.NewDailyLimiter(redisClient)
+	aiLimitsRepo := ailimits.NewPostgresRepository(pool)
+	aiLimitsService := ailimits.NewService(aiLimitsRepo, dailyLimiter, redisClient, ailimits.Limits{
+		AssistantLimit:      cfg.DailyLimitAssistant,
+		GuestAssistantLimit: cfg.DailyLimitGuestAssistant,
+		WritingLimit:        cfg.DailyLimitWriting,
+		SpeakingLimit:       cfg.DailyLimitSpeaking,
+	})
+	aiLimitsHandler := ailimits.NewHandler(aiLimitsService, logger)
+
 	attemptsService := attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
 		attempts.MaterialWriting:   attempts.NewWritingProvider(writingService),
 		attempts.MaterialSpeaking:  attempts.NewSpeakingProvider(speakingService),
-	}, aiEvaluator).WithGradingCache(options.GradingCache)
+	}, aiEvaluator).WithGradingCache(options.GradingCache).WithDailyLimiter(aiLimitsService)
 	if sharedObjectStore != nil {
 		attemptsService.WithSpeakingObjectStore(sharedObjectStore, speakingMediaLimit, aiEvaluator)
 	} else {
@@ -247,8 +258,8 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
-		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant")).Post("/assistant/chat", assistantHandler.Chat)
-		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant")).Post("/assistant/chat/stream", assistantHandler.Stream)
+		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat", assistantHandler.Chat)
+		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat/stream", assistantHandler.Stream)
 
 		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
 
@@ -314,6 +325,8 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 					aiAdmin.Put("/ai-providers/{providerID}", aiProvidersHandler.Save)
 					aiAdmin.Delete("/ai-providers/{providerID}", aiProvidersHandler.Delete)
 					aiAdmin.Post("/ai-providers/{providerID}/test", aiProvidersHandler.Test)
+					aiAdmin.Get("/ai-limits", aiLimitsHandler.Get)
+					aiAdmin.Put("/ai-limits", aiLimitsHandler.Update)
 				})
 				adminRouter.Get("/full-mocks", fullMockHandler.List)
 				adminRouter.Get("/full-mocks/{mockID}", fullMockHandler.Get)
@@ -459,6 +472,55 @@ func analyticsRateLimit(limiter limiter) func(http.Handler) http.Handler {
 			allowed, err := limiter.Allow(r.Context(), "rate-limit:public:analytics:"+remoteIP(r), 60, time.Minute)
 			if err == nil && !allowed {
 				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func dailyAssistantLimit(
+	limitsService *ailimits.Service,
+	logger *slog.Logger,
+) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if limitsService == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			role := auth.Role(r.Context())
+			if role == auth.RoleAdmin || role == auth.RoleEditor {
+				next.ServeHTTP(w, r)
+				return
+			}
+			var scope, id string
+			if userID, ok := auth.UserID(r.Context()); ok {
+				scope = "assistant:user"
+				id = userID.String()
+			} else {
+				scope = "assistant:guest"
+				id = remoteIP(r)
+			}
+
+			res, err := limitsService.Allow(r.Context(), scope, id)
+			if err != nil {
+				logger.ErrorContext(r.Context(), "daily assistant limiter unavailable", "error", err)
+				httpx.WriteError(w, r, http.StatusServiceUnavailable, "RATE_LIMITER_UNAVAILABLE", "Rate limiter service unavailable", nil)
+				return
+			}
+			if !res.Allowed {
+				httpx.WriteError(
+					w, r,
+					http.StatusTooManyRequests,
+					"DAILY_LIMIT_EXCEEDED",
+					fmt.Sprintf("Достигнут дневной лимит сообщений ассистента (%d в день). Лимит обновится в полночь.", res.Limit),
+					map[string]string{
+						"limit":     strconv.FormatInt(res.Limit, 10),
+						"remaining": strconv.FormatInt(res.Remaining, 10),
+						"resetAt":   res.ResetAt.Format(time.RFC3339),
+					},
+				)
 				return
 			}
 			next.ServeHTTP(w, r)
