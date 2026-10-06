@@ -102,7 +102,14 @@ func Recover(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-func CORS(origins []string) func(http.Handler) http.Handler {
+// FormPostOrigin permits an identity provider's navigation POST only at its
+// credential endpoint. That endpoint must validate its own CSRF token.
+type FormPostOrigin struct {
+	Path   string
+	Origin string
+}
+
+func CORS(origins []string, formPosts ...FormPostOrigin) func(http.Handler) http.Handler {
 	allowed := make(map[string]struct{}, len(origins))
 	for _, origin := range origins {
 		allowed[origin] = struct{}{}
@@ -111,6 +118,12 @@ func CORS(origins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := strings.TrimRight(r.Header.Get("Origin"), "/")
+			for _, formPost := range formPosts {
+				if r.Method == http.MethodPost && r.URL.Path == formPost.Path && origin == formPost.Origin && strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 			if origin != "" {
 				if _, ok := allowed[origin]; !ok {
 					WriteError(w, r, http.StatusForbidden, "CORS_ORIGIN_DENIED", "Origin is not allowed", nil)
