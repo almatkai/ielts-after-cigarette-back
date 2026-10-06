@@ -20,6 +20,7 @@ var (
 	ErrAIEvaluationFailed   = errors.New("AI evaluation failed")
 	ErrExamDeadlineExceeded = errors.New("exam session deadline exceeded")
 	ErrSectionLocked        = errors.New("exam section is locked")
+	ErrDailyLimitExceeded   = errors.New("daily limit exceeded")
 )
 
 const (
