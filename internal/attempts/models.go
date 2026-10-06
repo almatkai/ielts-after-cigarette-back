@@ -264,6 +264,9 @@ type Summary struct {
 	Attempt
 	TestTitle string `json:"testTitle"`
 	TestSlug  string `json:"testSlug"`
+	// FullMockSessionID links a section attempt back to its Full Mock session
+	// so drafts can resume the session instead of starting practice.
+	FullMockSessionID uuid.NullUUID `json:"fullMockSessionId"`
 }
 
 type ReviewAnswer struct {

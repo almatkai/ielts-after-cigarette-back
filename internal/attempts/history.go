@@ -12,10 +12,13 @@ import (
 
 // One skill branch supplies metadata per attempt, rather than eight independent
 // left joins. Missing metadata still produces the legacy empty title/slug.
+// full_mock_session_sections.attempt_id is UNIQUE, so the join cannot
+// duplicate rows; NULL marks attempts that belong to no Full Mock session.
 const summarySelect = `SELECT a.id, a.user_id, a.material_type, a.material_id,
 	a.material_version_id, a.status, a.score, a.max_score, a.band::double precision,
-	a.started_at, a.submitted_at, COALESCE(metadata.title,''), COALESCE(metadata.slug,'')
+	a.started_at, a.submitted_at, COALESCE(metadata.title,''), COALESCE(metadata.slug,''), fmss.session_id
 	FROM selected a
+	LEFT JOIN full_mock_session_sections fmss ON fmss.attempt_id = a.id
 	LEFT JOIN LATERAL (
 		SELECT (SELECT title FROM listening_test_versions WHERE id=a.material_version_id) AS title,
 			(SELECT slug FROM listening_tests WHERE id=a.material_id) AS slug
@@ -118,6 +121,7 @@ func scanSummary(row rowScanner) (Summary, error) {
 	var item Summary
 	err := row.Scan(&item.ID, &item.UserID, &item.MaterialType, &item.MaterialID,
 		&item.MaterialVersionID, &item.Status, &item.Score, &item.MaxScore,
-		&item.Band, &item.StartedAt, &item.SubmittedAt, &item.TestTitle, &item.TestSlug)
+		&item.Band, &item.StartedAt, &item.SubmittedAt, &item.TestTitle, &item.TestSlug,
+		&item.FullMockSessionID)
 	return item, err
 }
