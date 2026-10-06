@@ -104,6 +104,8 @@ func Recover(logger *slog.Logger) func(http.Handler) http.Handler {
 
 // FormPostOrigin permits an identity provider's navigation POST only at its
 // credential endpoint. That endpoint must validate its own CSRF token.
+// Safari sends "Origin: null" when the POST follows a cross-site redirect
+// chain, as Google's redirect sign-in does on iPhone, so null is accepted too.
 type FormPostOrigin struct {
 	Path   string
 	Origin string
@@ -119,7 +121,7 @@ func CORS(origins []string, formPosts ...FormPostOrigin) func(http.Handler) http
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			origin := strings.TrimRight(r.Header.Get("Origin"), "/")
 			for _, formPost := range formPosts {
-				if r.Method == http.MethodPost && r.URL.Path == formPost.Path && origin == formPost.Origin && strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+				if r.Method == http.MethodPost && r.URL.Path == formPost.Path && (origin == formPost.Origin || origin == "null") && strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
 					next.ServeHTTP(w, r)
 					return
 				}

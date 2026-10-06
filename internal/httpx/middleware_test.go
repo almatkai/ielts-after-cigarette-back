@@ -36,7 +36,10 @@ func TestCORSIdentityFormPostExceptionIsScoped(t *testing.T) {
 		status                            int
 	}{
 		{http.MethodPost, "/api/v1/auth/google", "https://accounts.google.com", "application/x-www-form-urlencoded", http.StatusNoContent},
+		{http.MethodPost, "/api/v1/auth/google", "null", "application/x-www-form-urlencoded", http.StatusNoContent},
 		{http.MethodPost, "/api/v1/auth/refresh", "https://accounts.google.com", "application/x-www-form-urlencoded", http.StatusForbidden},
+		{http.MethodPost, "/api/v1/auth/refresh", "null", "application/x-www-form-urlencoded", http.StatusForbidden},
+		{http.MethodPost, "/api/v1/auth/google", "null", "application/json", http.StatusForbidden},
 		{http.MethodPost, "/api/v1/auth/google", "https://attacker.example", "application/x-www-form-urlencoded", http.StatusForbidden},
 		{http.MethodPost, "/api/v1/auth/google", "https://accounts.google.com", "application/json", http.StatusForbidden},
 		{http.MethodGet, "/api/v1/auth/google", "https://accounts.google.com", "application/x-www-form-urlencoded", http.StatusForbidden},
