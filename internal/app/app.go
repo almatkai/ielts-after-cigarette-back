@@ -298,6 +298,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Get("/speaking/materials/{materialID}", speakingHandler.GetPublic)
 			protected.Post("/speaking/materials/{materialID}/attempts", attemptsHandler.StartSpeaking)
 			protected.Put("/attempts/{attemptID}/answers", attemptsHandler.SaveAnswers)
+			protected.Post("/attempts/{attemptID}/answers", attemptsHandler.SaveAnswers)
 			protected.Post("/attempts/{attemptID}/recordings", attemptsHandler.UploadSpeakingRecording)
 			protected.Get("/attempts/{attemptID}/recordings/{partID}", attemptsHandler.SpeakingRecording)
 			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)

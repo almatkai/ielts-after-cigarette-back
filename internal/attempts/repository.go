@@ -118,7 +118,7 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, m
 		if err := rows.Scan(&item.ID, &item.UserID, &item.MaterialType, &item.MaterialID,
 			&item.MaterialVersionID, &item.Status, &item.Score, &item.MaxScore,
 			&item.Band, &item.StartedAt, &item.SubmittedAt,
-			&item.TestTitle, &item.TestSlug); err != nil {
+			&item.TestTitle, &item.TestSlug, &item.FullMockSessionID); err != nil {
 			return nil, fmt.Errorf("scan attempt: %w", err)
 		}
 		items = append(items, item)
