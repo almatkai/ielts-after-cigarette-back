@@ -113,11 +113,13 @@ func (h *Handler) Section(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
+	section.Attempt.ReviewLocked = true
+	section.Attempt.FullMockSessionID = &id
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"position":        section.Position,
 		"skill":           section.Skill,
 		"attempt":         attempts.AttemptForViewer(r.Context(), section.Attempt),
-		"material":        attempts.MaterialForViewer(r.Context(), material),
+		"material":        attempts.MaterialForViewer(r.Context(), material, true),
 		"startedAt":       section.StartedAt,
 		"deadlineAt":      section.DeadlineAt,
 		"durationMinutes": section.DurationMinutes,

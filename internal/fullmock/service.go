@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/google/uuid"
 )
 
@@ -233,6 +234,20 @@ func (s *Service) Finish(ctx context.Context, userID, sessionID uuid.UUID) (Sess
 	if session.Status != SessionInProgress {
 		return Session{}, ErrSessionCompleted
 	}
+	if auth.Role(ctx) == "GUEST" {
+		sections, err := s.repository.ListSessionSections(ctx, session.ID)
+		if err != nil {
+			return Session{}, err
+		}
+		if session.CurrentSection != 4 || len(sections) != 4 {
+			return Session{}, ErrSectionIncomplete
+		}
+		for _, section := range sections {
+			if section.Attempt.Status == attempts.StatusInProgress {
+				return Session{}, ErrSectionIncomplete
+			}
+		}
+	}
 	if err := s.repository.Finish(ctx, session.ID); err != nil {
 		return Session{}, err
 	}
@@ -284,6 +299,22 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 	}
 	section.Attempt = attempt
 	return section, material, nil
+}
+
+// ReviewAccess never advances clocks or grades answers. It prevents retrieving
+// completed section feedback through the standalone attempt API mid-mock.
+func (s *Service) ReviewAccess(ctx context.Context, userID, attemptID uuid.UUID) (*uuid.UUID, bool, error) {
+	meta, err := s.repository.FindExamAttemptMeta(ctx, attemptID)
+	if err != nil {
+		return nil, false, err
+	}
+	if meta == nil {
+		return nil, false, nil
+	}
+	if meta.UserID != userID {
+		return nil, false, attempts.ErrNotFound
+	}
+	return &meta.SessionID, meta.SessionStatus != SessionSubmitted, nil
 }
 
 // ValidateAttemptAccess enforces exam session invariants:

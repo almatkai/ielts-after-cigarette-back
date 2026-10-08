@@ -14,7 +14,7 @@ import (
 
 func TestGuestSessionKeepsOverallButHidesEverySectionGrade(t *testing.T) {
 	band, overall, score := 7.5, 6.5, 30
-	original := Session{OverallBand: &overall}
+	original := Session{Status: SessionSubmitted, OverallBand: &overall}
 	for _, skill := range []string{"listening", "reading", "writing", "speaking"} {
 		original.Sections = append(original.Sections, SessionSection{Skill: skill, Attempt: attempts.Attempt{Band: &band, Score: &score, MaxScore: &score}})
 	}

@@ -50,6 +50,7 @@ type WritingJobQueue interface {
 
 type ExamGuard interface {
 	ValidateAttemptAccess(ctx context.Context, userID, attemptID uuid.UUID) error
+	ReviewAccess(ctx context.Context, userID, attemptID uuid.UUID) (*uuid.UUID, bool, error)
 }
 
 func NewService(repository Repository, providers map[string]MaterialProvider, evaluators ...WritingEvaluator) *Service {
@@ -549,6 +550,13 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 	attempt, err := s.own(ctx, userID, attemptID)
 	if err != nil {
 		return Detail{}, err
+	}
+	attempt, err = s.ReviewAttempt(ctx, userID, attempt)
+	if err != nil {
+		return Detail{}, err
+	}
+	if attempt.ReviewLocked && attempt.Status != StatusInProgress {
+		return Detail{Attempt: attempt}, nil
 	}
 	saved, err := s.repository.ListAnswers(ctx, attemptID)
 	if err != nil {

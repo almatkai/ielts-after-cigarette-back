@@ -22,7 +22,7 @@ func TestGuestStartResumeAlsoRedactsSectionGrades(t *testing.T) {
 	id := uuid.New()
 	h.repo.(*fakeRepo).item = Trial{UserID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour), SessionID: &id}
 	band := 7.5
-	h.mocks.(*fakeMock).session = fullmock.Session{ID: id, OverallBand: &band, Sections: []fullmock.SessionSection{{Attempt: attempts.Attempt{Band: &band}}}}
+	h.mocks.(*fakeMock).session = fullmock.Session{ID: id, Status: fullmock.SessionSubmitted, OverallBand: &band, Sections: []fullmock.SessionSection{{Attempt: attempts.Attempt{Band: &band}}}}
 	request := cookieRequest("POST", "/api/v1/guest/start")
 	request.Body = io.NopCloser(strings.NewReader(`{"examType":"academic","acceptedTerms":true}`))
 	w := httptest.NewRecorder()
