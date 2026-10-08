@@ -19,6 +19,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/blog"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/dashboard"
@@ -102,6 +103,13 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	dashboardRepository := dashboard.NewPostgresRepository(pool)
 	dashboardHandler := dashboard.NewHandler(dashboard.NewService(dashboardRepository), logger)
 	adminHandler := adminapi.NewHandler()
+	blogRepository := blog.NewPostgresRepository(pool)
+	blogObjectStore := sharedObjectStore
+	if blogObjectStore == nil {
+		blogObjectStore = objectstorage.NewFileStore(cfg.BlogMediaDir)
+	}
+	blogService := blog.NewService(blogRepository, blogObjectStore)
+	blogHandler := blog.NewHandler(blogService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 	readingRepository := reading.NewPostgresRepository(pool)
 	readingService := reading.NewService(readingRepository)
 	readingHandler := reading.NewHandler(readingService, logger, cfg.MaxRequestBody)
@@ -284,6 +292,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
 
+		// Public blog
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/posts", blogHandler.ListPublished)
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/posts/{slug}", blogHandler.GetPublic)
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/media/{mediaID}", blogHandler.Media)
+
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
@@ -334,6 +347,23 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Patch("/profile", userHandler.UpdateProfile)
 			protected.Put("/profile/goal", userHandler.UpdateGoal)
 			protected.Get("/dashboard", dashboardHandler.Get)
+
+			// Writer applications (any authenticated user)
+			protected.Post("/blog/media", blogHandler.UploadMedia)
+			protected.Post("/writers/applications", blogHandler.Apply)
+			protected.Get("/writers/applications/mine", blogHandler.MyApplication)
+			protected.Get("/writers/applications/{applicationID}/certificate", blogHandler.Certificate)
+
+			// Writer workspace
+			protected.Route("/writer", func(writerRouter chi.Router) {
+				writerRouter.Use(auth.RequireAnyRole(auth.RoleWriter, auth.RoleEditor, auth.RoleAdmin))
+				writerRouter.Get("/posts", blogHandler.ListMine)
+				writerRouter.Post("/posts", blogHandler.Create)
+				writerRouter.Put("/posts/{postID}", blogHandler.Update)
+				writerRouter.Post("/posts/{postID}/publish", blogHandler.Publish)
+				writerRouter.Post("/posts/{postID}/archive", blogHandler.Archive)
+			})
+
 			protected.Route("/admin", func(adminRouter chi.Router) {
 				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
 				adminRouter.Get("/access", adminHandler.Access)
@@ -399,6 +429,17 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/super-admins", waitlistHandler.AdminListAdmins)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/super-admins", waitlistHandler.AdminAddAdmin)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Delete("/super-admins/{email}", waitlistHandler.AdminRemoveAdmin)
+
+				// Blog moderation and writer applications review
+				adminRouter.Get("/blog/posts", blogHandler.List)
+				adminRouter.Get("/blog/posts/{postID}", blogHandler.Get)
+				adminRouter.Put("/blog/posts/{postID}", blogHandler.Update)
+				adminRouter.Post("/blog/posts/{postID}/publish", blogHandler.Publish)
+				adminRouter.Post("/blog/posts/{postID}/archive", blogHandler.Archive)
+				adminRouter.Get("/writers/applications", blogHandler.ListApplications)
+				adminRouter.Get("/writers/applications/{applicationID}", blogHandler.GetApplication)
+				adminRouter.Post("/writers/applications/{applicationID}/approve", blogHandler.ApproveApplication)
+				adminRouter.Post("/writers/applications/{applicationID}/reject", blogHandler.RejectApplication)
 			})
 		})
 	})
@@ -452,6 +493,9 @@ func isMediaUpload(r *http.Request) bool {
 		return true
 	}
 	if r.URL.Path == "/api/v1/admin/writing/media" {
+		return true
+	}
+	if r.URL.Path == "/api/v1/blog/media" {
 		return true
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/admin/listening/tests/") && strings.HasSuffix(r.URL.Path, "/transcribe") {

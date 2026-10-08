@@ -10,6 +10,7 @@ import (
 
 const (
 	RoleStudent = "STUDENT"
+	RoleWriter  = "WRITER"
 	RoleEditor  = "EDITOR"
 	RoleAdmin   = "ADMIN"
 )
@@ -32,7 +33,7 @@ func NormalizeRole(value string) string {
 
 func ValidRole(value string) bool {
 	switch NormalizeRole(value) {
-	case RoleStudent, RoleEditor, RoleAdmin:
+	case RoleStudent, RoleWriter, RoleEditor, RoleAdmin:
 		return true
 	default:
 		return false
