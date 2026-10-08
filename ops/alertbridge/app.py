@@ -111,7 +111,8 @@ def poll_prometheus() -> None:
         return
     current: dict[str, str] = {}
     for alert in payload.get("data", {}).get("alerts", []):
-        if alert["state"] not in ("firing", "pending"):
+        # Pending alerts have not yet satisfied the rule's `for:` duration.
+        if alert["state"] != "firing":
             continue
         current[alert["labels"]["alertname"]] = "firing"
     with _lock:
@@ -120,8 +121,6 @@ def poll_prometheus() -> None:
         if announced.get(name) != "firing":
             with _lock:
                 _announced[name] = "firing"
-            if announced.get(name) == "firing":  # was firing, flapped via pending
-                continue
             announce(f"🔴 FIRING: {name}\n{describe(payload, name)}")
     for name, state in announced.items():
         if state == "firing" and name not in current:
@@ -132,7 +131,7 @@ def poll_prometheus() -> None:
 
 def describe(payload: dict, name: str) -> str:
     for alert in payload.get("data", {}).get("alerts", []):
-        if alert["labels"].get("alertname") == name:
+        if alert["labels"].get("alertname") == name and alert["state"] == "firing":
             annotations = alert.get("annotations", {})
             return annotations.get("summary", "")
     return ""

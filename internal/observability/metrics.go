@@ -22,7 +22,10 @@ type Metrics struct {
 	latency  *prometheus.HistogramVec
 }
 
-func New(pool *pgxpool.Pool) *Metrics {
+// New registers durable job metrics when pool is set. speechPipeline reports
+// the speaking and transcription queues, which only have a consumer when
+// SPEECH_ENABLED is on; otherwise their rows are never processed.
+func New(pool *pgxpool.Pool, speechPipeline bool) *Metrics {
 	m := &Metrics{
 		registry: prometheus.NewRegistry(),
 		requests: prometheus.NewCounterVec(prometheus.CounterOpts{Name: "iac_http_requests_total", Help: "Completed API requests."}, []string{"method", "route", "status"}),
@@ -33,7 +36,11 @@ func New(pool *pgxpool.Pool) *Metrics {
 		m.registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "iac_db_connections", Help: "Total pgx connections."}, func() float64 { return float64(pool.Stat().TotalConns()) }))
 		m.registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "iac_db_connections_acquired", Help: "Busy pgx connections."}, func() float64 { return float64(pool.Stat().AcquiredConns()) }))
 		m.registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "iac_db_connections_max", Help: "Configured pgx connection limit."}, func() float64 { return float64(pool.Stat().MaxConns()) }))
-		m.registry.MustRegister(&jobCollector{pool: pool})
+		kinds := []string{"writing"}
+		if speechPipeline {
+			kinds = append(kinds, "speaking", "transcription")
+		}
+		m.registry.MustRegister(&jobCollector{pool: pool, kinds: kinds})
 	}
 	return m
 }
@@ -74,7 +81,10 @@ var (
 	jobScrapeUp = prometheus.NewDesc("iac_jobs_scrape_up", "Whether the durable job query succeeded.", nil, nil)
 )
 
-type jobCollector struct{ pool *pgxpool.Pool }
+type jobCollector struct {
+	pool  *pgxpool.Pool
+	kinds []string
+}
 
 func (c *jobCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jobCount
@@ -115,7 +125,7 @@ func (c *jobCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(jobScrapeUp, prometheus.GaugeValue, 1)
-	for _, kind := range []string{"writing", "speaking", "transcription"} {
+	for _, kind := range c.kinds {
 		age := 0.0
 		for _, status := range []string{"QUEUED", "PROCESSING", "FAILED"} {
 			count := 0.0

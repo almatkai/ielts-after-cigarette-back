@@ -93,7 +93,7 @@ func run() int {
 	}
 	httpx.SetErrorReporter(errorSink)
 	defer flushErrors(context.Background())
-	metrics := observability.New(pool)
+	metrics := observability.New(pool, cfg.SpeechEnabled)
 	var metricsServer *http.Server
 	if cfg.MetricsAddr != "" {
 		mux := http.NewServeMux()
