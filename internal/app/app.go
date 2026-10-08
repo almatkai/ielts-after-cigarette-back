@@ -273,6 +273,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
 
+		// Public blog
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/posts", blogHandler.ListPublished)
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/posts/{slug}", blogHandler.GetPublic)
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/media/{mediaID}", blogHandler.Media)
+
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
@@ -322,12 +327,6 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Patch("/profile", userHandler.UpdateProfile)
 			protected.Put("/profile/goal", userHandler.UpdateGoal)
 			protected.Get("/dashboard", dashboardHandler.Get)
-
-			// Public blog (any authenticated user; the SPA serves anonymous
-			// visitors through SSR, so keep read endpoints open to all roles)
-			protected.Get("/blog/posts", blogHandler.ListPublished)
-			protected.Get("/blog/posts/{slug}", blogHandler.GetPublic)
-			protected.Get("/blog/media/{mediaID}", blogHandler.Media)
 
 			// Writer applications (any authenticated user)
 			protected.Post("/blog/media", blogHandler.UploadMedia)
