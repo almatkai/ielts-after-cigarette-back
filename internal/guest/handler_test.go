@@ -42,6 +42,10 @@ func (r *fakeRepo) OwnsMedia(_ context.Context, _ uuid.UUID, _ string, _ uuid.UU
 	return r.media, nil
 }
 
+func (r *fakeRepo) Claim(_ context.Context, _ []byte, _ uuid.UUID) (*uuid.UUID, error) {
+	return r.item.SessionID, r.err
+}
+
 type fakeMock struct {
 	starts, gets int
 	session      fullmock.Session

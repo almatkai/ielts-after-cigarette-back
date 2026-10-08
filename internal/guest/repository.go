@@ -11,17 +11,20 @@ import (
 )
 
 var ErrNotFound = errors.New("guest session not found")
+var ErrAlreadyClaimed = errors.New("guest trial belongs to another account")
 
 type Trial struct {
 	UserID    uuid.UUID  `json:"id"`
 	ExpiresAt time.Time  `json:"expiresAt"`
 	SessionID *uuid.UUID `json:"sessionId"`
+	ClaimedBy *uuid.UUID `json:"-"`
 }
 
 type Repository interface {
 	Find(context.Context, []byte) (Trial, error)
 	Create(context.Context, []byte, string, time.Time) (Trial, error)
 	OwnsMedia(context.Context, uuid.UUID, string, uuid.UUID) (bool, error)
+	Claim(context.Context, []byte, uuid.UUID) (*uuid.UUID, error)
 }
 
 type PostgresRepository struct{ pool *pgxpool.Pool }
@@ -33,9 +36,9 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 func (r *PostgresRepository) Find(ctx context.Context, hash []byte) (Trial, error) {
 	var item Trial
 	err := r.pool.QueryRow(ctx, `SELECT g.user_id,g.expires_at,
- (SELECT id FROM full_mock_sessions WHERE user_id=g.user_id ORDER BY started_at,id LIMIT 1)
+ COALESCE(g.claimed_session_id,(SELECT id FROM full_mock_sessions WHERE user_id=g.user_id ORDER BY started_at,id LIMIT 1)),g.claimed_by
  FROM guest_trials g JOIN users u ON u.id=g.user_id AND u.role='GUEST' WHERE g.token_hash=$1`, hash).
-		Scan(&item.UserID, &item.ExpiresAt, &item.SessionID)
+		Scan(&item.UserID, &item.ExpiresAt, &item.SessionID, &item.ClaimedBy)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Trial{}, ErrNotFound
 	}

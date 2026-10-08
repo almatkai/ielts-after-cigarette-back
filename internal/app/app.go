@@ -280,6 +280,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		api.Get("/guest/config", guestHandler.Config)
 		api.Get("/guest/session", guestHandler.Session)
 		api.Post("/guest/start", guestHandler.Start)
+		api.With(auth.Authenticate(tokens), rateLimit(rateLimiter, logger, cfg, "auth")).Post("/guest/claim", guestHandler.Claim)
 
 		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
 
