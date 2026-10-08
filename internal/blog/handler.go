@@ -38,6 +38,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
+	if hidePublicBlog(w, r) {
+		return
+	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	items, total, err := h.service.ListPublished(r.Context(), limit, offset)
@@ -62,6 +65,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetPublic(w http.ResponseWriter, r *http.Request) {
+	if hidePublicBlog(w, r) {
+		return
+	}
 	slug := chi.URLParam(r, "slug")
 	post, err := h.service.GetPublic(r.Context(), slug)
 	if err != nil {
@@ -365,4 +371,16 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 			"request_id", httpx.RequestID(r.Context()), "error", err)
 		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong", nil)
 	}
+}
+
+// PublicBlogEnabled controls the editorial launch; preparation stays available to authors.
+const PublicBlogEnabled = false
+
+func hidePublicBlog(w http.ResponseWriter, r *http.Request) bool {
+	if PublicBlogEnabled || auth.Role(r.Context()) == auth.RoleWriter || auth.Role(r.Context()) == auth.RoleEditor || auth.Role(r.Context()) == auth.RoleAdmin {
+		return false
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "Страница не найдена", nil)
+	return true
 }

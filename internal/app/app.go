@@ -107,6 +107,19 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	if blogObjectStore == nil {
 		blogObjectStore = objectstorage.NewFileStore(cfg.BlogMediaDir)
 	}
+	speakingObjectStore := sharedObjectStore
+	if speakingObjectStore == nil {
+		speakingObjectStore = objectstorage.NewFileStore(cfg.SpeakingMediaDir)
+	}
+	usersHandler := adminapi.NewUsersHandler(pool, map[string]objectstorage.Store{"blog": blogObjectStore, "speaking": speakingObjectStore}, redisClient, logger, cfg.SuperAdminEmails)
+	if pool != nil {
+		tokens.WithAccountState(usersHandler.AccountState)
+		cleanupContext := options.WorkerContext
+		if cleanupContext == nil {
+			cleanupContext = context.Background()
+		}
+		usersHandler.StartCleanup(cleanupContext)
+	}
 	blogService := blog.NewService(blogRepository, blogObjectStore)
 	blogHandler := blog.NewHandler(blogService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 	readingRepository := reading.NewPostgresRepository(pool)
@@ -347,6 +360,23 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Route("/admin", func(adminRouter chi.Router) {
 				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
 				adminRouter.Get("/access", adminHandler.Access)
+				adminRouter.Group(func(users chi.Router) {
+					users.Use(auth.RequireAnyRole(auth.RoleAdmin))
+					users.Use(func(next http.Handler) http.Handler {
+						return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("Cache-Control", "no-store")
+							next.ServeHTTP(w, r)
+						})
+					})
+					users.Get("/users", usersHandler.ListUsers)
+					users.Get("/users/{userID}", usersHandler.GetUser)
+					users.Put("/users/{userID}", usersHandler.UpdateUser)
+					users.Delete("/users/{userID}", usersHandler.DeleteUser)
+					users.Post("/users/{userID}/password", usersHandler.ChangePassword)
+					users.Post("/users/{userID}/revoke-sessions", usersHandler.RevokeSessions)
+					users.Get("/users/{userID}/attempts", usersHandler.UserAttempts)
+					users.Get("/users/{userID}/attempts/{attemptID}", usersHandler.UserAttempt)
+				})
 				adminRouter.Group(func(aiAdmin chi.Router) {
 					aiAdmin.Use(auth.RequireAnyRole(auth.RoleAdmin))
 					aiAdmin.Get("/ai-providers", aiProvidersHandler.List)

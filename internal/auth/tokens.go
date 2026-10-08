@@ -12,17 +12,19 @@ import (
 )
 
 type AccessClaims struct {
-	Role string `json:"role"`
+	Role    string `json:"role"`
+	Version int    `json:"version"`
 	jwt.RegisteredClaims
 }
 
 type TokenManager struct {
-	secret     []byte
-	issuer     string
-	audience   string
-	accessTTL  time.Duration
-	refreshTTL time.Duration
-	now        func() time.Time
+	accountState func(uuid.UUID) (int, string, bool, error)
+	secret       []byte
+	issuer       string
+	audience     string
+	accessTTL    time.Duration
+	refreshTTL   time.Duration
+	now          func() time.Time
 }
 
 func NewTokenManager(secret, issuer, audience string, accessTTL, refreshTTL time.Duration) *TokenManager {
@@ -37,10 +39,18 @@ func NewTokenManager(secret, issuer, audience string, accessTTL, refreshTTL time
 }
 
 func (m *TokenManager) NewAccessToken(userID uuid.UUID, role string) (string, time.Time, error) {
+	version := 0
+	if m.accountState != nil {
+		v, currentRole, blocked, err := m.accountState(userID)
+		if err != nil || blocked || currentRole != role {
+			return "", time.Time{}, ErrInvalidCredentials
+		}
+		version = v
+	}
 	now := m.now().UTC()
 	expiresAt := now.Add(m.accessTTL)
 	claims := AccessClaims{
-		Role: role,
+		Role: role, Version: version,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
 			Subject:   userID.String(),
@@ -81,6 +91,13 @@ func (m *TokenManager) ParseAccessToken(raw string) (AccessClaims, error) {
 	}
 	if _, err := uuid.Parse(claims.Subject); err != nil {
 		return AccessClaims{}, ErrInvalidCredentials
+	}
+	if m.accountState != nil {
+		id, _ := uuid.Parse(claims.Subject)
+		version, role, blocked, err := m.accountState(id)
+		if err != nil || blocked || role != claims.Role || version != claims.Version {
+			return AccessClaims{}, ErrInvalidCredentials
+		}
 	}
 	return claims, nil
 }
@@ -168,4 +185,10 @@ func HashRefreshToken(raw string) []byte {
 
 func (m *TokenManager) AccessTTL() time.Duration {
 	return m.accessTTL
+}
+
+// WithAccountState makes account changes effective for already issued access tokens.
+func (m *TokenManager) WithAccountState(lookup func(uuid.UUID) (int, string, bool, error)) *TokenManager {
+	m.accountState = lookup
+	return m
 }
