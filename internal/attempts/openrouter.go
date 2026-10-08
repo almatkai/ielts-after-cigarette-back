@@ -138,7 +138,7 @@ func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluat
 	req.Header.Set("X-Title", "Daiyndyq IELTS")
 	response, err := e.client.Do(req)
 	if err != nil {
-		return WritingEvaluation{}, fmt.Errorf("%w: request AI provider", ErrAIEvaluationFailed)
+		return WritingEvaluation{}, fmt.Errorf("%w: request AI provider: %w", ErrAIEvaluationFailed, err)
 	}
 	defer response.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
@@ -424,7 +424,7 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 	req.Header.Set("X-Title", "Daiyndyq IELTS")
 	response, err := e.client.Do(req)
 	if err != nil {
-		return SpeakingEvaluation{}, fmt.Errorf("%w: request AI provider", ErrAIEvaluationFailed)
+		return SpeakingEvaluation{}, fmt.Errorf("%w: request AI provider: %w", ErrAIEvaluationFailed, err)
 	}
 	defer response.Body.Close()
 	data, err := io.ReadAll(io.LimitReader(response.Body, 4<<20))

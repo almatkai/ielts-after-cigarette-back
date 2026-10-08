@@ -7,7 +7,9 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -158,11 +160,12 @@ func includes(scopes []string, purpose string) bool {
 func (s *Service) report(ctx context.Context, p Provider, purpose string, err error) *Failure {
 	failure := &Failure{ProviderID: p.ID, Purpose: purpose, Code: "invalid_response"}
 	var status *HTTPError
+	var netErr net.Error
 	switch {
 	case errors.As(err, &status):
 		failure.Code = "http_error"
 		failure.Status = status.Status
-	case errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded), errors.As(err, &netErr) && netErr.Timeout():
 		failure.Code = "timeout"
 	case errors.Is(err, ErrEncryption):
 		failure.Code = "credential_decryption"
