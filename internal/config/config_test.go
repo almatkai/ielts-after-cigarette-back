@@ -6,6 +6,37 @@ import (
 	"time"
 )
 
+func TestGuestTrialConfigurationRequiresProductionProtection(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://test")
+	t.Setenv("REDIS_URL", "redis://test")
+	t.Setenv("JWT_SECRET", "test-secret-at-least-32-characters-long")
+	t.Setenv("PHONE_VERIFICATION_SECRET", "test-phone-secret-at-least-32-characters-long")
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("GUEST_TRIAL_ENABLED", "true")
+	t.Setenv("TURNSTILE_SITE_KEY", "")
+	t.Setenv("TURNSTILE_SECRET_KEY", "")
+	t.Setenv("TURNSTILE_HOSTNAMES", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Environment = "production"
+	if err = cfg.Validate(); err == nil || !strings.Contains(err.Error(), "guest trials require Turnstile") {
+		t.Fatalf("unprotected guest launch: %v", err)
+	}
+	cfg.TurnstileSiteKey = "site-key"
+	cfg.TurnstileSecretKey = "server-secret"
+	cfg.TurnstileHostnames = []string{"app.example"}
+	cfg.RefreshCookieSecure = true
+	if err = cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	cfg.GuestTrialGlobalLimit = 0
+	if err = cfg.Validate(); err == nil || !strings.Contains(err.Error(), "guest trial quotas must be positive") {
+		t.Fatalf("unbounded guest launches allowed: %v", err)
+	}
+}
+
 func TestValidateRejectsUnsafeConfiguration(t *testing.T) {
 	cfg := Config{
 		Environment:           "production",

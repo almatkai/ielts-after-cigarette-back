@@ -55,7 +55,7 @@ func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSumma
 		v.title, v.description, v.duration_minutes, m.published_at
 		FROM writing_materials m
 		JOIN writing_material_versions v ON v.id=m.published_version_id
-		WHERE m.status='PUBLISHED'
+		WHERE m.status='PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='writing' AND g.material_id=m.id)
 		ORDER BY m.published_at DESC, m.updated_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list published writing materials: %w", err)
@@ -77,7 +77,7 @@ func (r *PostgresRepository) GetPublished(ctx context.Context, id uuid.UUID) (Ma
 	material, err := scanMaterial(r.pool.QueryRow(ctx, `SELECT `+materialColumns+`
 		FROM writing_materials m
 		JOIN writing_material_versions v ON v.id=m.published_version_id
-		WHERE m.id=$1 AND m.status='PUBLISHED'`, id))
+		WHERE m.id=$1 AND m.status='PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='writing' AND g.material_id=m.id)`, id))
 	return mapReadError(material, err, "get published writing material")
 }
 
@@ -92,7 +92,7 @@ func (r *PostgresRepository) GetVersion(ctx context.Context, id, versionID uuid.
 func (r *PostgresRepository) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	var versionID uuid.UUID
 	err := r.pool.QueryRow(ctx, `SELECT published_version_id FROM writing_materials
-		WHERE id=$1 AND status='PUBLISHED' AND published_version_id IS NOT NULL`, id).Scan(&versionID)
+		WHERE id=$1 AND status='PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='writing' AND g.material_id=$1) AND published_version_id IS NOT NULL`, id).Scan(&versionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, ErrNotFound
 	}

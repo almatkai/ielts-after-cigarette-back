@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -66,7 +67,7 @@ SELECT e.skill, e.material_id, e.version_id,
    AND a.material_id=e.material_id AND a.status IN ('SUBMITTED','PROCESSING')),
  EXISTS (SELECT 1 FROM full_mock_session_sections sec JOIN attempts a ON a.id=sec.attempt_id
    WHERE sec.session_id IN (SELECT id FROM previous_session) AND a.material_type=e.skill AND a.material_id=e.material_id)
-FROM eligible e ORDER BY e.skill, e.material_id`
+FROM eligible e WHERE NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill=e.skill AND g.material_id=e.material_id) ORDER BY e.skill, e.material_id`
 
 type generatorQuerier interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
@@ -173,6 +174,27 @@ func (r *PostgresRepository) GenerateSession(ctx context.Context, userID uuid.UU
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "fullmock:"+userID.String()); err != nil {
 		return Session{}, false, err
 	}
+	// A guest gets one session for its entire lifetime, including completed or
+	// expired exams. This check shares the creation lock, so racing starts and
+	// restart requests cannot draw a second set of attempts.
+	var guest bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM guest_trials WHERE user_id=$1)`, userID).Scan(&guest); err != nil {
+		return Session{}, false, err
+	}
+	if guest {
+		var existing uuid.UUID
+		err := tx.QueryRow(ctx, `SELECT id FROM full_mock_sessions WHERE user_id=$1 ORDER BY started_at,id LIMIT 1`, userID).Scan(&existing)
+		if err == nil {
+			if err := tx.Commit(ctx); err != nil {
+				return Session{}, false, err
+			}
+			session, err := r.GetSession(ctx, existing)
+			return session, false, err
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return Session{}, false, err
+		}
+	}
 	var activeID uuid.UUID
 	err = tx.QueryRow(ctx, `SELECT id FROM full_mock_sessions WHERE user_id=$1 AND status='IN_PROGRESS'
  ORDER BY started_at DESC, id DESC LIMIT 1 FOR UPDATE`, userID).Scan(&activeID)
@@ -187,6 +209,10 @@ func (r *PostgresRepository) GenerateSession(ctx context.Context, userID uuid.UU
 		return session, false, err
 	}
 	examType, items, err := loadCandidates(ctx, tx, userID)
+	if guest {
+		examType = "academic"
+		items, err = prepareGuestMock(ctx, tx)
+	}
 	if err != nil {
 		return Session{}, false, err
 	}
@@ -285,7 +311,7 @@ func (s *Service) StartGenerated(ctx context.Context, userID uuid.UUID, restart 
 		if err != nil {
 			return Session{}, false, err
 		}
-		if session.Status == SessionInProgress {
+		if session.Status == SessionInProgress || auth.Role(ctx) == "GUEST" {
 			return session, created, nil
 		}
 	}

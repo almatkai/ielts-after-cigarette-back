@@ -87,9 +87,13 @@ type Overview struct {
 }
 
 type SessionSection struct {
-	Position int              `json:"position"`
-	Skill    string           `json:"skill"`
-	Attempt  attempts.Attempt `json:"attempt"`
+	Position              int              `json:"position"`
+	Skill                 string           `json:"skill"`
+	Attempt               attempts.Attempt `json:"attempt"`
+	DurationMinutes       int              `json:"durationMinutes"`
+	StartedAt             *time.Time       `json:"startedAt"`
+	DeadlineAt            *time.Time       `json:"deadlineAt"`
+	RemainingMilliseconds *int64           `json:"remainingMilliseconds"`
 }
 
 type Session struct {
@@ -103,7 +107,6 @@ type Session struct {
 	CurrentSection  int              `json:"currentSection"`
 	StartedAt       time.Time        `json:"startedAt"`
 	SubmittedAt     *time.Time       `json:"submittedAt"`
-	DeadlineAt      time.Time        `json:"deadlineAt"`
 	MockTest        Test             `json:"mockTest"`
 	Sections        []SessionSection `json:"sections"`
 	OverallBand     *float64         `json:"overallBand"`
