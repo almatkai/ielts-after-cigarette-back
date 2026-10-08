@@ -106,7 +106,7 @@ func (h *Handler) Session(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := h.find(r)
-	if errors.Is(err, ErrNotFound) || err == nil && !item.ExpiresAt.After(time.Now()) {
+	if errors.Is(err, ErrNotFound) || err == nil && (item.ClaimedBy != nil || !item.ExpiresAt.After(time.Now())) {
 		h.denied(w, r)
 		return
 	}
@@ -146,6 +146,10 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := h.find(r)
 	if err == nil {
+		if item.ClaimedBy != nil {
+			httpx.WriteError(w, r, 403, "GUEST_CLAIMED", "Тест сохранён в аккаунте. Войдите, чтобы открыть результаты", nil)
+			return
+		}
 		if !item.ExpiresAt.After(time.Now()) {
 			httpx.WriteError(w, r, 403, "GUEST_EXPIRED", "Срок гостевого доступа истёк. Войдите для продолжения подготовки", nil)
 			return
@@ -206,7 +210,7 @@ func (h *Handler) startOrResume(w http.ResponseWriter, r *http.Request, item Tri
 		}
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, session)
+	httpx.WriteJSON(w, http.StatusOK, fullmock.SessionForViewer(ctx, session))
 }
 
 var errChallenge = errors.New("invalid turnstile challenge")
@@ -297,7 +301,7 @@ func (h *Handler) Authenticate(tokens *auth.TokenManager) func(http.Handler) htt
 				return
 			}
 			item, err := h.find(r)
-			if errors.Is(err, ErrNotFound) || err == nil && !item.ExpiresAt.After(time.Now()) {
+			if errors.Is(err, ErrNotFound) || err == nil && (item.ClaimedBy != nil || !item.ExpiresAt.After(time.Now())) {
 				h.denied(w, r)
 				return
 			}

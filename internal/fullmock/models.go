@@ -110,4 +110,5 @@ type Session struct {
 	MockTest        Test             `json:"mockTest"`
 	Sections        []SessionSection `json:"sections"`
 	OverallBand     *float64         `json:"overallBand"`
+	ResultsLocked   bool             `json:"resultsLocked,omitempty"`
 }

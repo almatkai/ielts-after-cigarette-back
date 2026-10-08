@@ -15,14 +15,22 @@ Reservations survive publication changes and restarts. Existing sessions retain
 their original pinned sections. Public catalogs, new practice starts and normal
 mock generation exclude the reserved material IDs, including when an account
 has exhausted the remaining bank. A partial or incomplete reservation denies a
-new trial instead of drawing different materials. Detailed review uses the
-existing version-pinned runners and grading queues without signing in.
+new trial instead of drawing different materials. Grading uses the existing version-pinned runners and queues. Guests see the
+Full Mock overall band, but all section bands/scores are withheld by the API
+and shown as blurred placeholders that open sign-in. Each submitted section
+exposes only the first `floor(errorCount * 0.30)` mistakes for detailed review:
+10 mistakes unlock 3, 4 unlock 1, and fewer than 4 unlock none. Reloads return
+the same subset. Objective mistakes expose their question and student's answer;
+locked answer keys, hints, explanations and evidence are not sent. Writing and
+Speaking use the same quota over their saved AI improvement suggestions; all
+criterion/task bands, summaries and other AI feedback remain account-only.
+Full Listening transcripts are excluded from guest material responses.
 
 ## Enable
 
 1. Apply migrations `000035_guest_trials`, `000036_fixed_guest_mock` and
-   `000037_full_mock_section_clocks` and `000038_full_mock_section_pause`
-   before deploying the new API, including
+   `000037_full_mock_section_clocks`, `000038_full_mock_section_pause` and
+   `000039_guest_trial_claim` before deploying the new API, including
    when guest trials remain disabled.
 2. Keep `GUEST_TRIAL_EXAM_TYPES=academic` for the fixed trial. The current trial
    is Academic, independent of the registered student's selected exam format.
@@ -102,10 +110,22 @@ or invasive browser fingerprinting.
 
 ## Results and retention
 
-Signing in switches to the account's own data. This version does **not** transfer
-guest results into that account or claim that they were saved to it. Review
-remains accessible with the guest cookie when signed out, within its access
-period. The seven-day expiry limits access; it does not delete DB rows or audio.
+On Google sign-in/registration (including same-tab redirect restoration), the
+client calls `POST /api/v1/guest/claim` with the new account Bearer token and the
+existing guest cookie before publishing the new auth identity. The API verifies
+Origin and atomically transfers a **completed** mock and its section attempts
+to that account. Pending Writing/Speaking jobs, answer rows, version pins and
+recordings keep their attempt IDs. An existing active account mock is untouched.
+Successful claiming unlocks every band and full review and persists across
+reloads and cookie loss, because ownership now belongs to the account. Concurrent
+claims are idempotent for that account; another account cannot claim the same
+trial. The consumed guest identity remains a tombstone and cannot start again.
+
+A running, expired or missing trial is not transferred. Signing in during a
+running mock still switches to the account's own data; the claim feature is for
+completed reports. Unclaimed preview remains accessible with the guest cookie
+within its seven-day access period. Claimed results require the owning account,
+including after logout. The seven-day expiry does not delete DB rows or audio.
 Database and object-storage retention must be scheduled together. Keep consumed
 token tombstones for the cookie's 180-day lifetime when adding cleanup, otherwise
 old cookies could start a new trial after their rows are deleted.
@@ -115,6 +135,10 @@ old cookies could start a new trial after their rows are deleted.
 `go test ./...` runs handler/auth/config coverage. Set `TEST_DATABASE_URL` to an
 explicit local test database to also exercise migrations, actor creation,
 ownership, concurrent generation and expired-session reuse in isolated schemas.
-The frontend has `tests/guest-trial.spec.ts` for anonymous launch, AI review,
-reload, public browsing, fixed Academic launch, mobile layout and locked navigation. Browser tests
+The frontend has `tests/guest-trial.spec.ts` for anonymous launch, 30% objective
+and AI preview, blurred section bands, sign-in/registration unlocking, claim
+failure/retry, reload, public browsing, fixed Academic launch, mobile layout and
+locked navigation. Repository integration tests verify atomic/idempotent
+ownership transfer, preserved grades, denial to foreign accounts and rejection
+of running/expired trials. Browser tests
 mock AI results; they do not call paid providers.
