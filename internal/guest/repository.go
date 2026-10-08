@@ -36,7 +36,7 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 func (r *PostgresRepository) Find(ctx context.Context, hash []byte) (Trial, error) {
 	var item Trial
 	err := r.pool.QueryRow(ctx, `SELECT g.user_id,g.expires_at,
- COALESCE(g.claimed_session_id,(SELECT id FROM full_mock_sessions WHERE user_id=g.user_id ORDER BY started_at,id LIMIT 1)),g.claimed_by
+ COALESCE(g.claimed_session_id,(SELECT id FROM full_mock_sessions WHERE user_id=g.user_id ORDER BY started_at DESC,id DESC LIMIT 1)),g.claimed_by
  FROM guest_trials g JOIN users u ON u.id=g.user_id AND u.role='GUEST' WHERE g.token_hash=$1`, hash).
 		Scan(&item.UserID, &item.ExpiresAt, &item.SessionID, &item.ClaimedBy)
 	if errors.Is(err, pgx.ErrNoRows) {

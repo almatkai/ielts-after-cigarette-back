@@ -80,15 +80,22 @@ The feature defaults to disabled in all environments.
   the guest's 7-day access. Listening, Reading and Writing use their
   material durations; Speaking allows 15 minutes. Section expiry grades saved
   answers and leaves the next section untimed until opened. Restart/racing
-  requests reuse the same mock under a PostgreSQL advisory lock, even after completion.
-- The default quotas allow 5 new guest identities per IP and 100 globally per
+  requests reuse the latest mock under a PostgreSQL advisory lock. After completion,
+  «Пересдать тест» opens a confirmation and creates four fresh attempts with the
+  same reserved materials. The previous report remains accessible. The client sends
+  `retakeSessionId` to `POST /api/v1/guest/start`; duplicate requests for the same
+  source return the latest successor, even if that successor has finished. Running,
+  foreign, expired or claimed trials cannot be retaken. Retakes retain the same
+  identity/cookie and original seven-day expiry; no new Turnstile challenge is needed.
+- The default quotas allow 5 new starts (initial trials and retakes) per IP and 100 globally per
   fixed 24-hour window, anchored to its first request. These are Redis quotas
   shared by API replicas, not per-process limits. Failed starts may consume a
-  reservation; resuming an existing identity does not consume a new start.
+  reservation; resuming an existing identity or retrying an already-created retake
+  does not consume a new start. Retake admission runs under the generation lock.
 - IP identifiers are HMACs. Only forwarding headers from the existing trusted
   private/loopback proxy path are used; the edge proxy must replace client-sent
   forwarding headers, and the API must not be exposed through an untrusted proxy.
-- 180 API requests per minute per guest, 6 audio uploads across the trial
+- 180 API requests per minute per guest, 6 audio uploads per Speaking attempt
   (three parts plus retries), and 3 submit requests per attempt across the trial.
   Uploads are bounded to 12 MiB of audio plus 1 MiB multipart overhead. Answer
   requests are bounded to 128 KiB. Existing worker retries still apply.
@@ -113,7 +120,7 @@ or invasive browser fingerprinting.
 On Google sign-in/registration (including same-tab redirect restoration), the
 client calls `POST /api/v1/guest/claim` with the new account Bearer token and the
 existing guest cookie before publishing the new auth identity. The API verifies
-Origin and atomically transfers a **completed** mock and its section attempts
+Origin and atomically transfers **all completed attempts in the trial** and their mocks
 to that account. Pending Writing/Speaking jobs, answer rows, version pins and
 recordings keep their attempt IDs. An existing active account mock is untouched.
 Successful claiming unlocks every band and full review and persists across
@@ -121,7 +128,9 @@ reloads and cookie loss, because ownership now belongs to the account. Concurren
 claims are idempotent for that account; another account cannot claim the same
 trial. The consumed guest identity remains a tombstone and cannot start again.
 
-A running, expired or missing trial is not transferred. Signing in during a
+A running latest attempt, expired or missing trial is not transferred. An earlier
+completed report must not consume a guest identity while its retake is running.
+The claim response identifies the latest completed mock. Signing in during a
 running mock still switches to the account's own data; the claim feature is for
 completed reports. Unclaimed preview remains accessible with the guest cookie
 within its seven-day access period. Claimed results require the owning account,
@@ -137,7 +146,8 @@ explicit local test database to also exercise migrations, actor creation,
 ownership, concurrent generation and expired-session reuse in isolated schemas.
 The frontend has `tests/guest-trial.spec.ts` for anonymous launch, 30% objective
 and AI preview, blurred section bands, sign-in/registration unlocking, claim
-failure/retry, reload, public browsing, fixed Academic launch, mobile layout and
+failure/retry, guest retakes (desktop/mobile), retained reports, quota failure/retry,
+reload, public browsing, fixed Academic launch, mobile layout and
 locked navigation. Repository integration tests verify atomic/idempotent
 ownership transfer, preserved grades, denial to foreign accounts and rejection
 of running/expired trials. Browser tests

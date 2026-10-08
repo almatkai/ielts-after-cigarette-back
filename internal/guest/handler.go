@@ -43,6 +43,7 @@ type Config struct {
 type MockService interface {
 	StartGenerated(context.Context, uuid.UUID, bool) (fullmock.Session, bool, error)
 	GetSession(context.Context, uuid.UUID, uuid.UUID) (fullmock.Session, error)
+	RetakeGuest(context.Context, uuid.UUID, uuid.UUID, func(context.Context) error) (fullmock.Session, bool, error)
 }
 type AllowFunc func(context.Context, string, int64, time.Duration) (bool, error)
 
@@ -128,9 +129,10 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		ExamType      string `json:"examType"`
-		Token         string `json:"turnstileToken"`
-		AcceptedTerms bool   `json:"acceptedTerms"`
+		ExamType      string     `json:"examType"`
+		Token         string     `json:"turnstileToken"`
+		AcceptedTerms bool       `json:"acceptedTerms"`
+		RetakeSession *uuid.UUID `json:"retakeSessionId"`
 	}
 	if err := httpx.DecodeJSON(w, r, 4096, &input); err != nil {
 		httpx.WriteError(w, r, 400, "INVALID_JSON", "Request body must be valid JSON", nil)
@@ -154,11 +156,19 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, r, 403, "GUEST_EXPIRED", "Срок гостевого доступа истёк. Войдите для продолжения подготовки", nil)
 			return
 		}
-		h.startOrResume(w, r, item)
+		if input.RetakeSession != nil {
+			h.retake(w, r, item, *input.RetakeSession)
+		} else {
+			h.startOrResume(w, r, item)
+		}
 		return
 	}
 	if !errors.Is(err, ErrNotFound) {
 		httpx.InternalError(w, r, h.logger, err)
+		return
+	}
+	if input.RetakeSession != nil {
+		h.denied(w, r)
 		return
 	}
 	// Throttle challenges too; rejected bot submissions must not flood Siteverify.
@@ -337,7 +347,7 @@ func (h *Handler) Authenticate(tokens *auth.TokenManager) func(http.Handler) htt
 				}
 			}
 			if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/recordings") {
-				if !h.limit(w, r, "uploads:"+item.UserID.String(), 6, trialTTL) {
+				if !h.limit(w, r, "uploads:"+item.UserID.String()+":"+chi.URLParam(r, "attemptID"), 6, trialTTL) {
 					return
 				}
 				r.Body = http.MaxBytesReader(w, r.Body, (12<<20)+(1<<20))
