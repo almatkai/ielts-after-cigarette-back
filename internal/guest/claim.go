@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/fullmock"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -76,8 +77,9 @@ func (r *PostgresRepository) Claim(ctx context.Context, hash []byte, account uui
 		return nil, err
 	}
 	var id uuid.UUID
-	err = tx.QueryRow(ctx, `SELECT id FROM full_mock_sessions WHERE user_id=$1 AND status='SUBMITTED'
- ORDER BY started_at,id LIMIT 1 FOR UPDATE`, actor).Scan(&id)
+	var status string
+	err = tx.QueryRow(ctx, `SELECT id,status FROM full_mock_sessions WHERE user_id=$1
+ ORDER BY started_at DESC,id DESC LIMIT 1 FOR UPDATE`, actor).Scan(&id, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Sign-in during a running mock never steals an active account session.
 		return nil, nil
@@ -85,11 +87,16 @@ func (r *PostgresRepository) Claim(ctx context.Context, hash []byte, account uui
 	if err != nil {
 		return nil, err
 	}
+	if status != fullmock.SessionSubmitted {
+		// A completed earlier try must not consume access to a running retake.
+		return nil, nil
+	}
 	if _, err = tx.Exec(ctx, `UPDATE attempts SET user_id=$1 WHERE user_id=$2 AND id IN
- (SELECT attempt_id FROM full_mock_session_sections WHERE session_id=$3)`, account, actor, id); err != nil {
+ (SELECT sec.attempt_id FROM full_mock_session_sections sec JOIN full_mock_sessions s
+ ON s.id=sec.session_id WHERE s.user_id=$2 AND s.status='SUBMITTED')`, account, actor); err != nil {
 		return nil, err
 	}
-	if _, err = tx.Exec(ctx, `UPDATE full_mock_sessions SET user_id=$1 WHERE id=$2`, account, id); err != nil {
+	if _, err = tx.Exec(ctx, `UPDATE full_mock_sessions SET user_id=$1 WHERE user_id=$2 AND status='SUBMITTED'`, account, actor); err != nil {
 		return nil, err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE guest_trials SET claimed_by=$1,claimed_session_id=$2 WHERE user_id=$3`, account, id, actor); err != nil {

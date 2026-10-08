@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -342,7 +343,7 @@ func TestGeneratedMockExpiryAndPrivacy(t *testing.T) {
 	}
 }
 
-func TestGuestGeneratedMockCannotRestartOrRepeatAfterCompletion(t *testing.T) {
+func TestGuestGeneratedMockRetakeIsExplicitAndIdempotent(t *testing.T) {
 	pool := testdb.Open(t)
 	ctx := context.Background()
 	user := mockUser(t, pool, "academic")
@@ -400,6 +401,86 @@ func TestGuestGeneratedMockCannotRestartOrRepeatAfterCompletion(t *testing.T) {
 	}
 	if mocks != 1 || sections != 4 {
 		t.Fatalf("guest has %d mocks and %d attempts", mocks, sections)
+	}
+	oldSections, err := repo.ListSessionSections(ctx, sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var admissions atomic.Int32
+	admit := func(context.Context) error { admissions.Add(1); return nil }
+	// A forged source cannot consume quota or draw more reserved materials.
+	if _, _, err := repo.RetakeGuest(ctx, user, uuid.New(), admit); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("foreign source: %v", err)
+	}
+	denied := errors.New("quota exhausted")
+	if _, _, err := repo.RetakeGuest(ctx, user, sessionID, func(context.Context) error { return denied }); !errors.Is(err, denied) {
+		t.Fatalf("quota bypass: %v", err)
+	}
+	retakes := make(chan uuid.UUID, 8)
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			item, _, err := repo.RetakeGuest(ctx, user, sessionID, admit)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			retakes <- item.ID
+		}()
+	}
+	wg.Wait()
+	close(retakes)
+	var nextID uuid.UUID
+	for id := range retakes {
+		if nextID == uuid.Nil {
+			nextID = id
+		}
+		if id != nextID || id == sessionID {
+			t.Fatal("duplicate or reused source retake")
+		}
+	}
+	if nextID == uuid.Nil || admissions.Load() != 1 {
+		t.Fatalf("retake=%s admissions=%d", nextID, admissions.Load())
+	}
+	newSections, err := repo.ListSessionSections(ctx, nextID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, sec := range newSections {
+		if sec.Attempt.ID == oldSections[i].Attempt.ID || sec.Attempt.MaterialVersionID != oldSections[i].Attempt.MaterialVersionID || sec.Attempt.Status != "IN_PROGRESS" || sec.Attempt.Band != nil || sec.DeadlineAt != nil || sec.StartedAt != nil {
+			t.Fatalf("retake not fresh and pinned: %+v", sec)
+		}
+	}
+	old, err := repo.GetSession(ctx, sessionID)
+	if err != nil || old.Status != SessionSubmitted {
+		t.Fatalf("previous result lost: %+v %v", old, err)
+	}
+	if _, _, err := repo.RetakeGuest(ctx, user, nextID, admit); !errors.Is(err, ErrRetakeNotReady) {
+		t.Fatalf("running retake allowed: %v", err)
+	}
+	if _, err := service.Finish(ctx, user, nextID); err != nil {
+		t.Fatal(err)
+	}
+	// A delayed duplicate must not create a third try after the second finishes.
+	repeated, created, err := repo.RetakeGuest(ctx, user, sessionID, admit)
+	if err != nil || created || repeated.ID != nextID || admissions.Load() != 1 {
+		t.Fatalf("late repeat: %+v %v %v", repeated, created, err)
+	}
+	resumed, created, err := service.StartGenerated(auth.WithUser(ctx, user, "GUEST"), user, false)
+	if err != nil || created || resumed.ID != nextID {
+		t.Fatalf("latest not resumed: %+v %v", resumed, err)
+	}
+	execSeed(t, pool, `UPDATE guest_trials SET expires_at=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE user_id=$1`, user)
+	if _, _, err := repo.RetakeGuest(ctx, user, nextID, admit); !errors.Is(err, ErrGuestUnavailable) {
+		t.Fatalf("expired retake: %v", err)
+	}
+	execSeed(t, pool, `UPDATE guest_trials SET expires_at=CURRENT_TIMESTAMP+INTERVAL '1 day',claimed_by=$2,claimed_session_id=$3 WHERE user_id=$1`, user, testdb.User(t, pool), nextID)
+	if _, _, err := repo.RetakeGuest(ctx, user, nextID, admit); !errors.Is(err, ErrGuestUnavailable) {
+		t.Fatalf("claimed retake: %v", err)
+	}
+	if admissions.Load() != 1 {
+		t.Fatal("unavailable trials consumed quota")
 	}
 }
 

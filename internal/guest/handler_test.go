@@ -47,8 +47,9 @@ func (r *fakeRepo) Claim(_ context.Context, _ []byte, _ uuid.UUID) (*uuid.UUID, 
 }
 
 type fakeMock struct {
-	starts, gets int
-	session      fullmock.Session
+	starts, gets, retakes int
+	session               fullmock.Session
+	retakeErr             error
 }
 
 func (m *fakeMock) StartGenerated(_ context.Context, user uuid.UUID, restart bool) (fullmock.Session, bool, error) {
@@ -60,6 +61,18 @@ func (m *fakeMock) GetSession(_ context.Context, user, id uuid.UUID) (fullmock.S
 	m.gets++
 	return m.session, nil
 }
+func (m *fakeMock) RetakeGuest(ctx context.Context, user, source uuid.UUID, admit func(context.Context) error) (fullmock.Session, bool, error) {
+	if m.retakeErr != nil {
+		return fullmock.Session{}, false, m.retakeErr
+	}
+	if err := admit(ctx); err != nil {
+		return fullmock.Session{}, false, err
+	}
+	m.retakes++
+	m.session.UserID = user
+	return m.session, true, nil
+}
+
 func testHandler() *Handler {
 	return NewHandler(Config{Enabled: true, Secret: "test-secret", Origins: []string{"https://app.test"}, IPLimit: 5, GlobalLimit: 100, SameSite: http.SameSiteLaxMode}, &fakeRepo{}, &fakeMock{session: fullmock.Session{ID: uuid.New()}}, func(context.Context, string, int64, time.Duration) (bool, error) { return true, nil }, func(*http.Request) string { return "127.0.0.1" }, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }

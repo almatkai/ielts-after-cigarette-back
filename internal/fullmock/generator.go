@@ -165,33 +165,63 @@ func (r *PostgresRepository) MockOverview(ctx context.Context, userID uuid.UUID)
 }
 
 func (r *PostgresRepository) GenerateSession(ctx context.Context, userID uuid.UUID, restart bool) (Session, bool, error) {
+	return r.generateSession(ctx, userID, restart, nil, nil)
+}
+
+func (r *PostgresRepository) RetakeGuest(ctx context.Context, userID, sourceID uuid.UUID, admit func(context.Context) error) (Session, bool, error) {
+	return r.generateSession(ctx, userID, false, &sourceID, admit)
+}
+
+func (r *PostgresRepository) generateSession(ctx context.Context, userID uuid.UUID, restart bool, sourceID *uuid.UUID, admit func(context.Context) error) (Session, bool, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return Session{}, false, err
 	}
 	defer tx.Rollback(ctx)
-	// All generated starts/restarts for a user serialize, even before a row exists.
+	// Same lock order as claiming: trial row, then generation lock. A claim or
+	// expiry must never allow a new guest attempt after consuming the identity.
+	var valid bool
+	err = tx.QueryRow(ctx, `SELECT expires_at>CURRENT_TIMESTAMP AND claimed_by IS NULL
+ FROM guest_trials WHERE user_id=$1 FOR UPDATE`, userID).Scan(&valid)
+	guest := err == nil
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return Session{}, false, err
+	}
+	if guest && !valid {
+		return Session{}, false, ErrGuestUnavailable
+	}
+	if sourceID != nil && !guest {
+		return Session{}, false, ErrSessionNotFound
+	}
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, "fullmock:"+userID.String()); err != nil {
 		return Session{}, false, err
 	}
-	// A guest gets one session for its entire lifetime, including completed or
-	// expired exams. This check shares the creation lock, so racing starts and
-	// restart requests cannot draw a second set of attempts.
-	var guest bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM guest_trials WHERE user_id=$1)`, userID).Scan(&guest); err != nil {
-		return Session{}, false, err
-	}
 	if guest {
+		if sourceID != nil {
+			var status string
+			err := tx.QueryRow(ctx, `SELECT status FROM full_mock_sessions WHERE id=$1 AND user_id=$2`, *sourceID, userID).Scan(&status)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return Session{}, false, ErrSessionNotFound
+			}
+			if err != nil {
+				return Session{}, false, err
+			}
+			if status != SessionSubmitted {
+				return Session{}, false, ErrRetakeNotReady
+			}
+		}
 		var existing uuid.UUID
-		err := tx.QueryRow(ctx, `SELECT id FROM full_mock_sessions WHERE user_id=$1 ORDER BY started_at,id LIMIT 1`, userID).Scan(&existing)
-		if err == nil {
+		err := tx.QueryRow(ctx, `SELECT id FROM full_mock_sessions WHERE user_id=$1 ORDER BY started_at DESC,id DESC LIMIT 1`, userID).Scan(&existing)
+		if err == nil && (sourceID == nil || existing != *sourceID) {
+			// Resume, or return the successor of an already-retaken source. This
+			// stays idempotent even if that successor has already finished.
 			if err := tx.Commit(ctx); err != nil {
 				return Session{}, false, err
 			}
 			session, err := r.GetSession(ctx, existing)
 			return session, false, err
 		}
-		if !errors.Is(err, pgx.ErrNoRows) {
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return Session{}, false, err
 		}
 	}
@@ -231,6 +261,16 @@ func (r *PostgresRepository) GenerateSession(ctx context.Context, userID uuid.UU
 			return Session{}, false, err
 		}
 		selected = append(selected, pool[index.Int64()])
+	}
+	if sourceID != nil {
+		if admit == nil {
+			return Session{}, false, ErrGuestUnavailable
+		}
+		// Only a genuinely new retake consumes quota; retries and racing clicks
+		// reuse the successor without charging another start.
+		if err := admit(ctx); err != nil {
+			return Session{}, false, err
+		}
 	}
 	// Validate every pool before replacing the active exam. Failure rolls back all
 	// changes; a missing bank must not destroy a student's in-progress answers.

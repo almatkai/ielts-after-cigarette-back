@@ -105,6 +105,86 @@ func TestClaimTransfersCompletedMockAndAllAttemptsOnce(t *testing.T) {
 	}
 }
 
+func TestClaimPreservesAllCompletedRetakesAndReturnsLatest(t *testing.T) {
+	pool := testdb.Open(t)
+	ctx := context.Background()
+	repo := NewPostgresRepository(pool)
+	trial, first, ids := seedClaimTrial(t, pool, "retakes", "SUBMITTED", false)
+	if _, err := pool.Exec(ctx, `UPDATE full_mock_sessions SET started_at=CURRENT_TIMESTAMP-INTERVAL '1 day' WHERE id=$1`, first); err != nil {
+		t.Fatal(err)
+	}
+	latest := uuid.New()
+	if _, err := pool.Exec(ctx, `INSERT INTO full_mock_sessions (id,user_id,exam_type,title,duration_minutes,status,current_section) VALUES ($1,$2,'academic','Retake',165,'SUBMITTED',5)`, latest, trial.UserID); err != nil {
+		t.Fatal(err)
+	}
+	for i, skill := range []string{"listening", "reading", "writing", "speaking"} {
+		id := uuid.New()
+		if _, err := pool.Exec(ctx, `INSERT INTO attempts (id,user_id,material_type,material_id,material_version_id,status,band,score,max_score,submitted_at) VALUES ($1,$2,$3,$4,$5,'SUBMITTED',6,20,40,CURRENT_TIMESTAMP)`, id, trial.UserID, skill, uuid.New(), uuid.New()); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := pool.Exec(ctx, `INSERT INTO full_mock_session_sections (session_id,position,skill,attempt_id) VALUES ($1,$2,$3,$4)`, latest, i+1, skill, id); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	found, err := repo.Find(ctx, []byte("retakes"))
+	if err != nil || found.SessionID == nil || *found.SessionID != latest || !found.ExpiresAt.Equal(trial.ExpiresAt.Truncate(time.Microsecond)) {
+		t.Fatalf("latest/expiry lost: %+v %v", found, err)
+	}
+	account := testdb.User(t, pool)
+	// Race claiming with duplicate retake requests. Both operations use the
+	// same lock order; the retake either reuses the latest report or is denied.
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			item, created, err := fullmock.NewPostgresRepository(pool).RetakeGuest(ctx, trial.UserID, first, func(context.Context) error {
+				t.Error("duplicate retake consumed quota")
+				return errors.New("unexpected admission")
+			})
+			if errors.Is(err, fullmock.ErrGuestUnavailable) {
+				return
+			}
+			if err != nil || created || item.ID != latest {
+				t.Errorf("racing retake: %+v %v %v", item, created, err)
+			}
+		}()
+	}
+	claimed, err := repo.Claim(ctx, []byte("retakes"), account)
+	wg.Wait()
+	if err != nil || claimed == nil || *claimed != latest {
+		t.Fatalf("claim=%v %v", claimed, err)
+	}
+	var count int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM full_mock_sessions WHERE id=ANY($1) AND user_id=$2`, []uuid.UUID{first, latest}, account).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("sessions=%d %v", count, err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM attempts WHERE id=ANY($1) AND user_id=$2`, ids, account).Scan(&count); err != nil || count != 8 {
+		t.Fatalf("attempts=%d %v", count, err)
+	}
+}
+
+func TestRunningRetakeDoesNotClaimAnEarlierCompletedTry(t *testing.T) {
+	pool := testdb.Open(t)
+	ctx := context.Background()
+	repo := NewPostgresRepository(pool)
+	trial, first, _ := seedClaimTrial(t, pool, "running-retake", "SUBMITTED", false)
+	if _, err := pool.Exec(ctx, `UPDATE full_mock_sessions SET started_at=CURRENT_TIMESTAMP-INTERVAL '1 day' WHERE id=$1`, first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO full_mock_sessions (id,user_id,exam_type,title,duration_minutes) VALUES ($1,$2,'academic','Retake',165)`, uuid.New(), trial.UserID); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := repo.Claim(ctx, []byte("running-retake"), testdb.User(t, pool)); err != nil || id != nil {
+		t.Fatalf("active retake claimed: %v %v", id, err)
+	}
+	found, err := repo.Find(ctx, []byte("running-retake"))
+	if err != nil || found.ClaimedBy != nil {
+		t.Fatalf("trial consumed: %+v %v", found, err)
+	}
+}
+
 func TestConcurrentAccountsCannotBothClaimTheSameTrial(t *testing.T) {
 	pool := testdb.Open(t)
 	ctx := context.Background()
