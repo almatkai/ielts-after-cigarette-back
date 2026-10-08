@@ -162,10 +162,10 @@ func execute[T any](parent context.Context, s *Service, purpose string, call fun
 				m.Code = "cancelled"
 			default:
 				m.Outcome = "failure"
-				if errors.Is(failure, context.DeadlineExceeded) {
+				safe := s.report(parent, p, purpose, failure)
+				if safe.Code == "timeout" {
 					m.Outcome = "timeout"
 				}
-				safe := s.report(parent, p, purpose, failure)
 				m.Code = safe.Code
 				m.HTTPStatus = safe.Status
 			}

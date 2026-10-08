@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
@@ -94,5 +95,44 @@ func TestRouterPreservesNoAIConfiguredErrors(t *testing.T) {
 	}
 	if _, err := evaluator.EvaluateSpeaking(context.Background(), SpeakingEvaluationRequest{}); !errors.Is(err, ErrAIUnavailable) {
 		t.Fatalf("wrong speaking configuration error: %v", err)
+	}
+}
+
+func gradingRouterWithTimeout(first, last string, timeoutSeconds int) *aiproviders.Service {
+	firstProvider := aiproviders.Provider{ID: uuid.New(), Endpoint: first, APIKey: "test-key", Model: "primary-writing", SpeakingModel: "primary-speaking", FromEnv: true, Enabled: true, TimeoutSeconds: timeoutSeconds, Scopes: []string{"writing", "speaking"}}
+	return aiproviders.NewService(gradingRepo{[]aiproviders.Provider{firstProvider}}, nil, aiproviders.Provider{Endpoint: last, APIKey: "reserve-key", Model: "reserve-writing", SpeakingModel: "reserve-speaking", TimeoutSeconds: timeoutSeconds}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+func TestSpeakingTimeoutReportsTimeoutCode(t *testing.T) {
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(1200 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer first.Close()
+	part1 := uuid.New()
+	last := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		content := map[string]any{
+			"criteria": map[string]any{"fluency": criterionJSON(), "lexicalResource": criterionJSON(), "grammar": criterionJSON()},
+			"summary": "Good",
+			"partFeedback": []any{map[string]any{"partId": part1.String(), "transcript": "Answer", "feedback": "Good", "strengths": []string{}, "improvements": []string{}}},
+		}
+		encoded, _ := json.Marshal(content)
+		completion(w, string(encoded), "reserve-speaking")
+	}))
+	defer last.Close()
+	var events []httpx.ErrorEvent
+	httpx.SetErrorReporter(func(_ context.Context, event httpx.ErrorEvent) { events = append(events, event) })
+	defer httpx.SetErrorReporter(nil)
+	evaluator := NewChatCompletionsEvaluator("", "", "", nil).WithProviders(gradingRouterWithTimeout(first.URL, last.URL, 1))
+	speaking, err := evaluator.EvaluateSpeaking(context.Background(), SpeakingEvaluationRequest{Parts: []SpeakingPartAnswer{{Part: SpeakingPart{ID: part1, Position: 1}}}})
+	if err != nil || speaking.Model != "reserve-speaking" {
+		t.Fatalf("speaking fallback on timeout failed: %+v %v", speaking, err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 error event, got %d", len(events))
+	}
+	failure, ok := events[0].Error.(*aiproviders.Failure)
+	if !ok || failure.Code != "timeout" {
+		t.Fatalf("expected failure code 'timeout', got: %+v", events[0].Error)
 	}
 }

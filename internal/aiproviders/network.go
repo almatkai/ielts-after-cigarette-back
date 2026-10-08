@@ -87,7 +87,6 @@ func safeDial(ctx context.Context, network, address string) (net.Conn, error) {
 func newClient(protected bool) *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil // Do not bypass checked DNS through an ambient proxy.
-	transport.ResponseHeaderTimeout = 15 * time.Second
 	transport.TLSHandshakeTimeout = 5 * time.Second
 	if protected {
 		transport.DialContext = safeDial

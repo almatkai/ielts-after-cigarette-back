@@ -209,7 +209,7 @@ func (s *Service) callCompletions(ctx context.Context, messages []openAIMessage,
 
 	res, err := s.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("%w: http request failed: %v", ErrAIChatFailed, err)
+		return nil, fmt.Errorf("%w: http request failed: %w", ErrAIChatFailed, err)
 	}
 	defer res.Body.Close()
 
