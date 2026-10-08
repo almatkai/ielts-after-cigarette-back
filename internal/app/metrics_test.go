@@ -12,7 +12,7 @@ import (
 )
 
 func TestMetricsAreNotExposedOnPublicRouter(t *testing.T) {
-	router := NewWithOptions(config.Config{JWTSecret: "test-secret-at-least-32-characters-long", RequestTimeout: time.Minute}, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), Options{Metrics: observability.New(nil)})
+	router := NewWithOptions(config.Config{JWTSecret: "test-secret-at-least-32-characters-long", RequestTimeout: time.Minute}, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), Options{Metrics: observability.New(nil, false)})
 	for _, path := range []string{"/metrics", "/api/v1/metrics"} {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, httptest.NewRequest("GET", path, nil))

@@ -13,7 +13,7 @@ import (
 )
 
 func TestMetricsUseTemplatesAndCountRecoveredPanics(t *testing.T) {
-	metrics := New(nil)
+	metrics := New(nil, false)
 	r := chi.NewRouter()
 	r.Use(metrics.Middleware)
 	r.Use(httpx.Recover(slog.New(slog.NewTextHandler(io.Discard, nil))))
@@ -57,21 +57,26 @@ func TestMetricsUseTemplatesAndCountRecoveredPanics(t *testing.T) {
 }
 
 func TestDurableJobCollectorOnMigratedDatabase(t *testing.T) {
-	metrics := New(testdb.Open(t))
-	families, err := metrics.registry.Gather()
-	if err != nil {
-		t.Fatal(err)
-	}
-	up, jobs := false, 0
-	for _, family := range families {
-		if family.GetName() == "iac_jobs_scrape_up" {
-			up = family.Metric[0].GetGauge().GetValue() == 1
+	pool := testdb.Open(t)
+	for _, tc := range []struct {
+		speechPipeline bool
+		series         int
+	}{{true, 9}, {false, 3}} {
+		families, err := New(pool, tc.speechPipeline).registry.Gather()
+		if err != nil {
+			t.Fatal(err)
 		}
-		if family.GetName() == "iac_jobs" {
-			jobs = len(family.Metric)
+		up, jobs := false, 0
+		for _, family := range families {
+			if family.GetName() == "iac_jobs_scrape_up" {
+				up = family.Metric[0].GetGauge().GetValue() == 1
+			}
+			if family.GetName() == "iac_jobs" {
+				jobs = len(family.Metric)
+			}
 		}
-	}
-	if !up || jobs != 9 {
-		t.Fatalf("collector failed or omitted empty queues: up=%v series=%d", up, jobs)
+		if !up || jobs != tc.series {
+			t.Fatalf("speechPipeline=%v: collector failed or omitted empty queues: up=%v series=%d", tc.speechPipeline, up, jobs)
+		}
 	}
 }
