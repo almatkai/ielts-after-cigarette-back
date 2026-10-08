@@ -12,7 +12,7 @@ import (
 // AttemptForViewer is an HTTP projection, not a grading operation. Full Mock
 // still uses the original section bands to calculate its public overall band.
 func AttemptForViewer(ctx context.Context, item Attempt) Attempt {
-	if auth.Role(ctx) == "GUEST" {
+	if auth.Role(ctx) == "GUEST" || item.ReviewLocked {
 		item.Band, item.Score, item.MaxScore = nil, nil, nil
 	}
 	return item
@@ -21,6 +21,9 @@ func AttemptForViewer(ctx context.Context, item Attempt) Attempt {
 // DetailForViewer selects the same first 30% on every request. Reloading or
 // changing question order must never provide a new batch of free mistakes.
 func DetailForViewer(ctx context.Context, detail Detail) Detail {
+	if detail.ReviewLocked && detail.Status != StatusInProgress {
+		return Detail{Attempt: AttemptForViewer(ctx, detail.Attempt)}
+	}
 	if auth.Role(ctx) != "GUEST" {
 		return detail
 	}
@@ -97,8 +100,8 @@ func publicReviewItem(item ReviewAnswer) ReviewAnswer {
 
 // Listening's public structure normally includes the whole transcript. Guests
 // receive audio and question structure, but not a second route to locked review.
-func MaterialForViewer(ctx context.Context, material any) any {
-	if auth.Role(ctx) != "GUEST" {
+func MaterialForViewer(ctx context.Context, material any, reviewLocked ...bool) any {
+	if auth.Role(ctx) != "GUEST" && !(len(reviewLocked) > 0 && reviewLocked[0]) {
 		return material
 	}
 	if test, ok := material.(listening.PublicTest); ok {

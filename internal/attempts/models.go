@@ -47,6 +47,8 @@ type Attempt struct {
 	Band              *float64   `json:"band"`
 	StartedAt         time.Time  `json:"startedAt"`
 	SubmittedAt       *time.Time `json:"submittedAt"`
+	ReviewLocked      bool       `json:"reviewLocked,omitempty"`
+	FullMockSessionID *uuid.UUID `json:"fullMockSessionId,omitempty"`
 }
 
 type AnswerInput struct {

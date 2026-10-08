@@ -15,10 +15,22 @@ Reservations survive publication changes and restarts. Existing sessions retain
 their original pinned sections. Public catalogs, new practice starts and normal
 mock generation exclude the reserved material IDs, including when an account
 has exhausted the remaining bank. A partial or incomplete reservation denies a
-new trial instead of drawing different materials. Grading uses the existing version-pinned runners and queues. Guests see the
-Full Mock overall band, but all section bands/scores are withheld by the API
-and shown as blurred placeholders that open sign-in. Each submitted section
-exposes only the first `floor(errorCount * 0.30)` mistakes for detailed review:
+new trial instead of drawing different materials. Grading uses the existing
+version-pinned runners and queues. Grades, answer keys and AI feedback remain
+private until the entire Full Mock is submitted, for both guests and accounts.
+Completed-section detail returns `reviewLocked: true` and `fullMockSessionId`,
+without answers, review or evaluations. Submit, material, session and history
+responses also withhold section grades; pending mocks are excluded from mistake
+banks. Listening transcripts are withheld during a running mock. Guests cannot
+use the finish endpoint to unlock an incomplete mock; all four sections must be
+completed (including server-clock expiry).
+
+After completion, the compact four-card report shows the overall band. Selecting
+a section displays its review inline below the cards, not on another page.
+`?section=1..4` preserves the selection across reloads. Guest section bands/scores
+remain withheld by the API and blurred in the UI, opening sign-in on click.
+Only then does a submitted section expose the first
+`floor(errorCount * 0.30)` mistakes for detailed review:
 10 mistakes unlock 3, 4 unlock 1, and fewer than 4 unlock none. Reloads return
 the same subset. Objective mistakes expose their question and student's answer;
 locked answer keys, hints, explanations and evidence are not sent. Writing and

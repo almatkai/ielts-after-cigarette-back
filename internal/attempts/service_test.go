@@ -730,6 +730,10 @@ func (m mockExamGuard) ValidateAttemptAccess(_ context.Context, _, _ uuid.UUID) 
 	return m.err
 }
 
+func (m mockExamGuard) ReviewAccess(_ context.Context, _, _ uuid.UUID) (*uuid.UUID, bool, error) {
+	return nil, false, m.err
+}
+
 func writingStubProvider() stubProvider {
 	return stubProvider{
 		publishedVersionID: testMaterialVersionID,
