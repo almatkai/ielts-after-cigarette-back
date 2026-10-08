@@ -13,6 +13,9 @@ import (
 	"time"
 
 	adminapi "github.com/almatkai/ielts-after-cigarette-back/internal/admin"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/ailimits"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/analytics"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
@@ -26,6 +29,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/jobs"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/observability"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
@@ -54,6 +58,18 @@ func New(
 	if len(sharedObjectStores) > 0 {
 		sharedObjectStore = sharedObjectStores[0]
 	}
+	return NewWithOptions(cfg, pool, redisClient, logger, Options{ObjectStore: sharedObjectStore})
+}
+
+type Options struct {
+	ObjectStore   objectstorage.Store
+	GradingCache  *cache.JSON
+	Metrics       *observability.Metrics
+	WorkerContext context.Context
+}
+
+func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Client, logger *slog.Logger, options Options) http.Handler {
+	sharedObjectStore := options.ObjectStore
 	tokens := auth.NewTokenManager(
 		cfg.JWTSecret,
 		cfg.JWTIssuer,
@@ -125,15 +141,27 @@ func New(
 	if speakingMediaLimit < 1 || speakingMediaLimit > 12<<20 {
 		speakingMediaLimit = 12 << 20
 	}
+	aiProviders := aiproviders.NewConfigured(pool, cfg, logger)
+	aiProvidersHandler := aiproviders.NewHandler(aiProviders, logger)
 	aiEvaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
 		WithSpeakingModel(cfg.AISpeakingModel).
-		WithSpeakingAudio(cfg.AISpeakingAudioEnabled && !cfg.SpeechEnabled)
+		WithSpeakingAudio(cfg.AISpeakingAudioEnabled && !cfg.SpeechEnabled).WithProviders(aiProviders)
+	dailyLimiter := cache.NewDailyLimiter(redisClient)
+	aiLimitsRepo := ailimits.NewPostgresRepository(pool)
+	aiLimitsService := ailimits.NewService(aiLimitsRepo, dailyLimiter, redisClient, ailimits.Limits{
+		AssistantLimit:      cfg.DailyLimitAssistant,
+		GuestAssistantLimit: cfg.DailyLimitGuestAssistant,
+		WritingLimit:        cfg.DailyLimitWriting,
+		SpeakingLimit:       cfg.DailyLimitSpeaking,
+	})
+	aiLimitsHandler := ailimits.NewHandler(aiLimitsService, logger)
+
 	attemptsService := attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
 		attempts.MaterialReading:   attempts.NewReadingProvider(readingService),
 		attempts.MaterialWriting:   attempts.NewWritingProvider(writingService),
 		attempts.MaterialSpeaking:  attempts.NewSpeakingProvider(speakingService),
-	}, aiEvaluator)
+	}, aiEvaluator).WithGradingCache(options.GradingCache).WithDailyLimiter(aiLimitsService)
 	if sharedObjectStore != nil {
 		attemptsService.WithSpeakingObjectStore(sharedObjectStore, speakingMediaLimit, aiEvaluator)
 	} else {
@@ -149,18 +177,24 @@ func New(
 		writingQueue := jobs.NewWritingQueue(redisClient)
 		attemptsService.WithWritingPipeline(writingQueue)
 
-		writingWorker := writingpipeline.NewWorker(
-			attemptsRepository,
-			attempts.NewWritingProvider(writingService),
-			aiEvaluator,
-			writingQueue,
-			logger,
-		)
-		go func() {
-			if err := writingWorker.Run(context.Background()); err != nil && !errors.Is(err, context.Canceled) {
-				logger.Error("in-process writing worker stopped", "error", err)
+		if !cfg.WritingWorkerExternal {
+			writingWorker := writingpipeline.NewWorker(
+				attemptsRepository,
+				attempts.NewWritingProvider(writingService),
+				aiEvaluator,
+				writingQueue,
+				logger,
+			)
+			workerCtx := options.WorkerContext
+			if workerCtx == nil {
+				workerCtx = context.Background()
 			}
-		}()
+			go func() {
+				if err := writingWorker.Run(workerCtx); err != nil && !errors.Is(err, context.Canceled) {
+					logger.Error("in-process writing worker stopped", "error", err)
+				}
+			}()
+		}
 	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)
@@ -168,7 +202,7 @@ func New(
 	attemptsService.SetExamGuard(fullMockService)
 	fullMockHandler := fullmock.NewHandler(fullMockService, logger, cfg.MaxRequestBody)
 
-	assistantService := assistant.NewService(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout})
+	assistantService := assistant.NewService(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).WithProviders(aiProviders)
 	assistantHandler := assistant.NewHandler(assistantService, logger, cfg.MaxRequestBody)
 
 	phoneRepository := phoneverification.NewPostgresRepository(pool)
@@ -199,6 +233,9 @@ func New(
 	)
 	waitlistHandler := waitlist.NewHandler(waitlist.NewService(waitlistRepository, waitlist.NewGoogleTokenVerifier(cfg.GoogleClientID), cfg.SuperAdminEmails), logger, cfg.MaxRequestBody)
 
+	analyticsTracker := analytics.NewTracker(redisClient, pool, logger)
+	analyticsHandler := analytics.NewHandler(analytics.NewRepository(pool), analyticsTracker, logger, cfg.MaxRequestBody)
+
 	healthChecks := []health.Check{}
 	if sharedObjectStore != nil {
 		healthChecks = append(healthChecks, sharedObjectStore.Check)
@@ -208,10 +245,15 @@ func New(
 
 	router := chi.NewRouter()
 	router.Use(httpx.RequestIDMiddleware)
+	if options.Metrics != nil {
+		router.Use(options.Metrics.Middleware)
+	}
 	router.Use(httpx.Recover(logger))
 	router.Use(httpx.AccessLog(logger))
-	router.Use(httpx.CORS(cfg.CORSAllowedOrigins))
-	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, cfg.AITimeout+15*time.Second))
+	router.Use(httpx.CORS(cfg.CORSAllowedOrigins, httpx.FormPostOrigin{
+		Path: "/api/v1/auth/google", Origin: "https://accounts.google.com",
+	}))
+	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, max(cfg.AITimeout+15*time.Second, aiproviders.ChainTimeout+15*time.Second)))
 	// History endpoints answer with tens of kilobytes to megabytes of JSON
 	// (a mistakes page carries the review of every attempt), so compress the
 	// text responses. Audio and other binary media keep their own types and are
@@ -226,11 +268,15 @@ func New(
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
-		api.With(auth.AuthenticateOptional(tokens)).Post("/assistant/chat", assistantHandler.Chat)
+		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat", assistantHandler.Chat)
+		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat/stream", assistantHandler.Stream)
+
+		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
 
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
+			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Get("/google/pending", authHandler.PendingGoogleRegistration)
 			public.With(rateLimit(rateLimiter, logger, cfg, "register")).Post("/google/complete", authHandler.CompleteGoogleRegistration)
 			public.With(rateLimit(rateLimiter, logger, cfg, "refresh")).Post("/refresh", authHandler.Refresh)
 			public.Post("/logout", authHandler.Logout)
@@ -238,9 +284,9 @@ func New(
 
 		api.Group(func(protected chi.Router) {
 			protected.Use(auth.Authenticate(tokens))
-			protected.Get("/full-mocks", fullMockHandler.ListPublic)
-			protected.Get("/full-mocks/{mockID}", fullMockHandler.GetPublic)
-			protected.Post("/full-mocks/{mockID}/sessions", fullMockHandler.Start)
+			protected.Use(analyticsTracker.Middleware)
+			protected.Get("/full-mocks/overview", fullMockHandler.Overview)
+			protected.Post("/full-mocks/start", fullMockHandler.StartGenerated)
 			protected.Get("/full-mock-sessions/{sessionID}", fullMockHandler.GetSession)
 			protected.Get("/full-mock-sessions/{sessionID}/sections/{sectionPosition}", fullMockHandler.Section)
 			protected.Post("/full-mock-sessions/{sessionID}/advance", fullMockHandler.Advance)
@@ -260,6 +306,7 @@ func New(
 			protected.Get("/speaking/materials/{materialID}", speakingHandler.GetPublic)
 			protected.Post("/speaking/materials/{materialID}/attempts", attemptsHandler.StartSpeaking)
 			protected.Put("/attempts/{attemptID}/answers", attemptsHandler.SaveAnswers)
+			protected.Post("/attempts/{attemptID}/answers", attemptsHandler.SaveAnswers)
 			protected.Post("/attempts/{attemptID}/recordings", attemptsHandler.UploadSpeakingRecording)
 			protected.Get("/attempts/{attemptID}/recordings/{partID}", attemptsHandler.SpeakingRecording)
 			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)
@@ -268,6 +315,7 @@ func New(
 			protected.Get("/attempts/{attemptID}/mistakes", attemptsHandler.MistakeDetail)
 			protected.Get("/attempts", attemptsHandler.List)
 			protected.Get("/attempts/{attemptID}", attemptsHandler.Get)
+			protected.Get("/attempts/{attemptID}/status", attemptsHandler.Status)
 			protected.Get("/attempts/{attemptID}/material", attemptsHandler.Material)
 			protected.Get("/users/me", authHandler.Me)
 			protected.Get("/profile", userHandler.Get)
@@ -300,17 +348,30 @@ func New(
 			protected.Route("/admin", func(adminRouter chi.Router) {
 				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
 				adminRouter.Get("/access", adminHandler.Access)
+				adminRouter.Group(func(aiAdmin chi.Router) {
+					aiAdmin.Use(auth.RequireAnyRole(auth.RoleAdmin))
+					aiAdmin.Get("/ai-providers", aiProvidersHandler.List)
+					aiAdmin.Post("/ai-providers", aiProvidersHandler.Save)
+					aiAdmin.Post("/ai-providers/test", aiProvidersHandler.Test)
+					aiAdmin.Post("/ai-providers/order", aiProvidersHandler.Reorder)
+					aiAdmin.Get("/ai-providers/routing", aiProvidersHandler.Routing)
+					aiAdmin.Put("/ai-providers/routing", aiProvidersHandler.SaveRouting)
+					aiAdmin.Get("/ai-providers/stats", aiProvidersHandler.Stats)
+					aiAdmin.Put("/ai-providers/{providerID}", aiProvidersHandler.Save)
+					aiAdmin.Delete("/ai-providers/{providerID}", aiProvidersHandler.Delete)
+					aiAdmin.Post("/ai-providers/{providerID}/test", aiProvidersHandler.Test)
+					aiAdmin.Get("/ai-limits", aiLimitsHandler.Get)
+					aiAdmin.Put("/ai-limits", aiLimitsHandler.Update)
+				})
 				adminRouter.Get("/full-mocks", fullMockHandler.List)
-				adminRouter.Post("/full-mocks", fullMockHandler.Create)
 				adminRouter.Get("/full-mocks/{mockID}", fullMockHandler.Get)
-				adminRouter.Put("/full-mocks/{mockID}", fullMockHandler.Update)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/full-mocks/{mockID}/publish", fullMockHandler.Publish)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/full-mocks/{mockID}/archive", fullMockHandler.Archive)
 				adminRouter.Get("/reading/materials", readingHandler.List)
 				adminRouter.Post("/reading/materials", readingHandler.Create)
 				adminRouter.Post("/reading/import/parse", readingHandler.ParseImport)
 				adminRouter.Post("/reading/import", readingHandler.BulkImport)
 				adminRouter.Get("/reading/materials/{materialID}", readingHandler.Get)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/reading/materials/{materialID}/preview", readingHandler.Preview)
 				adminRouter.Put("/reading/materials/{materialID}", readingHandler.Update)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/publish", readingHandler.Publish)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/archive", readingHandler.Archive)
@@ -334,6 +395,7 @@ func New(
 				adminRouter.Get("/listening/tests", listeningHandler.ListAdmin)
 				adminRouter.Post("/listening/tests", listeningHandler.Create)
 				adminRouter.Get("/listening/tests/{testID}", listeningHandler.GetAdmin)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/listening/tests/{testID}/preview", listeningHandler.Preview)
 				adminRouter.Put("/listening/tests/{testID}", listeningHandler.Update)
 				adminRouter.Post("/listening/import/parse", listeningHandler.ParseImport)
 				adminRouter.Post("/listening/import", listeningHandler.Import)
@@ -341,6 +403,9 @@ func New(
 				adminRouter.Post("/listening/tests/{testID}/transcribe", listeningHandler.Transcribe)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/publish", listeningHandler.Publish)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/archive", listeningHandler.Archive)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/overview", analyticsHandler.Overview)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/realtime", analyticsHandler.Realtime)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/export/{dataset}", analyticsHandler.Export)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/waitlist", waitlistHandler.AdminList)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/super-admins", waitlistHandler.AdminListAdmins)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/super-admins", waitlistHandler.AdminAddAdmin)
@@ -395,7 +460,7 @@ func isAIEvaluation(r *http.Request) bool {
 	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/v1/attempts/") && strings.HasSuffix(r.URL.Path, "/submit") {
 		return true
 	}
-	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/assistant/chat" {
+	if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/assistant/chat" || r.URL.Path == "/api/v1/assistant/chat/stream" || strings.HasPrefix(r.URL.Path, "/api/v1/admin/ai-providers")) {
 		return true
 	}
 	return false
@@ -441,6 +506,70 @@ func rateLimit(
 			if !allowed {
 				w.Header().Set("Retry-After", strconv.Itoa(int(cfg.AuthRateWindow.Seconds())))
 				httpx.WriteError(w, r, http.StatusTooManyRequests, "RATE_LIMITED", "Too many authentication attempts", nil)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// analyticsRateLimit caps heartbeats per IP so a script cannot inflate the
+// online counter. Unlike auth limits it fails open: analytics is optional.
+func analyticsRateLimit(limiter limiter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			allowed, err := limiter.Allow(r.Context(), "rate-limit:public:analytics:"+remoteIP(r), 60, time.Minute)
+			if err == nil && !allowed {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func dailyAssistantLimit(
+	limitsService *ailimits.Service,
+	logger *slog.Logger,
+) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if limitsService == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			role := auth.Role(r.Context())
+			if role == auth.RoleAdmin || role == auth.RoleEditor {
+				next.ServeHTTP(w, r)
+				return
+			}
+			var scope, id string
+			if userID, ok := auth.UserID(r.Context()); ok {
+				scope = "assistant:user"
+				id = userID.String()
+			} else {
+				scope = "assistant:guest"
+				id = remoteIP(r)
+			}
+
+			res, err := limitsService.Allow(r.Context(), scope, id)
+			if err != nil {
+				logger.ErrorContext(r.Context(), "daily assistant limiter unavailable", "error", err)
+				httpx.WriteError(w, r, http.StatusServiceUnavailable, "RATE_LIMITER_UNAVAILABLE", "Rate limiter service unavailable", nil)
+				return
+			}
+			if !res.Allowed {
+				httpx.WriteError(
+					w, r,
+					http.StatusTooManyRequests,
+					"DAILY_LIMIT_EXCEEDED",
+					fmt.Sprintf("Достигнут дневной лимит сообщений ассистента (%d в день). Лимит обновится в полночь.", res.Limit),
+					map[string]string{
+						"limit":     strconv.FormatInt(res.Limit, 10),
+						"remaining": strconv.FormatInt(res.Remaining, 10),
+						"resetAt":   res.ResetAt.Format(time.RFC3339),
+					},
+				)
 				return
 			}
 			next.ServeHTTP(w, r)

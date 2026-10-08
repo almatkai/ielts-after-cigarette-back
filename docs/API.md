@@ -389,6 +389,12 @@ optimistic locking.
 revision возвращает `409 REVISION_CONFLICT`, повторяющийся slug —
 `409 READING_SLUG_EXISTS`.
 
+При обновлении `kind: "TEST"` можно передать `refreshPassages: true`, чтобы
+новая версия теста ссылалась на текущие версии его passages. Без этого флага
+сохраняются прежние ссылки. Порядок и ID passages не меняются; старые версии
+теста, опубликованный снимок и попытки учеников остаются неизменными.
+Флаг разрешён только для обновления TEST, иначе — `422 VALIDATION_ERROR`.
+
 ### `POST /admin/reading/materials/{id}/publish`
 
 ```json
@@ -612,9 +618,8 @@ Academic Task 1 материал содержит `visualType` и может с�
 ```
 
 При `POST /attempts/{attemptId}/submit` оба задания обязательны. Backend
-отправляет их в настроенный OpenAI-compatible AI provider и возвращает попытку с итоговым band. Если
-`AI_API_KEY` (или legacy `OPENROUTER_API_KEY`) не настроен, ответ — `503 AI_NOT_CONFIGURED`; при ошибке
-провайдера — `502 AI_EVALUATION_FAILED`. Детали сданной Writing-попытки
+отправляет их через [цепочку OpenAI-compatible провайдеров](AI_PROVIDERS.md) и возвращает попытку с итоговым band. DB-провайдеры настраиваются в админке; `AI_*`/legacy `OPENROUTER_*` остаются последним резервом.
+Если подходящих провайдеров нет — `503 AI_NOT_CONFIGURED`; если вся цепочка не смогла оценить работу — `502 AI_EVALUATION_FAILED`. Детали сданной Writing-попытки
 (`GET /attempts/{attemptId}`) включают `writingEvaluation`: four criteria
 `taskResponse`, `coherence`, `lexicalResource`, `grammar`, их band и feedback,
 а также summary и рекомендации по каждой задаче.
@@ -652,6 +657,10 @@ Academic Task 1 материал содержит `visualType` и может с�
 `503 AI_NOT_CONFIGURED`; если оценка не была получена —
 `502 AI_EVALUATION_FAILED`.
 
+## AI providers и Юки SSE
+
+Админские CRUD/test маршруты, шифрование ключей, приоритеты/scopes, env fallback и протокол `POST /api/v1/assistant/chat/stream` описаны в [AI_PROVIDERS.md](AI_PROVIDERS.md). Доступ к конфигурации — только `ADMIN`. Старый JSON chat endpoint сохранён; оба используют последовательный fallback с безопасным репортингом каждой ошибки в GlitchTip.
+
 ## Full Mock Test
 
 Full Mock объединяет четыре независимые попытки в одну экзаменационную сессию:
@@ -659,16 +668,48 @@ Full Mock объединяет четыре независимые попытк�
 за опубликованной версией материала при старте сессии; она не переиспользует
 отдельную практическую попытку пользователя.
 
-### `GET /full-mocks`, `GET /full-mocks/{mockId}`
+### `GET /full-mocks/overview`
 
-Возвращают опубликованные наборы Full Mock. Набор содержит четыре ID материалов,
-тип экзамена и общий лимит `durationMinutes`.
+Требует авторизацию. Возвращает `examType` из профиля, `durationMinutes: 165`,
+`ready`, `activeSession` (или `null`) и `banks` в порядке секций. Каждая запись
+содержит `skill`, `total`, `completed`, `remaining`, `isExhausted`.
+Считаются уникальные доступные материалы с попыткой `SUBMITTED` или `PROCESSING`
+как в практике, так и в Full Mock. Начатые и брошенные попытки не засчитываются;
+повторные сдачи одного материала не увеличивают счётчик. Успешная сдача означает
+завершение попытки, а не достижение определённого band.
 
-### `POST /full-mocks/{mockId}/sessions`
+Банк использует только полные опубликованные тесты: Listening — 4 части и
+40 баллов, Reading — `TEST` с 3 текстами и 40 баллами, Writing — 2 задания,
+Speaking — 3 части. Reading/Writing соответствуют Academic/General из профиля;
+Listening/Speaking общие. Draft и archived материалы не участвуют в новом подборе.
+Пустой банк означает `ready: false`, но не `isExhausted: true`.
+Без формата экзамена `examType: ""`, `ready: false`; существующую сессию можно продолжить.
 
-Создаёт Full Mock-сессию либо возвращает незавершённую сессию пользователя для
-того же набора. Ответ содержит четыре секции, их дочерние attempts,
-`currentSection` и фиксированный `deadlineAt` для общего таймера.
+### `POST /full-mocks/start`
+
+Body: `{"restart": false}` (можно без body). Подбирает случайный **непройденный**
+тест для каждой секции. Если непройденных нет, выбирает случайный повтор,
+исключая материал последней mock-сессии, когда есть альтернативы.
+Фронтенд предупреждает о повторах по `isExhausted` до запуска, а также после
+сдачи последнего Listening. Новый опубликованный материал автоматически
+возвращает секцию в состояние с непройденными тестами. Новая версия уже
+выполненного материала не сбрасывает его счётчик.
+
+Создание сессии, четырёх attempts и привязок атомарно; одновременные запросы
+без `restart` возвращают одну сессию. Новая сессия: `201`, продолжение: `200`.
+`restart: true` закрывает незавершённую сессию и делает новый подбор. Если нового
+экзамена собрать нельзя, старая сессия и её ответы сохраняются.
+Ошибки: `422 EXAM_TYPE_REQUIRED`, `409 FULL_MOCK_BANK_INCOMPLETE`.
+
+Отдельная запись в `full_mock_tests` **не создаётся**. Метаданные и лимит времени
+хранятся в `full_mock_sessions`, выбранные версии — в attempts. Поле `mockTest`
+в ответе оставлено для совместимости экзаменационного плеера и синтезируется
+из сессии; `mockTestId` для сгенерированных сессий — нулевой UUID.
+Состав, версии, `currentSection` и `deadlineAt` сохраняются при продолжении.
+История старых ручных экзаменов остаётся доступна владельцу.
+
+Старые публичные endpoints каталога/выбора (`GET /full-mocks`,
+`GET /full-mocks/{mockId}`, `POST /full-mocks/{mockId}/sessions`) удалены.
 
 ### `GET /full-mock-sessions/{sessionId}` и `POST /full-mock-sessions/{sessionId}/advance`
 
@@ -679,11 +720,15 @@ Full Mock объединяет четыре независимые попытк�
 
 ### Управление наборами Full Mock
 
-`EDITOR` и `ADMIN` могут использовать `GET/POST/PUT /admin/full-mocks` и
-`GET /admin/full-mocks/{mockId}`. Публикация
-`POST /admin/full-mocks/{mockId}/publish` требует `ADMIN`. В body задаются
-`listeningMaterialId`, `readingMaterialId`, `writingMaterialId`,
-`speakingMaterialId`, `examType`, `durationMinutes`, `slug` и `title`.
+Ручная сборка и публикация отключены. `EDITOR`/`ADMIN` могут читать архив через
+`GET /admin/full-mocks` и `GET /admin/full-mocks/{mockId}`; `ADMIN` может архивировать
+старую запись через `POST /admin/full-mocks/{mockId}/archive` с `revision`.
+Создание и редактирование недоступны через API и интерфейс.
+Для наполнения банка нужно публиковать обычные тесты соответствующих секций.
+
+Перед запуском обновлённого API примените миграцию `000030_dynamic_full_mock`.
+Обратная миграция намеренно запрещена, пока есть сгенерированные сессии:
+она не должна удалять историю экзаменов.
 
 ### `PUT /attempts/{attemptId}/answers`
 
@@ -730,10 +775,19 @@ IELTS для skill'а попытки: у listening одна таблица, у r
 
 ### `GET /attempts?materialType=listening`
 
-История попыток пользователя, новые первые. `materialType` — `listening` или
-`reading`, другие значения — `422 VALIDATION_ERROR`; без параметра возвращаются
-попытки всех типов. `testTitle`/`testSlug` — название и slug теста или
-reading-материала. Ответ `200`:
+История попыток пользователя. `materialType` — `listening`, `reading`,
+`writing` или `speaking`, другие значения — `422 VALIDATION_ERROR`; без
+параметра возвращаются попытки всех типов. `testTitle`/`testSlug` — название и
+slug материала. Без `limit` и `cursor` сохранён прежний полный ответ.
+
+Для постраничного чтения: `GET /attempts?limit=50&cursor=<nextCursor>`.
+`limit` — 1–100 (по умолчанию 50, если указан только `cursor`). Ответ содержит
+`items` и необязательный `nextCursor`; отсутствие курсора означает конец
+истории. Курсор непрозрачный: его нужно передавать без изменений вместе с тем
+же `materialType`. Порядок страниц — `(COALESCE(submitted_at, started_at), id)`
+по убыванию, как в истории на странице Progress. Неверные параметры дают
+`422 VALIDATION_ERROR`. Все страницы ограничены текущим пользователем.
+Ответ `200`:
 
 ```json
 {
@@ -783,6 +837,31 @@ Writing/Speaking с сохранённой оценкой. Сортировка:
 остальные поля вопроса остаются как в полном разборе. Пустые списки — `[]`.
 Контракт полного разбора и старый bulk endpoint `/attempts/mistakes`
 сохранены для совместимости.
+
+### `GET /attempts/{attemptId}/status`
+
+Лёгкий snapshot для ожидания фоновой AI-оценки (требует Bearer token).
+Возвращает только ID, статус попытки и, если есть, `writingAssessment` или
+`speakingAssessment` для активной попытки:
+
+```json
+{
+  "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "status": "PROCESSING",
+  "writingAssessment": {"status": "QUEUED", "attempts": 0}
+}
+```
+
+Статусы попытки: `IN_PROGRESS`, `PROCESSING`, `SUBMITTED`, `ABANDONED`.
+Job: `QUEUED`, `PROCESSING`, `READY`, `FAILED`; может содержать `errorCode` и
+`errorMessage`. Отсутствующий job не включается в ответ. Ответ не содержит
+answers, recordings, transcripts или evaluations; `Cache-Control: no-store`.
+Чужая и несуществующая попытка одинаково возвращают `404 NOT_FOUND`.
+
+Клиент опрашивает только пока попытка `PROCESSING`, с интервалом 2 → 5 → 10 с.
+После выхода из `PROCESSING` один раз загружает полный detail — в том числе
+при возврате в `IN_PROGRESS` после неудачной оценки. Сначала деплоится backend
+с этой ручкой, затем frontend, использующий её.
 
 ### `GET /attempts/{attemptId}`
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speech"
 	"github.com/google/uuid"
@@ -79,16 +80,26 @@ func (w *Worker) recoverPending(ctx context.Context) {
 		w.logger.Error("recover speaking jobs", "error", err)
 		return
 	}
-	ids, err := w.repository.PendingTranscriptionIDs(ctx, 20)
-	if err == nil {
+	ids, err := w.repository.PendingTranscriptionIDs(ctx, 1)
+	if err != nil {
+		w.logger.Error("list pending transcriptions", "error", err)
+	} else {
 		for _, id := range ids {
-			_ = w.queue.EnqueueTranscription(ctx, id)
+			if ctx.Err() != nil {
+				return
+			}
+			w.processTranscription(ctx, id)
 		}
 	}
-	ids, err = w.repository.PendingAssessmentIDs(ctx, 20)
-	if err == nil {
+	ids, err = w.repository.PendingAssessmentIDs(ctx, 1)
+	if err != nil {
+		w.logger.Error("list pending speaking assessments", "error", err)
+	} else {
 		for _, id := range ids {
-			_ = w.queue.EnqueueAssessment(ctx, id)
+			if ctx.Err() != nil {
+				return
+			}
+			w.processAssessment(ctx, id)
 		}
 	}
 }
@@ -146,12 +157,18 @@ func (w *Worker) processTranscription(ctx context.Context, recordingID uuid.UUID
 
 func (w *Worker) failTranscription(ctx context.Context, work attempts.TranscriptionWork, err error) {
 	w.logger.Error("speaking transcription failed", "recording_id", work.Recording.ID, "error", err)
-	_ = w.repository.FailTranscription(ctx, work.Recording.ID, work.Recording.Revision, truncate(err.Error(), 2000))
+	httpx.ReportBackground(ctx, "speaking_transcription", "recording_id", work.Recording.ID, "error", err)
+	if updateErr := w.repository.FailTranscription(ctx, work.Recording.ID, work.Recording.Revision, truncate(err.Error(), 2000)); updateErr != nil && ctx.Err() == nil {
+		w.logger.Error("persist transcription failure", "recording_id", work.Recording.ID, "error", updateErr)
+	}
 }
 
 func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 	claimed, err := w.repository.ClaimAssessment(ctx, attemptID)
 	if err != nil || !claimed {
+		if err != nil {
+			w.logger.Error("claim speaking assessment", "attempt_id", attemptID, "error", err)
+		}
 		return
 	}
 	stopHeartbeat := keepLease(ctx, func(ctx context.Context) error {
@@ -222,7 +239,10 @@ func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 	}
 	evaluation.AttemptID = attemptID
 	evaluation.PronunciationAvailable = false
-	evaluation.Criteria.Pronunciation = attempts.SpeakingCriterion{}
+	evaluation.Criteria.Pronunciation = attempts.SpeakingCriterion{
+		Band:     0,
+		Feedback: "Наша система пока не может определить Pronunciation (произношение). Оценка сформирована по беглости, словарному запасу и грамматической точности.",
+	}
 	band := evaluation.OverallBand
 	if err := w.repository.Submit(ctx, attempts.SubmitResult{
 		AttemptID: attemptID, UserID: attempt.UserID, Skill: attempts.MaterialSpeaking,
@@ -237,7 +257,10 @@ func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 
 func (w *Worker) failAssessment(ctx context.Context, attemptID uuid.UUID, err error) {
 	w.logger.Error("speaking assessment failed", "attempt_id", attemptID, "error", err)
-	_ = w.repository.FailAssessment(ctx, attemptID, truncate(err.Error(), 2000))
+	httpx.ReportBackground(ctx, "speaking_assessment", "attempt_id", attemptID, "error", err)
+	if updateErr := w.repository.FailAssessment(ctx, attemptID, truncate(err.Error(), 2000)); updateErr != nil && ctx.Err() == nil {
+		w.logger.Error("persist speaking assessment failure", "attempt_id", attemptID, "error", updateErr)
+	}
 }
 
 func keepLease(ctx context.Context, renew func(context.Context) error) context.CancelFunc {

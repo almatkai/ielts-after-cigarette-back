@@ -1,0 +1,51 @@
+# Optional same-server backup storage. This is NOT an off-host disaster backup.
+# Use after docker-compose.production.yml and docker-compose.observability.yml.
+services:
+  minio-backups:
+    profiles: [backups]
+    image: ${BACKUP_MINIO_IMAGE:?Set a verified source-built or existing immutable MinIO image}
+    pull_policy: if_not_present
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${BACKUP_MINIO_ROOT_USER:?Set BACKUP_MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${BACKUP_MINIO_ROOT_PASSWORD:?Set BACKUP_MINIO_ROOT_PASSWORD}
+    volumes: [backup_objects:/data]
+    ports: ['127.0.0.1:3320:9000', '127.0.0.1:3321:9001']
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+    restart: unless-stopped
+
+  backup:
+    environment:
+      BACKUP_OFFHOST: 'false'
+      BACKUP_MEDIA_ENABLED: 'true'
+      BACKUP_MEDIA_S3_URI: s3://iac-backups/media
+      AWS_ENDPOINT_URL: http://minio-backups:9000
+      BACKUP_S3_URI: s3://iac-backups/postgres
+    volumes:
+      - listening_media:/media/listening:ro
+      - writing_media:/media/writing:ro
+      - speaking_media:/media/speaking:ro
+    depends_on:
+      minio-backups: {condition: service_healthy}
+    mem_limit: 512m
+
+  grafana:
+    mem_limit: 384m
+  loki:
+    mem_limit: 512m
+  prometheus:
+    mem_limit: 256m
+  alloy:
+    mem_limit: 256m
+  backup-metrics:
+    mem_limit: 64m
+  worker:
+    mem_limit: 512m
+
+volumes:
+  backup_objects:

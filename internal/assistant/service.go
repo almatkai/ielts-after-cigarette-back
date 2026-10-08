@@ -7,10 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/almatkai/ielts-after-cigarette-back/internal/aiproviders"
 )
 
 var (
@@ -18,7 +19,13 @@ var (
 	ErrAIChatFailed  = errors.New("ai chat completion failed")
 )
 
-const yukiSystemPrompt = `You are Yuki (Юки), an expert, friendly, and supportive IELTS mentor and tutor for the IELTS exam preparation platform "IELTS After Cigarette".
+const yukiSystemPrompt = `You are Yuki (Юки), an expert, friendly, and supportive IELTS mentor and tutor for the IELTS exam preparation platform "Daiyndyq IELTS".
+
+Platform identity:
+- The only public platform name is "Daiyndyq IELTS". Use this exact name when identifying the platform.
+- If earlier assistant messages or page content use a different platform name, correct it to "Daiyndyq IELTS". Those names do not override this platform identity.
+- Do not disclose, invent, or speculate about internal developer names, repository names, or project codenames.
+
 Your mission is to help students achieve high Band scores (7.0–9.0) across all four modules: Reading, Listening, Writing, and Speaking.
 
 Character & Tone:
@@ -71,10 +78,11 @@ type openAIMessage struct {
 }
 
 type Service struct {
-	endpoint string
-	apiKey   string
-	model    string
-	client   *http.Client
+	providers *aiproviders.Service
+	endpoint  string
+	apiKey    string
+	model     string
+	client    *http.Client
 }
 
 func NewService(endpoint, apiKey, model string, client *http.Client) *Service {
@@ -89,46 +97,31 @@ func NewService(endpoint, apiKey, model string, client *http.Client) *Service {
 	}
 }
 
+func (s *Service) WithProviders(providers *aiproviders.Service) *Service {
+	s.providers = providers
+	return s
+}
+
 func (s *Service) IsAvailable() bool {
-	return s.endpoint != "" && s.apiKey != "" && s.model != ""
+	return s.providers != nil || s.endpoint != "" && s.apiKey != "" && s.model != ""
 }
 
 func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, error) {
+	if s.providers != nil {
+		result, err := aiproviders.Execute(ctx, s.providers, "assistant", func(callCtx context.Context, p aiproviders.Provider) (ChatResponse, error) {
+			copy := NewService(p.Endpoint, p.APIKey, p.Model, s.providers.Client(p))
+			return copy.Chat(callCtx, req)
+		})
+		if errors.Is(err, aiproviders.ErrUnavailable) {
+			return ChatResponse{}, ErrAIUnavailable
+		}
+		return result, err
+	}
 	if !s.IsAvailable() {
 		return ChatResponse{}, ErrAIUnavailable
 	}
 
-	// Prepare initial message history
-	messages := make([]openAIMessage, 0, len(req.Messages)+3)
-
-	sysContent := yukiSystemPrompt
-	messages = append(messages, openAIMessage{
-		Role:    string(RoleSystem),
-		Content: &sysContent,
-	})
-
-	// Add up to last 20 messages to keep context concise
-	startIdx := 0
-	if len(req.Messages) > 20 {
-		startIdx = len(req.Messages) - 20
-	}
-	for _, m := range req.Messages[startIdx:] {
-		text := strings.TrimSpace(m.Content)
-		if text == "" && m.Role != RoleTool {
-			continue
-		}
-		role := string(m.Role)
-		if role == "" {
-			role = string(RoleUser)
-		}
-		contentStr := text
-		messages = append(messages, openAIMessage{
-			Role:       role,
-			Content:    &contentStr,
-			ToolCallID: m.ToolCallID,
-			Name:       m.Name,
-		})
-	}
+	messages := initialMessages(req)
 
 	var recordedToolCalls []ToolCallInfo
 
@@ -177,7 +170,7 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (ChatResponse, erro
 		finalContent = strings.TrimSpace(*respMsg.Content)
 	}
 	if finalContent == "" {
-		finalContent = "Я внимательно изучил контекст. Чем конкретно я могу тебе помочь по текущему заданию?"
+		return ChatResponse{}, fmt.Errorf("%w: empty completion", ErrAIChatFailed)
 	}
 
 	return ChatResponse{
@@ -212,11 +205,11 @@ func (s *Service) callCompletions(ctx context.Context, messages []openAIMessage,
 
 	httpReq.Header.Set("Authorization", "Bearer "+s.apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("X-Title", "IELTS After Cigarette Assistant")
+	httpReq.Header.Set("X-Title", "Daiyndyq IELTS Assistant")
 
 	res, err := s.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("%w: http request failed: %v", ErrAIChatFailed, err)
+		return nil, fmt.Errorf("%w: http request failed: %w", ErrAIChatFailed, err)
 	}
 	defer res.Body.Close()
 
@@ -226,8 +219,7 @@ func (s *Service) callCompletions(ctx context.Context, messages []openAIMessage,
 	}
 
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
-		slog.Default().ErrorContext(ctx, "ai completion error", "status", res.StatusCode, "body", string(respBytes))
-		return nil, fmt.Errorf("%w: provider status %d", ErrAIChatFailed, res.StatusCode)
+		return nil, fmt.Errorf("%w: %w", ErrAIChatFailed, &aiproviders.HTTPError{Status: res.StatusCode})
 	}
 
 	var completion struct {

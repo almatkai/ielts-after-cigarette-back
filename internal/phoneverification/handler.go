@@ -103,9 +103,5 @@ func (h *Handler) Confirm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) internalError(w http.ResponseWriter, r *http.Request, operation string, err error) {
-	h.logger.ErrorContext(r.Context(), operation,
-		"request_id", httpx.RequestID(r.Context()),
-		"error", err,
-	)
-	httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "An internal error occurred", nil)
+	httpx.InternalError(w, r, h.logger.With("operation", operation), err)
 }

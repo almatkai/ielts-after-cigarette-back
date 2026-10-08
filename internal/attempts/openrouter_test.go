@@ -132,6 +132,9 @@ func TestChatCompletionsEvaluatorUsesConfiguredProvider(t *testing.T) {
 		if got := r.Header.Get("Authorization"); got != "Bearer test-key" {
 			t.Errorf("authorization = %q", got)
 		}
+		if got := r.Header.Get("X-Title"); got != "Daiyndyq IELTS" {
+			t.Errorf("provider app title = %q", got)
+		}
 		var payload struct {
 			Model string `json:"model"`
 		}

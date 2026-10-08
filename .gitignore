@@ -1,6 +1,9 @@
 .env
 .env.dev
 .env.dev.local
+production.env
+operations.env
+admin-credentials-*.json
 .local-backups/
 .idea/
 .vscode/

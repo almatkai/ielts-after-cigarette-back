@@ -8,13 +8,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
+func Open(ctx context.Context, databaseURL string, maxConns ...int32) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse database URL: %w", err)
 	}
 	cfg.MaxConns = 20
-	cfg.MinConns = 2
+	if len(maxConns) > 0 {
+		if maxConns[0] < 1 {
+			return nil, fmt.Errorf("PostgreSQL pool size must be positive")
+		}
+		cfg.MaxConns = maxConns[0]
+	}
+	cfg.MinConns = min(2, cfg.MaxConns)
 	cfg.MaxConnLifetime = time.Hour
 	cfg.MaxConnIdleTime = 15 * time.Minute
 	cfg.HealthCheckPeriod = time.Minute

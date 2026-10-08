@@ -81,6 +81,7 @@ services:
       APP_ENV: ${APP_ENV:-development}
       HTTP_ADDR: :8080
       DATABASE_URL: postgres://${POSTGRES_USER:-ielts}:${POSTGRES_PASSWORD:-local-postgres-password}@postgres:5432/${POSTGRES_DB:-ielts}?sslmode=disable
+      DB_MAX_CONNS: ${DB_MAX_CONNS:-20}
       REDIS_URL: redis://:${REDIS_PASSWORD:-local-redis-password}@redis:6379/0
       JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-me-123456}
       PHONE_VERIFICATION_SECRET: ${PHONE_VERIFICATION_SECRET:-local-phone-verification-change-me-123456}
@@ -121,6 +122,13 @@ services:
       INFOBIP_WHATSAPP_LANGUAGE: ${INFOBIP_WHATSAPP_LANGUAGE:-en}
       INFOBIP_TIMEOUT: ${INFOBIP_TIMEOUT:-10s}
       SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
+      AI_PROVIDER_TELEMETRY_OPTIONAL: ${AI_PROVIDER_TELEMETRY_OPTIONAL:-false}
+      AI_PROVIDER_ENCRYPTION_KEY: ${AI_PROVIDER_ENCRYPTION_KEY:-}
+      AI_PROVIDER_PREVIOUS_ENCRYPTION_KEY: ${AI_PROVIDER_PREVIOUS_ENCRYPTION_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_WORKER_DSN: ${SENTRY_WORKER_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_CHAT_COMPLETIONS_URL: ${AI_CHAT_COMPLETIONS_URL:-https://openrouter.ai/api/v1/chat/completions}
       AI_MODEL: ${AI_MODEL:-openrouter/free}

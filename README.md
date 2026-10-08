@@ -88,11 +88,16 @@ docs/API.md            REST-контракт и примеры
 | `INFOBIP_ENABLED` | включает реальную отправку через Infobip |
 | `INFOBIP_BASE_URL`, `INFOBIP_API_KEY` | API endpoint и ключ Infobip |
 | `INFOBIP_WHATSAPP_*` | sender, approved template и язык WhatsApp |
-| `AI_API_KEY`, `AI_CHAT_COMPLETIONS_URL` | ключ и полный URL OpenAI-compatible chat completions API |
+| `AI_PROVIDER_ENCRYPTION_KEY` | независимый base64-ключ из 32 байт для ключей провайдеров в БД; одинаковый на API/worker |
+| `AI_PROVIDER_PREVIOUS_ENCRYPTION_KEY` | предыдущий master key при ротации |
+| `SENTRY_DSN`, `SENTRY_WORKER_DSN` | GlitchTip; основной DSN обязателен при использовании DB-провайдеров |
+| `AI_API_KEY`, `AI_CHAT_COMPLETIONS_URL` | ключ и полный URL последнего env-резерва OpenAI-compatible API |
 | `AI_MODEL`, `AI_SPEAKING_MODEL` | модели для Writing и Speaking |
 | `AI_SPEAKING_AUDIO_ENABLED` | отправлять ли Speaking-записи модели; для text-only Qwen должно быть `false` |
-| `AI_TIMEOUT` | предел ожидания ответа AI; по умолчанию `45s` |
+| `AI_TIMEOUT` | верхний предел ожидания env-провайдера; по умолчанию `45s`; общая цепочка — максимум 180s |
 | `OPENROUTER_*` | legacy fallback для существующих окружений; новые настройки `AI_*` имеют приоритет |
+
+Управление и безопасная ротация ключей: [docs/AI_PROVIDERS.md](docs/AI_PROVIDERS.md).
 
 `.env` исключён из Git. Значения по умолчанию в Compose предназначены только для
 локальной разработки и должны быть переопределены в любом общем окружении.
@@ -189,7 +194,8 @@ docker build -t ielts-api:local .
 | POST | `/api/v1/phone-verifications` | нет | отправить WhatsApp-код |
 | POST | `/api/v1/phone-verifications/{id}/confirm` | нет | подтвердить код |
 | POST | `/api/v1/waitlist` | нет | вступить в waitlist с proof token |
-| POST | `/api/v1/auth/google` | нет | вход через Google или начало регистрации |
+| POST | `/api/v1/auth/google` | нет | вход через Google: JSON popup callback или form POST redirect с проверкой `g_csrf_token` |
+| GET | `/api/v1/auth/google/pending` | HttpOnly registration cookie | восстановить профиль после Google redirect |
 | POST | `/api/v1/auth/google/complete` | нет | завершение регистрации через Google |
 | POST | `/api/v1/auth/refresh` | нет | атомарная ротация refresh token |
 | POST | `/api/v1/auth/logout` | нет | отзыв текущей refresh-сессии |

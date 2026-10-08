@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/testcontent"
 	"github.com/google/uuid"
 )
 
@@ -233,9 +234,9 @@ func publicTest(item Test) PublicTest {
 			Groups:             []PublicQuestionGroup{},
 		}
 		for _, group := range part.Groups {
-			pg := PublicQuestionGroup{ID: group.ID, Position: group.Position, Type: group.Type, Instructions: group.Instructions, Context: group.Context, Config: group.Config, ImageAssetID: group.ImageAssetID, Questions: []PublicQuestion{}}
+			pg := PublicQuestionGroup{ID: group.ID, Position: group.Position, Type: group.Type, Instructions: group.Instructions, Context: group.Context, Config: testcontent.PublicContent(group.Config), ImageAssetID: group.ImageAssetID, Questions: []PublicQuestion{}}
 			for _, q := range group.Questions {
-				pg.Questions = append(pg.Questions, PublicQuestion{ID: q.ID, Position: q.Position, Number: q.Number, Prompt: q.Prompt, Content: q.Content, Points: q.Points})
+				pg.Questions = append(pg.Questions, PublicQuestion{ID: q.ID, Position: q.Position, Number: q.Number, Prompt: q.Prompt, Content: testcontent.PublicContent(q.Content), Points: q.Points})
 			}
 			pp.Groups = append(pp.Groups, pg)
 		}
@@ -268,11 +269,23 @@ func (s *Service) Media(ctx context.Context, id uuid.UUID, publishedOnly bool) (
 	if err != nil {
 		return Media{}, nil, err
 	}
+	object, err := s.OpenMedia(ctx, media)
+	return media, object, err
+}
+
+func (s *Service) MediaMetadata(ctx context.Context, id uuid.UUID, publishedOnly bool) (Media, error) {
+	return s.repository.GetMedia(ctx, id, publishedOnly)
+}
+
+func (s *Service) OpenMedia(ctx context.Context, media Media) (objectstorage.ReadSeekCloser, error) {
 	object, err := s.mediaStore.Open(ctx, media.StorageKey)
 	if err != nil {
-		return Media{}, nil, err
+		if objectstorage.IsNotFound(err) {
+			return nil, fmt.Errorf("%w: id=%s key=%s: %v", ErrMediaObjectMissing, media.ID, media.StorageKey, err)
+		}
+		return nil, fmt.Errorf("open listening media id=%s key=%s: %w", media.ID, media.StorageKey, err)
 	}
-	return media, object, nil
+	return object, nil
 }
 
 func (s *Service) TranscribeTest(ctx context.Context, testID, actorID uuid.UUID) (Test, error) {

@@ -20,6 +20,7 @@ var (
 	ErrAIEvaluationFailed   = errors.New("AI evaluation failed")
 	ErrExamDeadlineExceeded = errors.New("exam session deadline exceeded")
 	ErrSectionLocked        = errors.New("exam section is locked")
+	ErrDailyLimitExceeded   = errors.New("daily limit exceeded")
 )
 
 const (
@@ -263,6 +264,9 @@ type Summary struct {
 	Attempt
 	TestTitle string `json:"testTitle"`
 	TestSlug  string `json:"testSlug"`
+	// FullMockSessionID links a section attempt back to its Full Mock session
+	// so drafts can resume the session instead of starting practice.
+	FullMockSessionID uuid.NullUUID `json:"fullMockSessionId"`
 }
 
 type ReviewAnswer struct {

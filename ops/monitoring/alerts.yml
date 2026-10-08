@@ -1,0 +1,48 @@
+groups:
+  - name: iac
+    rules:
+      - alert: APIUnavailable
+        expr: up{job="iac-api"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: 'API metrics endpoint unavailable'}
+      - alert: APIHighErrorRate
+        expr: sum(rate(iac_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(iac_http_requests_total[5m])), 0.001) > 0.01 and sum(increase(iac_http_requests_total[5m])) > 20
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: 'More than 1% of API requests fail'}
+      - alert: APISlow
+        expr: histogram_quantile(0.95, sum by (le, route) (rate(iac_http_duration_seconds_bucket{route!~".*(media|recordings|assistant|submit).*"}[5m]))) > 1
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: 'API p95 exceeds 1s for {{ $labels.route }}'}
+      - alert: DatabasePoolSaturated
+        expr: iac_db_connections_acquired / iac_db_connections_max > 0.9
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'API PostgreSQL pool is over 90% busy'}
+      - alert: JobMonitoringFailed
+        expr: iac_jobs_scrape_up == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: 'Unable to read durable job state'}
+      - alert: AssessmentBacklog
+        expr: sum by (kind) (iac_jobs{status="QUEUED"}) > 100 or iac_jobs_oldest_active_seconds > 600
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: 'Assessment queue stalled or overloaded: {{ $labels.kind }}'}
+      - alert: AssessmentFailed
+        expr: sum by (kind) (iac_jobs{status="FAILED"}) > 0
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: 'Terminal assessment failures need attention: {{ $labels.kind }}'}
+      - alert: BackupNotOffHost
+        expr: iac_backup_offhost == 0
+        for: 15m
+        labels: {severity: warning}
+        annotations: {summary: 'Backup storage is on the same host; configure an off-host S3 destination'}
+      - alert: BackupStale
+        expr: time() - iac_backup_last_success_timestamp_seconds > 93600 or absent(iac_backup_last_success_timestamp_seconds)
+        for: 15m
+        labels: {severity: critical}
+        annotations: {summary: 'No successful uploaded PostgreSQL backup in 26 hours'}
