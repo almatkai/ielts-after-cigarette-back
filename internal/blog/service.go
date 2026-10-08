@@ -312,7 +312,7 @@ func (s *Service) normalizeInput(input SaveInput) SaveInput {
 	input.Slug = strings.ToLower(strings.TrimSpace(input.Slug))
 	input.Title = strings.TrimSpace(input.Title)
 	input.Description = strings.TrimSpace(input.Description)
-	input.BodyHTML = strings.TrimSpace(input.BodyHTML)
+	input.BodyHTML = strings.TrimSpace(sanitizeBody(input.BodyHTML))
 	if input.BodyJSON == nil {
 		input.BodyJSON = map[string]any{}
 	}

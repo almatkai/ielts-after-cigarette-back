@@ -213,10 +213,11 @@ func (r *PostgresRepository) CreateMedia(ctx context.Context, uploadedBy uuid.UU
 }
 
 func (r *PostgresRepository) GetMedia(ctx context.Context, id uuid.UUID) (Media, error) {
-	var media Media
-	err := r.pool.QueryRow(ctx, `SELECT id, kind, original_name, mime_type, storage_key, byte_size, created_at
+	// blog_media stores only images, so the kind is not persisted.
+	media := Media{Kind: "image"}
+	err := r.pool.QueryRow(ctx, `SELECT id, original_name, mime_type, storage_key, byte_size, created_at
 		FROM blog_media WHERE id = $1`, id).
-		Scan(&media.ID, &media.Kind, &media.OriginalName, &media.MimeType,
+		Scan(&media.ID, &media.OriginalName, &media.MimeType,
 			&media.StorageKey, &media.ByteSize, &media.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Media{}, ErrMediaNotFound
