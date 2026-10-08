@@ -175,17 +175,6 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 	if session.Status != SessionInProgress {
 		return Session{}, ErrSessionCompleted
 	}
-	test, err := s.sessionTest(ctx, session)
-	if err != nil {
-		return Session{}, err
-	}
-	deadline := session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)
-	if time.Now().After(deadline) {
-		if err := s.expire(ctx, session); err != nil {
-			return Session{}, err
-		}
-		return Session{}, ErrSessionCompleted
-	}
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
 	if err != nil {
 		return Session{}, err
@@ -193,8 +182,15 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 	if session.CurrentSection < 1 || session.CurrentSection > len(sections) {
 		return Session{}, ErrSectionIncomplete
 	}
+	if err := s.expireSection(ctx, session, sections[session.CurrentSection-1]); err != nil {
+		return Session{}, err
+	}
+	sections, err = s.repository.ListSessionSections(ctx, session.ID)
+	if err != nil {
+		return Session{}, err
+	}
 	currentStatus := sections[session.CurrentSection-1].Attempt.Status
-	if currentStatus != attempts.StatusSubmitted && currentStatus != attempts.StatusProcessing {
+	if currentStatus != attempts.StatusSubmitted && currentStatus != attempts.StatusProcessing && currentStatus != attempts.StatusAbandoned {
 		return Session{}, ErrSectionIncomplete
 	}
 	if session.CurrentSection == len(sections) {
@@ -203,6 +199,21 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 		err = s.repository.Advance(ctx, session.ID, session.CurrentSection+1, false)
 	}
 	if err != nil {
+		return Session{}, err
+	}
+	return s.GetSession(ctx, userID, sessionID)
+}
+
+// Pause freezes only the current section after the caller has saved its draft.
+func (s *Service) Pause(ctx context.Context, userID, sessionID uuid.UUID) (Session, error) {
+	session, err := s.GetSession(ctx, userID, sessionID)
+	if err != nil {
+		return Session{}, err
+	}
+	if session.Status != SessionInProgress {
+		return Session{}, ErrSessionCompleted
+	}
+	if err := s.repository.PauseSection(ctx, session.ID, session.CurrentSection); err != nil {
 		return Session{}, err
 	}
 	return s.GetSession(ctx, userID, sessionID)
@@ -221,16 +232,6 @@ func (s *Service) Finish(ctx context.Context, userID, sessionID uuid.UUID) (Sess
 	}
 	if session.Status != SessionInProgress {
 		return Session{}, ErrSessionCompleted
-	}
-	test, err := s.sessionTest(ctx, session)
-	if err != nil {
-		return Session{}, err
-	}
-	if time.Now().After(session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)) {
-		if err := s.expire(ctx, session); err != nil {
-			return Session{}, err
-		}
-		return s.GetSession(ctx, userID, sessionID)
 	}
 	if err := s.repository.Finish(ctx, session.ID); err != nil {
 		return Session{}, err
@@ -251,17 +252,6 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 	if session.Status != SessionInProgress || position != session.CurrentSection {
 		return SessionSection{}, nil, ErrSectionLocked
 	}
-	test, err := s.sessionTest(ctx, session)
-	if err != nil {
-		return SessionSection{}, nil, err
-	}
-	deadline := session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)
-	if time.Now().After(deadline) {
-		if err := s.expire(ctx, session); err != nil {
-			return SessionSection{}, nil, err
-		}
-		return SessionSection{}, nil, ErrSectionLocked
-	}
 	sections, err := s.repository.ListSessionSections(ctx, session.ID)
 	if err != nil {
 		return SessionSection{}, nil, err
@@ -273,6 +263,21 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 	if section.Position != position {
 		return SessionSection{}, nil, ErrSectionLocked
 	}
+	duration := section.DurationMinutes
+	if duration <= 0 {
+		duration = sectionDuration(section.Skill)
+	}
+	if err := s.repository.StartSection(ctx, session.ID, position, duration); err != nil {
+		return SessionSection{}, nil, err
+	}
+	sections, err = s.repository.ListSessionSections(ctx, session.ID)
+	if err != nil {
+		return SessionSection{}, nil, err
+	}
+	section = sections[position-1]
+	if err := s.expireSection(ctx, session, section); err != nil {
+		return SessionSection{}, nil, err
+	}
 	attempt, material, err := s.attempts.PublicMaterial(ctx, userID, section.Attempt.ID)
 	if err != nil {
 		return SessionSection{}, nil, err
@@ -282,7 +287,7 @@ func (s *Service) GetSection(ctx context.Context, userID, sessionID uuid.UUID, p
 }
 
 // ValidateAttemptAccess enforces exam session invariants:
-// 1. If the attempt belongs to an exam session, the session must be in progress and within its deadline.
+// 1. The session must be in progress and this section must have been opened.
 // 2. Only the current active section of the exam can be modified or submitted.
 func (s *Service) ValidateAttemptAccess(ctx context.Context, userID, attemptID uuid.UUID) error {
 	meta, err := s.repository.FindExamAttemptMeta(ctx, attemptID)
@@ -298,19 +303,26 @@ func (s *Service) ValidateAttemptAccess(ctx context.Context, userID, attemptID u
 	if meta.SessionStatus != SessionInProgress {
 		return attempts.ErrAlreadySubmitted
 	}
-	deadline := meta.StartedAt.Add(time.Duration(meta.DurationMinutes) * time.Minute)
-	if time.Now().After(deadline) {
+	if meta.SectionPosition != meta.CurrentSection || meta.DeadlineAt == nil {
+		return attempts.ErrSectionLocked
+	}
+	if time.Now().After(*meta.DeadlineAt) {
 		session, err := s.repository.GetSession(ctx, meta.SessionID)
 		if err != nil {
 			return err
 		}
-		if err := s.expire(ctx, session); err != nil {
+		sections, err := s.repository.ListSessionSections(ctx, meta.SessionID)
+		if err != nil {
 			return err
 		}
+		for _, section := range sections {
+			if section.Attempt.ID == attemptID {
+				if err := s.expireSection(ctx, session, section); err != nil {
+					return err
+				}
+			}
+		}
 		return attempts.ErrExamDeadlineExceeded
-	}
-	if meta.SectionPosition != meta.CurrentSection {
-		return attempts.ErrSectionLocked
 	}
 	return nil
 }
@@ -320,16 +332,16 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 	if err != nil {
 		return Session{}, err
 	}
-	if session.Status == SessionInProgress && time.Now().After(session.StartedAt.Add(time.Duration(test.DurationMinutes)*time.Minute)) {
-		if err := s.expire(ctx, session); err != nil {
-			return Session{}, err
-		}
-		session, err = s.repository.GetSession(ctx, session.ID)
-		if err != nil {
+	sections, err := s.repository.ListSessionSections(ctx, session.ID)
+	if err != nil {
+		return Session{}, err
+	}
+	for _, section := range sections {
+		if err := s.expireSection(ctx, session, section); err != nil {
 			return Session{}, err
 		}
 	}
-	sections, err := s.repository.ListSessionSections(ctx, session.ID)
+	sections, err = s.repository.ListSessionSections(ctx, session.ID)
 	if err != nil {
 		return Session{}, err
 	}
@@ -349,7 +361,6 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 	}
 	session.MockTest = test
 	session.Sections = sections
-	session.DeadlineAt = session.StartedAt.Add(time.Duration(test.DurationMinutes) * time.Minute)
 	if session.Status == SessionSubmitted {
 		bands := make([]float64, 0, len(sections))
 		for _, section := range sections {
@@ -366,30 +377,31 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 	return session, nil
 }
 
-// Expiration grades the active section's persisted answers before closing the
-// exam. Unopened/incomplete sections stay ungraded. Transient failures keep the
-// expired session retryable, while ValidateAttemptAccess still rejects edits.
-func (s *Service) expire(ctx context.Context, session Session) error {
-	if session.Status != SessionInProgress {
+// Expiry grades saved answers in this section only. Empty Writing/Speaking
+// responses are closed without a band, while the next section stays available.
+func (s *Service) expireSection(ctx context.Context, session Session, section SessionSection) error {
+	if session.Status != SessionInProgress || section.Position != session.CurrentSection || section.Attempt.Status != attempts.StatusInProgress || section.DeadlineAt == nil || !time.Now().After(*section.DeadlineAt) {
 		return nil
 	}
-	sections, err := s.repository.ListSessionSections(ctx, session.ID)
-	if err != nil {
-		return err
+	_, err := s.attempts.SubmitSavedForExpiredExam(ctx, session.UserID, section.Attempt.ID)
+	if errors.Is(err, attempts.ErrWritingIncomplete) || errors.Is(err, attempts.ErrSpeakingIncomplete) {
+		return s.repository.AbandonSection(ctx, section.Attempt.ID)
 	}
-	for _, section := range sections {
-		if section.Position != session.CurrentSection || section.Attempt.Status != attempts.StatusInProgress {
-			continue
-		}
-		_, err := s.attempts.SubmitSavedForExpiredExam(ctx, session.UserID, section.Attempt.ID)
-		if err != nil && !errors.Is(err, attempts.ErrAlreadySubmitted) && !errors.Is(err, attempts.ErrWritingIncomplete) && !errors.Is(err, attempts.ErrSpeakingIncomplete) {
-			return err
-		}
+	if errors.Is(err, attempts.ErrAlreadySubmitted) {
+		return nil
 	}
-	if err := s.repository.Finish(ctx, session.ID); err != nil && !errors.Is(err, ErrSessionCompleted) {
-		return err
+	return err
+}
+
+func sectionDuration(skill string) int {
+	switch skill {
+	case attempts.MaterialListening:
+		return 30
+	case attempts.MaterialSpeaking:
+		return 15
+	default:
+		return 60
 	}
-	return nil
 }
 
 func validate(input SaveInput) map[string]string {

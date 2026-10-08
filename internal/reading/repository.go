@@ -82,7 +82,7 @@ func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSumma
 			v.title, v.description, m.published_at, v.duration_minutes
 		FROM reading_materials m
 		JOIN reading_material_versions v ON v.id = m.published_version_id
-		WHERE m.status = 'PUBLISHED'
+		WHERE m.status = 'PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='reading' AND g.material_id=m.id)
 		  AND NOT EXISTS (
 			SELECT 1 FROM reading_test_passages tp WHERE tp.passage_material_id = m.id
 		  )
@@ -111,7 +111,7 @@ func (r *PostgresRepository) ListPublished(ctx context.Context) ([]MaterialSumma
 func (r *PostgresRepository) GetPublished(ctx context.Context, id uuid.UUID) (Material, error) {
 	query := strings.Replace(materialSelect,
 		"v.id = m.current_version_id", "v.id = m.published_version_id", 1) +
-		` WHERE m.id = $1 AND m.status = 'PUBLISHED'`
+		` WHERE m.id = $1 AND m.status = 'PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='reading' AND g.material_id=m.id)`
 	material, err := scanMaterial(r.pool.QueryRow(ctx, query, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Material{}, ErrNotFound
@@ -154,7 +154,7 @@ func (r *PostgresRepository) GetVersion(ctx context.Context, id, versionID uuid.
 func (r *PostgresRepository) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	var versionID *uuid.UUID
 	err := r.pool.QueryRow(ctx, `SELECT published_version_id FROM reading_materials
-		WHERE id=$1 AND status='PUBLISHED'`, id).Scan(&versionID)
+		WHERE id=$1 AND status='PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='reading' AND g.material_id=$1)`, id).Scan(&versionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, ErrNotFound
 	}

@@ -39,7 +39,7 @@ func (r *PostgresRepository) List(ctx context.Context, published bool) ([]Test, 
 	where := ""
 	version := "t.current_version_id"
 	if published {
-		where = "WHERE t.status = 'PUBLISHED'"
+		where = "WHERE t.status = 'PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='listening' AND g.material_id=t.id)"
 		version = "t.published_version_id"
 	}
 	rows, err := r.pool.Query(ctx, `
@@ -70,7 +70,7 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID, published bo
 	statusFilter := ""
 	if published {
 		version = "t.published_version_id"
-		statusFilter = " AND t.status = 'PUBLISHED'"
+		statusFilter = " AND t.status = 'PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='listening' AND g.material_id=t.id)"
 	}
 	var item Test
 	err := r.pool.QueryRow(ctx, `
@@ -122,7 +122,7 @@ func (r *PostgresRepository) GetVersion(ctx context.Context, id, versionID uuid.
 func (r *PostgresRepository) PublishedVersionID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	var versionID *uuid.UUID
 	err := r.pool.QueryRow(ctx, `SELECT published_version_id FROM listening_tests
-		WHERE id=$1 AND status='PUBLISHED'`, id).Scan(&versionID)
+		WHERE id=$1 AND status='PUBLISHED' AND NOT EXISTS (SELECT 1 FROM guest_mock_materials g WHERE g.skill='listening' AND g.material_id=$1)`, id).Scan(&versionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return uuid.Nil, ErrNotFound
 	}

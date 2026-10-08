@@ -264,7 +264,78 @@ func (r *stubFullMockRepo) GetSession(_ context.Context, id uuid.UUID) (Session,
 }
 
 func (r *stubFullMockRepo) ListSessionSections(_ context.Context, sessionID uuid.UUID) ([]SessionSection, error) {
+	for i, section := range r.sections[sessionID] {
+		if r.attemptsRepo != nil {
+			a := r.attemptsRepo.attempts[section.Attempt.ID]
+			if section.Attempt.Status == attempts.StatusInProgress && a.Status != attempts.StatusInProgress {
+				r.sections[sessionID][i].Attempt = a
+			}
+		}
+	}
 	return r.sections[sessionID], nil
+}
+
+func (r *stubFullMockRepo) StartSection(_ context.Context, id uuid.UUID, position, duration int) error {
+	session := r.sessions[id]
+	if session.Status != SessionInProgress || session.CurrentSection != position {
+		return ErrSectionLocked
+	}
+	for i := range r.sections[id] {
+		sec := &r.sections[id][i]
+		if sec.Position != position || sec.DeadlineAt != nil {
+			continue
+		}
+		now := time.Now()
+		deadline := now.Add(time.Duration(duration) * time.Minute)
+		if sec.RemainingMilliseconds != nil {
+			deadline = now.Add(time.Duration(*sec.RemainingMilliseconds) * time.Millisecond)
+			sec.RemainingMilliseconds = nil
+		}
+		if sec.StartedAt == nil {
+			sec.StartedAt = &now
+		}
+		sec.DeadlineAt = &deadline
+		sec.DurationMinutes = duration
+		sec.Attempt.StartedAt = *sec.StartedAt
+		if r.attemptsRepo != nil {
+			r.attemptsRepo.attempts[sec.Attempt.ID] = sec.Attempt
+		}
+		r.attemptMeta[sec.Attempt.ID].DeadlineAt = &deadline
+	}
+	return nil
+}
+
+func (r *stubFullMockRepo) PauseSection(_ context.Context, id uuid.UUID, position int) error {
+	session := r.sessions[id]
+	if session.Status != SessionInProgress || session.CurrentSection != position {
+		return ErrSectionLocked
+	}
+	sec := &r.sections[id][position-1]
+	if sec.RemainingMilliseconds != nil {
+		return nil
+	}
+	if sec.DeadlineAt == nil || !sec.DeadlineAt.After(time.Now()) {
+		return ErrSectionLocked
+	}
+	remaining := time.Until(*sec.DeadlineAt).Milliseconds()
+	sec.RemainingMilliseconds = &remaining
+	sec.DeadlineAt = nil
+	r.attemptMeta[sec.Attempt.ID].DeadlineAt = nil
+	return nil
+}
+
+func (r *stubFullMockRepo) AbandonSection(_ context.Context, id uuid.UUID) error {
+	a := r.attemptsRepo.attempts[id]
+	a.Status = attempts.StatusAbandoned
+	r.attemptsRepo.attempts[id] = a
+	for sid := range r.sections {
+		for i := range r.sections[sid] {
+			if r.sections[sid][i].Attempt.ID == id {
+				r.sections[sid][i].Attempt = a
+			}
+		}
+	}
+	return nil
 }
 
 func (r *stubFullMockRepo) CreateSession(_ context.Context, session Session, sections []SessionSection) error {
@@ -606,6 +677,9 @@ func TestValidateAttemptAccess(t *testing.T) {
 		t.Fatalf("start failed: %v", err)
 	}
 
+	if _, _, err := mockSvc.GetSection(ctx, userID, session.ID, 1); err != nil {
+		t.Fatal(err)
+	}
 	sec1AttemptID := session.Sections[0].Attempt.ID
 	sec2AttemptID := session.Sections[1].Attempt.ID
 
@@ -641,20 +715,13 @@ func TestDeadlineEnforcement(t *testing.T) {
 		t.Fatalf("start failed: %v", err)
 	}
 
-	// Set session startedAt in the past beyond test duration (180 minutes)
-	expiredTime := time.Now().Add(-200 * time.Minute)
-	s := fullMockRepo.sessions[session.ID]
-	s.StartedAt = expiredTime
-	fullMockRepo.sessions[session.ID] = s
-
-	// Update meta startedAt
-	for _, meta := range fullMockRepo.attemptMeta {
-		if meta.SessionID == session.ID {
-			meta.StartedAt = expiredTime
-		}
+	if _, _, err := mockSvc.GetSection(ctx, userID, session.ID, 1); err != nil {
+		t.Fatal(err)
 	}
-
-	// ValidateAttemptAccess should reject with ErrExamDeadlineExceeded and mark session finished
+	expiredTime := time.Now().Add(-time.Minute)
+	fullMockRepo.sections[session.ID][0].DeadlineAt = &expiredTime
+	fullMockRepo.attemptMeta[session.Sections[0].Attempt.ID].DeadlineAt = &expiredTime
+	// Expiration rejects edits and closes only the active section.
 	sec1AttemptID := session.Sections[0].Attempt.ID
 	err = mockSvc.ValidateAttemptAccess(ctx, userID, sec1AttemptID)
 	if !errors.Is(err, attempts.ErrExamDeadlineExceeded) {
@@ -663,8 +730,8 @@ func TestDeadlineEnforcement(t *testing.T) {
 
 	// Verify session status is now submitted (finished)
 	finishedSession, _ := fullMockRepo.GetSession(ctx, session.ID)
-	if finishedSession.Status != SessionSubmitted {
-		t.Fatalf("expected session status %s, got %s", SessionSubmitted, finishedSession.Status)
+	if finishedSession.Status != SessionInProgress {
+		t.Fatalf("expected session status %s, got %s", SessionInProgress, finishedSession.Status)
 	}
 }
 

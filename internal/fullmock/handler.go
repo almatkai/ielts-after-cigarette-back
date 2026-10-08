@@ -114,10 +114,13 @@ func (h *Handler) Section(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"position": section.Position,
-		"skill":    section.Skill,
-		"attempt":  section.Attempt,
-		"material": material,
+		"position":        section.Position,
+		"skill":           section.Skill,
+		"attempt":         section.Attempt,
+		"material":        material,
+		"startedAt":       section.StartedAt,
+		"deadlineAt":      section.DeadlineAt,
+		"durationMinutes": section.DurationMinutes,
 	})
 }
 
@@ -142,6 +145,20 @@ func (h *Handler) Advance(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, _ := auth.UserID(r.Context())
 	session, err := h.service.Advance(r.Context(), userID, id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, session)
+}
+
+func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r, "sessionID")
+	if !ok {
+		return
+	}
+	userID, _ := auth.UserID(r.Context())
+	session, err := h.service.Pause(r.Context(), userID, id)
 	if err != nil {
 		h.writeError(w, r, err)
 		return

@@ -37,6 +37,9 @@ func NewTokenManager(secret, issuer, audience string, accessTTL, refreshTTL time
 }
 
 func (m *TokenManager) NewAccessToken(userID uuid.UUID, role string) (string, time.Time, error) {
+	if !ValidRole(role) {
+		return "", time.Time{}, ErrInvalidCredentials
+	}
 	now := m.now().UTC()
 	expiresAt := now.Add(m.accessTTL)
 	claims := AccessClaims{
@@ -80,6 +83,9 @@ func (m *TokenManager) ParseAccessToken(raw string) (AccessClaims, error) {
 		return AccessClaims{}, ErrInvalidCredentials
 	}
 	if _, err := uuid.Parse(claims.Subject); err != nil {
+		return AccessClaims{}, ErrInvalidCredentials
+	}
+	if !ValidRole(claims.Role) {
 		return AccessClaims{}, ErrInvalidCredentials
 	}
 	return claims, nil

@@ -23,6 +23,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/dashboard"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/fullmock"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/guest"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/health"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/jobs"
@@ -190,6 +191,13 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)
+	if cfg.GuestTrialEnabled {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := fullMockRepository.PrepareGuestMock(ctx); err != nil {
+			logger.Error("fixed guest mock unavailable", "error", err)
+		}
+		cancel()
+	}
 	fullMockService := fullmock.NewService(fullMockRepository, attemptsService)
 	attemptsService.SetExamGuard(fullMockService)
 	fullMockHandler := fullmock.NewHandler(fullMockService, logger, cfg.MaxRequestBody)
@@ -234,6 +242,13 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	}
 	healthHandler := health.NewHandler(pool.Ping, func(ctx context.Context) error { return cache.Ping(ctx, redisClient) }, healthChecks...)
 	rateLimiter := cache.NewRateLimiter(redisClient)
+	guestHandler := guest.NewHandler(guest.Config{
+		Enabled: cfg.GuestTrialEnabled, Secure: cfg.RefreshCookieSecure, SameSite: cookieSameSite(cfg.RefreshCookieSameSite),
+		Secret: cfg.JWTSecret, SiteKey: cfg.TurnstileSiteKey, TurnstileSecret: cfg.TurnstileSecretKey,
+		Hostnames: cfg.TurnstileHostnames, Origins: cfg.CORSAllowedOrigins,
+		IPLimit: cfg.GuestTrialIPLimit, GlobalLimit: cfg.GuestTrialGlobalLimit,
+		ExamTypes: cfg.GuestTrialExamTypes,
+	}, guest.NewPostgresRepository(pool), fullMockService, rateLimiter.Allow, remoteIP, logger)
 
 	router := chi.NewRouter()
 	router.Use(httpx.RequestIDMiddleware)
@@ -260,8 +275,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
-		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat", assistantHandler.Chat)
-		api.With(auth.AuthenticateOptional(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat/stream", assistantHandler.Stream)
+		api.With(auth.Authenticate(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat", assistantHandler.Chat)
+		api.With(auth.Authenticate(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat/stream", assistantHandler.Stream)
+		api.Get("/guest/config", guestHandler.Config)
+		api.Get("/guest/session", guestHandler.Session)
+		api.Post("/guest/start", guestHandler.Start)
 
 		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
 
@@ -275,7 +293,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		})
 
 		api.Group(func(protected chi.Router) {
-			protected.Use(auth.Authenticate(tokens))
+			protected.Use(guestHandler.Authenticate(tokens))
 			protected.Use(analyticsTracker.Middleware)
 			protected.Get("/full-mocks/overview", fullMockHandler.Overview)
 			protected.Post("/full-mocks/start", fullMockHandler.StartGenerated)
@@ -283,6 +301,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Get("/full-mock-sessions/{sessionID}/sections/{sectionPosition}", fullMockHandler.Section)
 			protected.Post("/full-mock-sessions/{sessionID}/advance", fullMockHandler.Advance)
 			protected.Post("/full-mock-sessions/{sessionID}/finish", fullMockHandler.Finish)
+			protected.Post("/full-mock-sessions/{sessionID}/pause", fullMockHandler.Pause)
 			protected.Get("/listening/tests", listeningHandler.ListPublic)
 			protected.Get("/listening/tests/{testID}", listeningHandler.GetPublic)
 			protected.Get("/listening/media/{mediaID}", listeningHandler.Media)

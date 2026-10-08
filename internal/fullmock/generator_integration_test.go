@@ -8,7 +8,12 @@ import (
 	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/testdb"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -304,7 +309,7 @@ func TestGeneratedMockExpiryAndPrivacy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if session.MockTestID != uuid.Nil || session.MockTest.Title == "" || session.MockTest.DurationMinutes != 165 || len(session.Sections) != 4 || session.DeadlineAt.Before(time.Now()) {
+	if session.MockTestID != uuid.Nil || session.MockTest.Title == "" || session.MockTest.DurationMinutes != 165 || len(session.Sections) != 4 {
 		t.Fatalf("%+v", session)
 	}
 	other := mockUser(t, pool, "academic")
@@ -314,19 +319,209 @@ func TestGeneratedMockExpiryAndPrivacy(t *testing.T) {
 	if _, _, err := svc.GetSection(ctx, user, session.ID, 2); !errors.Is(err, ErrSectionLocked) {
 		t.Fatal("future section unlocked")
 	}
+	// Elapsed time in the overview must not consume a section's clock.
 	execSeed(t, pool, `UPDATE full_mock_sessions SET started_at=CURRENT_TIMESTAMP-INTERVAL '4 hours' WHERE id=$1`, session.ID)
+	opened, _, err := svc.GetSection(ctx, user, session.ID, 1)
+	if err != nil || opened.DeadlineAt == nil || opened.DeadlineAt.Before(time.Now()) {
+		t.Fatalf("opening: %+v %v", opened, err)
+	}
+	execSeed(t, pool, `UPDATE full_mock_session_sections SET started_at=CURRENT_TIMESTAMP-INTERVAL '4 hours',deadline_at=CURRENT_TIMESTAMP-INTERVAL '1 minute' WHERE session_id=$1 AND position=1`, session.ID)
 	if err := svc.ValidateAttemptAccess(ctx, user, session.Sections[0].Attempt.ID); !errors.Is(err, attempts.ErrExamDeadlineExceeded) {
 		t.Fatal(err)
 	}
-	finished, err := svc.GetSession(ctx, user, session.ID)
-	if err != nil {
-		t.Fatal(err)
+	active, err := svc.GetSession(ctx, user, session.ID)
+	if err != nil || active.Status != SessionInProgress || active.Sections[1].DeadlineAt != nil {
+		t.Fatalf("section expiry closed exam: %+v %v", active, err)
 	}
-	if finished.Status != SessionSubmitted || finished.OverallBand != nil {
-		t.Fatal("expiry bypassed for generated exam")
+	if _, err := svc.Finish(ctx, user, session.ID); err != nil {
+		t.Fatal(err)
 	}
 	next, newlyCreated, err := svc.StartGenerated(ctx, user, false)
 	if err != nil || !newlyCreated || next.ID == session.ID {
 		t.Fatalf("new=%v err=%v", newlyCreated, err)
+	}
+}
+
+func TestGuestGeneratedMockCannotRestartOrRepeatAfterCompletion(t *testing.T) {
+	pool := testdb.Open(t)
+	ctx := context.Background()
+	user := mockUser(t, pool, "academic")
+	seedMockBank(t, pool, user)
+	execSeed(t, pool, `UPDATE users SET role='GUEST',status='GUEST' WHERE id=$1`, user)
+	execSeed(t, pool, `INSERT INTO guest_trials (user_id,token_hash,expires_at) VALUES ($1,$2,CURRENT_TIMESTAMP+INTERVAL '7 days')`, user, []byte("guest-token"))
+	repo := NewPostgresRepository(pool)
+	var wg sync.WaitGroup
+	ids := make(chan uuid.UUID, 8)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			session, _, err := repo.GenerateSession(ctx, user, true)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			ids <- session.ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	var sessionID uuid.UUID
+	for id := range ids {
+		if sessionID == uuid.Nil {
+			sessionID = id
+		}
+		if id != sessionID {
+			t.Fatal("racing guest requests created distinct mocks")
+		}
+	}
+	if sessionID == uuid.Nil {
+		t.Fatal("no session created")
+	}
+	execSeed(t, pool, `UPDATE full_mock_sessions SET started_at=CURRENT_TIMESTAMP-INTERVAL '4 hours' WHERE id=$1`, sessionID)
+	providers := map[string]attempts.MaterialProvider{}
+	for _, skill := range mockSkills {
+		providers[skill] = expiryProvider{uuid.New()}
+	}
+	service := NewService(repo, attempts.NewService(attempts.NewPostgresRepository(pool), providers))
+	if _, err := service.Finish(ctx, user, sessionID); err != nil {
+		t.Fatal(err)
+	}
+	session, created, err := service.StartGenerated(auth.WithUser(ctx, user, "GUEST"), user, true)
+	if err != nil || created || session.ID != sessionID || session.Status != SessionSubmitted {
+		t.Fatalf("guest repeat: %+v created=%v err=%v", session, created, err)
+	}
+	var mocks, sections int
+	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM full_mock_sessions WHERE user_id=$1`, user).Scan(&mocks); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM attempts WHERE user_id=$1`, user).Scan(&sections); err != nil {
+		t.Fatal(err)
+	}
+	if mocks != 1 || sections != 4 {
+		t.Fatalf("guest has %d mocks and %d attempts", mocks, sections)
+	}
+}
+
+func TestFixedGuestMockIsSharedPinnedAndExcludedFromFutureTests(t *testing.T) {
+	pool := testdb.Open(t)
+	ctx := context.Background()
+	student := mockUser(t, pool, "academic")
+	seedMockBank(t, pool, student)
+	seedMockBank(t, pool, student)
+	repo := NewPostgresRepository(pool)
+	if err := repo.PrepareGuestMock(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Reinitialization must never replace the reservation.
+	if err := repo.PrepareGuestMock(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var first map[string]candidate
+	for n := 0; n < 2; n++ {
+		user := mockUser(t, pool, "academic")
+		execSeed(t, pool, `UPDATE users SET role='GUEST',status='GUEST' WHERE id=$1`, user)
+		execSeed(t, pool, `INSERT INTO guest_trials (user_id,token_hash,expires_at) VALUES ($1,$2,CURRENT_TIMESTAMP+INTERVAL '7 days')`, user, []byte(user.String()))
+		session, created, err := repo.GenerateSession(ctx, user, false)
+		if err != nil || !created {
+			t.Fatalf("guest draw: %v", err)
+		}
+		sections, err := repo.ListSessionSections(ctx, session.ID)
+		if err != nil || len(sections) != 4 {
+			t.Fatalf("sections: %v", err)
+		}
+		current := map[string]candidate{}
+		for _, section := range sections {
+			var item candidate
+			item.skill = section.Skill
+			if err := pool.QueryRow(ctx, `SELECT material_id,material_version_id FROM attempts WHERE id=$1`, section.Attempt.ID).Scan(&item.materialID, &item.versionID); err != nil {
+				t.Fatal(err)
+			}
+			current[item.skill] = item
+		}
+		if n == 0 {
+			first = current
+		} else {
+			for skill, item := range current {
+				if item != first[skill] {
+					t.Fatalf("guest received another %s version", skill)
+				}
+			}
+		}
+		// Republishing/archiving the selected material must not change the guest exam.
+		if n == 0 {
+			execSeed(t, pool, `UPDATE listening_tests SET status='ARCHIVED' WHERE id=$1`, first["listening"].materialID)
+		}
+	}
+	// Even after exhausting the ordinary bank, the reserved tests never repeat.
+	_, available, err := loadCandidates(ctx, pool, student)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range available {
+		seedCompleted(t, pool, student, item, "SUBMITTED")
+	}
+	session, _, err := repo.GenerateSession(ctx, student, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sections, err := repo.ListSessionSections(ctx, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, section := range sections {
+		var id uuid.UUID
+		if err := pool.QueryRow(ctx, `SELECT material_id FROM attempts WHERE id=$1`, section.Attempt.ID).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		if id == first[section.Skill].materialID {
+			t.Fatalf("reserved %s in ordinary mock", section.Skill)
+		}
+	}
+	l, err := listening.NewPostgresRepository(pool).List(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range l {
+		if item.ID == first["listening"].materialID {
+			t.Fatal("reserved listening visible")
+		}
+	}
+	rd, err := reading.NewPostgresRepository(pool).ListPublished(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range rd {
+		if item.ID == first["reading"].materialID {
+			t.Fatal("reserved reading visible")
+		}
+	}
+	w, err := writing.NewPostgresRepository(pool).ListPublished(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range w {
+		if item.ID == first["writing"].materialID {
+			t.Fatal("reserved writing visible")
+		}
+	}
+	sp, err := speaking.NewPostgresRepository(pool).ListPublished(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range sp {
+		if item.ID == first["speaking"].materialID {
+			t.Fatal("reserved speaking visible")
+		}
+	}
+	// Knowing its old URL does not allow a new practice attempt.
+	if _, err := writing.NewPostgresRepository(pool).PublishedVersionID(ctx, first["writing"].materialID); err == nil {
+		t.Fatal("reserved writing can be started")
+	}
+	if _, err := reading.NewPostgresRepository(pool).PublishedVersionID(ctx, first["reading"].materialID); err == nil {
+		t.Fatal("reserved reading can be started")
+	}
+	if _, err := speaking.NewPostgresRepository(pool).PublishedVersionID(ctx, first["speaking"].materialID); err == nil {
+		t.Fatal("reserved speaking can be started")
 	}
 }

@@ -11,73 +11,80 @@ import (
 )
 
 type Config struct {
-	Environment             string
-	HTTPAddr                string
-	MetricsAddr             string
-	WritingWorkerExternal   bool
-	SentryDSN               string
-	SentryWorkerDSN         string
-	SentryEnvironment       string
-	SentryRelease           string
-	DatabaseURL             string
-	DatabaseMaxConns        int64
-	RedisURL                string
-	JWTSecret               string
-	JWTIssuer               string
-	JWTAudience             string
-	AccessTokenTTL          time.Duration
-	RefreshTokenTTL         time.Duration
-	RefreshCookieName       string
-	RefreshCookieSecure     bool
-	RefreshCookieSameSite   string
-	CORSAllowedOrigins      []string
-	ShutdownTimeout         time.Duration
-	RequestTimeout          time.Duration
-	MediaUploadTimeout      time.Duration
-	MaxRequestBody          int64
-	ListeningMediaDir       string
-	WritingMediaDir         string
-	SpeakingMediaDir        string
-	ObjectStorageBackend    string
-	ObjectStorageEndpoint   string
-	ObjectStorageAccessKey  string
-	ObjectStorageSecretKey  string
-	ObjectStorageBucket     string
-	ObjectStorageRegion     string
-	ObjectStorageUseSSL     bool
-	MaxMediaUploadBytes     int64
-	DailyLimitAssistant     int64
+	Environment              string
+	HTTPAddr                 string
+	MetricsAddr              string
+	WritingWorkerExternal    bool
+	SentryDSN                string
+	SentryWorkerDSN          string
+	SentryEnvironment        string
+	SentryRelease            string
+	DatabaseURL              string
+	DatabaseMaxConns         int64
+	RedisURL                 string
+	JWTSecret                string
+	JWTIssuer                string
+	JWTAudience              string
+	AccessTokenTTL           time.Duration
+	RefreshTokenTTL          time.Duration
+	RefreshCookieName        string
+	RefreshCookieSecure      bool
+	RefreshCookieSameSite    string
+	CORSAllowedOrigins       []string
+	ShutdownTimeout          time.Duration
+	RequestTimeout           time.Duration
+	MediaUploadTimeout       time.Duration
+	MaxRequestBody           int64
+	ListeningMediaDir        string
+	WritingMediaDir          string
+	SpeakingMediaDir         string
+	ObjectStorageBackend     string
+	ObjectStorageEndpoint    string
+	ObjectStorageAccessKey   string
+	ObjectStorageSecretKey   string
+	ObjectStorageBucket      string
+	ObjectStorageRegion      string
+	ObjectStorageUseSSL      bool
+	MaxMediaUploadBytes      int64
+	DailyLimitAssistant      int64
 	DailyLimitGuestAssistant int64
-	DailyLimitWriting       int64
-	DailyLimitSpeaking      int64
-	AuthRateLimit           int64
-	AuthRateWindow          time.Duration
-	PhoneVerificationSecret string
-	PhoneCodeTTL            time.Duration
-	PhoneTokenTTL           time.Duration
-	PhoneResendInterval     time.Duration
-	PhoneMaxAttempts        int64
-	InfobipBaseURL          string
-	InfobipEnabled          bool
-	InfobipAPIKey           string
-	InfobipWhatsAppSender   string
-	InfobipWhatsAppTemplate string
-	InfobipWhatsAppLanguage string
-	InfobipTimeout          time.Duration
-	GoogleClientID          string
-	SuperAdminEmails        []string
-	AIAPIKey                string
-	AIChatCompletionsURL    string
-	AIModel                 string
-	AISpeakingModel         string
-	AISpeakingAudioEnabled  bool
-	AITimeout               time.Duration
-	STTAPIKey               string
-	STTAPIURL               string
-	SpeechEnabled           bool
-	SpeechServiceURL        string
-	SpeechServiceToken      string
-	SpeechTimeout           time.Duration
+	DailyLimitWriting        int64
+	DailyLimitSpeaking       int64
+	AuthRateLimit            int64
+	AuthRateWindow           time.Duration
+	GuestTrialEnabled        bool
+	GuestTrialIPLimit        int64
+	GuestTrialGlobalLimit    int64
+	GuestTrialExamTypes      []string
+	TurnstileSiteKey         string
+	TurnstileSecretKey       string
+	TurnstileHostnames       []string
+	PhoneVerificationSecret  string
+	PhoneCodeTTL             time.Duration
+	PhoneTokenTTL            time.Duration
+	PhoneResendInterval      time.Duration
+	PhoneMaxAttempts         int64
+	InfobipBaseURL           string
+	InfobipEnabled           bool
+	InfobipAPIKey            string
+	InfobipWhatsAppSender    string
+	InfobipWhatsAppTemplate  string
+	InfobipWhatsAppLanguage  string
+	InfobipTimeout           time.Duration
+	GoogleClientID           string
+	SuperAdminEmails         []string
+	AIAPIKey                 string
+	AIChatCompletionsURL     string
+	AIModel                  string
+	AISpeakingModel          string
+	AISpeakingAudioEnabled   bool
+	AITimeout                time.Duration
+	STTAPIKey                string
+	STTAPIURL                string
+	SpeechEnabled            bool
+	SpeechServiceURL         string
+	SpeechServiceToken       string
+	SpeechTimeout            time.Duration
 
 	AIProviderEncryptionKey         string
 	AIProviderPreviousEncryptionKey string
@@ -95,6 +102,10 @@ func Load() (Config, error) {
 		SentryRelease:           env("SENTRY_RELEASE", ""),
 		DatabaseURL:             os.Getenv("DATABASE_URL"),
 		RedisURL:                os.Getenv("REDIS_URL"),
+		TurnstileSiteKey:        os.Getenv("TURNSTILE_SITE_KEY"),
+		TurnstileSecretKey:      os.Getenv("TURNSTILE_SECRET_KEY"),
+		TurnstileHostnames:      splitCSV(os.Getenv("TURNSTILE_HOSTNAMES")),
+		GuestTrialExamTypes:     splitCSV(env("GUEST_TRIAL_EXAM_TYPES", "academic")),
 		JWTSecret:               os.Getenv("JWT_SECRET"),
 		JWTIssuer:               env("JWT_ISSUER", "ielts-api"),
 		JWTAudience:             env("JWT_AUDIENCE", "ielts-web"),
@@ -132,6 +143,15 @@ func Load() (Config, error) {
 	}
 
 	var err error
+	if cfg.GuestTrialEnabled, err = boolEnv("GUEST_TRIAL_ENABLED", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.GuestTrialIPLimit, err = int64Env("GUEST_TRIAL_IP_LIMIT", 5); err != nil {
+		return Config{}, err
+	}
+	if cfg.GuestTrialGlobalLimit, err = int64Env("GUEST_TRIAL_GLOBAL_LIMIT", 100); err != nil {
+		return Config{}, err
+	}
 	if cfg.DatabaseMaxConns, err = int64Env("DB_MAX_CONNS", 20); err != nil {
 		return Config{}, err
 	}
@@ -228,6 +248,22 @@ func Load() (Config, error) {
 
 func (c Config) Validate() error {
 	var problems []string
+	if c.GuestTrialEnabled {
+		for _, examType := range c.GuestTrialExamTypes {
+			if examType != "academic" && examType != "general" {
+				problems = append(problems, "GUEST_TRIAL_EXAM_TYPES must contain academic or general")
+			}
+		}
+		if c.GuestTrialIPLimit < 1 || c.GuestTrialGlobalLimit < 1 {
+			problems = append(problems, "guest trial quotas must be positive")
+		}
+		if c.Environment != "development" && (c.TurnstileSiteKey == "" || c.TurnstileSecretKey == "" || len(c.TurnstileHostnames) == 0 || !c.RefreshCookieSecure) {
+			problems = append(problems, "guest trials require Turnstile keys, TURNSTILE_HOSTNAMES and secure cookies outside development")
+		}
+		if (c.TurnstileSiteKey == "") != (c.TurnstileSecretKey == "") || c.TurnstileSecretKey != "" && len(c.TurnstileHostnames) == 0 {
+			problems = append(problems, "configure both Turnstile keys and TURNSTILE_HOSTNAMES together")
+		}
+	}
 	if c.DatabaseURL == "" {
 		problems = append(problems, "DATABASE_URL is required")
 	}
