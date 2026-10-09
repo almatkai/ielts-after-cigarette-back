@@ -12,13 +12,21 @@ import (
 )
 
 type AccessClaims struct {
-	Role    string `json:"role"`
-	Version int    `json:"version"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions,omitempty"`
+	Version     int      `json:"version"`
 	jwt.RegisteredClaims
 }
 
+type AccountState struct {
+	Version     int
+	Role        string
+	Blocked     bool
+	Permissions []string
+}
+
 type TokenManager struct {
-	accountState func(uuid.UUID) (int, string, bool, error)
+	accountState func(uuid.UUID) (AccountState, error)
 	secret       []byte
 	issuer       string
 	audience     string
@@ -38,19 +46,26 @@ func NewTokenManager(secret, issuer, audience string, accessTTL, refreshTTL time
 	}
 }
 
-func (m *TokenManager) NewAccessToken(userID uuid.UUID, role string) (string, time.Time, error) {
+func (m *TokenManager) NewAccessToken(userID uuid.UUID, role string, permissions ...[]string) (string, time.Time, error) {
 	version := 0
+	var assigned []string
+	if len(permissions) > 0 {
+		assigned = append(assigned, permissions[0]...)
+	}
 	if m.accountState != nil {
-		v, currentRole, blocked, err := m.accountState(userID)
-		if err != nil || blocked || currentRole != role {
+		state, err := m.accountState(userID)
+		if err != nil || state.Blocked || state.Role != role {
 			return "", time.Time{}, ErrInvalidCredentials
 		}
-		version = v
+		version = state.Version
+		// Read capabilities and their version together. A previously loaded
+		// user view may be stale after an administrator changes access.
+		assigned = append([]string(nil), state.Permissions...)
 	}
 	now := m.now().UTC()
 	expiresAt := now.Add(m.accessTTL)
 	claims := AccessClaims{
-		Role: role, Version: version,
+		Role: role, Permissions: assigned, Version: version,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
 			Subject:   userID.String(),
@@ -94,8 +109,8 @@ func (m *TokenManager) ParseAccessToken(raw string) (AccessClaims, error) {
 	}
 	if m.accountState != nil {
 		id, _ := uuid.Parse(claims.Subject)
-		version, role, blocked, err := m.accountState(id)
-		if err != nil || blocked || role != claims.Role || version != claims.Version {
+		state, err := m.accountState(id)
+		if err != nil || state.Blocked || state.Role != claims.Role || state.Version != claims.Version {
 			return AccessClaims{}, ErrInvalidCredentials
 		}
 	}
@@ -188,7 +203,7 @@ func (m *TokenManager) AccessTTL() time.Duration {
 }
 
 // WithAccountState makes account changes effective for already issued access tokens.
-func (m *TokenManager) WithAccountState(lookup func(uuid.UUID) (int, string, bool, error)) *TokenManager {
+func (m *TokenManager) WithAccountState(lookup func(uuid.UUID) (AccountState, error)) *TokenManager {
 	m.accountState = lookup
 	return m
 }

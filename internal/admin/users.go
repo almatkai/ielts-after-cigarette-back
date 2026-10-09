@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/mail"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -43,19 +44,18 @@ func NewUsersHandler(pool *pgxpool.Pool, stores map[string]objectstorage.Store, 
 }
 
 // AccountState is used both on token issuance and validation. No credential hashes leave the server.
-func (h *UsersHandler) AccountState(id uuid.UUID) (int, string, bool, error) {
+func (h *UsersHandler) AccountState(id uuid.UUID) (auth.AccountState, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	var version int
-	var role string
-	var blocked bool
-	err := h.pool.QueryRow(ctx, `SELECT token_version, role, blocked FROM users WHERE id=$1`, id).Scan(&version, &role, &blocked)
-	return version, role, blocked, err
+	var state auth.AccountState
+	err := h.pool.QueryRow(ctx, `SELECT token_version, role, blocked, admin_permissions FROM users WHERE id=$1`, id).Scan(&state.Version, &state.Role, &state.Blocked, &state.Permissions)
+	return state, err
 }
 
 const userJSON = `jsonb_build_object(
  'id',u.id,'email',u.email,'phone',u.phone,'displayName',COALESCE(p.display_name, NULLIF(concat_ws(' ',u.first_name,u.last_name),''),u.email),
  'firstName',u.first_name,'lastName',u.last_name,'role',u.role,'status',u.status,'blocked',u.blocked,
+	'permissions',COALESCE(u.admin_permissions,'{}'),
  'createdAt',u.created_at,'updatedAt',GREATEST(u.updated_at,p.updated_at),'source',u.source,
  'referralCode',u.referral_code,'referredByCode',u.referred_by_code,'termsAcceptedAt',u.terms_accepted_at,
  'googleConnected',u.google_sub IS NOT NULL,'hasPassword',u.password_hash IS NOT NULL,
@@ -136,11 +136,24 @@ func (h *UsersHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type UserUpdate struct {
-	DisplayName string `json:"displayName"`
-	Email       string `json:"email"`
-	Phone       string `json:"phone"`
-	Role        string `json:"role"`
-	Blocked     bool   `json:"blocked"`
+	DisplayName string   `json:"displayName"`
+	Email       string   `json:"email"`
+	Phone       string   `json:"phone"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
+	Blocked     bool     `json:"blocked"`
+}
+
+func samePermissions(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func (v *UserUpdate) validate() error {
@@ -148,6 +161,20 @@ func (v *UserUpdate) validate() error {
 	v.Email = strings.ToLower(strings.TrimSpace(v.Email))
 	v.Phone = strings.TrimSpace(v.Phone)
 	v.Role = auth.NormalizeRole(v.Role)
+	permissions := make([]string, 0, len(v.Permissions))
+	seen := make(map[string]struct{}, len(v.Permissions))
+	for _, value := range v.Permissions {
+		value = auth.NormalizeRole(value)
+		if !auth.ValidPermission(value) {
+			return fmt.Errorf("Некорректный доступ")
+		}
+		if _, ok := seen[value]; !ok {
+			permissions = append(permissions, value)
+			seen[value] = struct{}{}
+		}
+	}
+	sort.Strings(permissions)
+	v.Permissions = permissions
 	address, err := mail.ParseAddress(v.Email)
 	if v.DisplayName == "" || utf8.RuneCountInString(v.DisplayName) > 100 || err != nil || address.Address != v.Email || len(v.Email) > 254 || !auth.ValidRole(v.Role) {
 		return fmt.Errorf("Проверьте имя, email и роль")
@@ -190,8 +217,9 @@ func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 	var email, role string
+	var permissions []string
 	var blocked bool
-	err = tx.QueryRow(r.Context(), `SELECT email,role,blocked FROM users WHERE id=$1 FOR UPDATE`, id).Scan(&email, &role, &blocked)
+	err = tx.QueryRow(r.Context(), `SELECT email,role,blocked,admin_permissions FROM users WHERE id=$1 FOR UPDATE`, id).Scan(&email, &role, &blocked, &permissions)
 	if err != nil {
 		h.fail(w, r, err)
 		return
@@ -210,8 +238,9 @@ func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	revoke := email != input.Email || role != input.Role || blocked != input.Blocked
-	_, err = tx.Exec(r.Context(), `UPDATE users SET email=$2,phone=NULLIF($3,''),role=$4,blocked=$5,token_version=token_version+CASE WHEN $6 THEN 1 ELSE 0 END WHERE id=$1`, id, input.Email, input.Phone, input.Role, input.Blocked, revoke)
+	sort.Strings(permissions)
+	revoke := email != input.Email || role != input.Role || blocked != input.Blocked || !samePermissions(permissions, input.Permissions)
+	_, err = tx.Exec(r.Context(), `UPDATE users SET email=$2,phone=NULLIF($3,''),role=$4,blocked=$5,admin_permissions=$6,token_version=token_version+CASE WHEN $7 THEN 1 ELSE 0 END WHERE id=$1`, id, input.Email, input.Phone, input.Role, input.Blocked, input.Permissions, revoke)
 	if err != nil {
 		h.fail(w, r, err)
 		return
