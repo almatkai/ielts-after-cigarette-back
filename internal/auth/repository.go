@@ -393,12 +393,12 @@ func (r *PostgresRepository) SetRole(ctx context.Context, email, role string) er
 func (r *PostgresRepository) FindUserByEmail(ctx context.Context, email string) (User, error) {
 	var user User
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, email, COALESCE(password_hash, ''), role, COALESCE(google_sub, ''),
+		SELECT id, email, COALESCE(password_hash, ''), role, COALESCE(admin_permissions, '{}'), COALESCE(google_sub, ''),
 			status, COALESCE(phone, ''), COALESCE(first_name, ''), COALESCE(last_name, '')
 		FROM users
 		WHERE email = $1
 	`, email).Scan(
-		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.GoogleSub,
+		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.Permissions, &user.GoogleSub,
 		&user.Status, &user.Phone, &user.FirstName, &user.LastName,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -413,12 +413,12 @@ func (r *PostgresRepository) FindUserByEmail(ctx context.Context, email string) 
 func (r *PostgresRepository) FindUserByGoogleSub(ctx context.Context, googleSub string) (User, error) {
 	var user User
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, email, COALESCE(password_hash, ''), role, COALESCE(google_sub, ''),
+		SELECT id, email, COALESCE(password_hash, ''), role, COALESCE(admin_permissions, '{}'), COALESCE(google_sub, ''),
 			status, COALESCE(phone, ''), COALESCE(first_name, ''), COALESCE(last_name, '')
 		FROM users
 		WHERE google_sub = $1
 	`, googleSub).Scan(
-		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.GoogleSub,
+		&user.ID, &user.Email, &user.PasswordHash, &user.Role, &user.Permissions, &user.GoogleSub,
 		&user.Status, &user.Phone, &user.FirstName, &user.LastName,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -575,6 +575,7 @@ const userViewQuery = `
 		COALESCE(u.phone, ''),
 		COALESCE(p.display_name, ''),
 		u.role,
+		COALESCE(u.admin_permissions, '{}'),
 		p.current_band::double precision,
 		p.target_band::double precision,
 		p.exam_date,
@@ -600,6 +601,7 @@ func scanUserView(row rowScanner) (UserView, error) {
 		&view.Phone,
 		&view.DisplayName,
 		&view.Role,
+		&view.Permissions,
 		&view.CurrentBand,
 		&view.TargetBand,
 		&examDate,
