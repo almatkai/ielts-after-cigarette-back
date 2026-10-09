@@ -111,8 +111,7 @@ func (s *Service) WithDailyLimiter(limiter DailyLimiter) *Service {
 }
 
 func isPrivileged(ctx context.Context) bool {
-	role := auth.Role(ctx)
-	return role == auth.RoleAdmin || role == auth.RoleEditor
+	return auth.Role(ctx) == auth.RoleAdmin
 }
 
 func (s *Service) provider(materialType string) (MaterialProvider, error) {
