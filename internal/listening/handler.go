@@ -196,7 +196,7 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 	role := auth.Role(r.Context())
 	// Guest middleware already verifies the asset against the owned mock's
 	// pinned version, which can outlive a publication change or archive.
-	publishedOnly := role != auth.RoleEditor && role != auth.RoleAdmin && role != "GUEST"
+	publishedOnly := role != "GUEST" && !auth.HasPermission(r.Context(), auth.PermissionContentEditor)
 	media, err := h.service.MediaMetadata(r.Context(), id, publishedOnly)
 	var object objectstorage.ReadSeekCloser
 	if err == nil {

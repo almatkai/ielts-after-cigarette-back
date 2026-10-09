@@ -222,7 +222,7 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 	}
 	role := auth.Role(r.Context())
 	// Guest middleware restricts media to the owned mock's pinned version.
-	publishedOnly := role != auth.RoleEditor && role != auth.RoleAdmin && role != "GUEST"
+	publishedOnly := role != "GUEST" && !auth.HasPermission(r.Context(), auth.PermissionContentEditor)
 	media, err := h.service.MediaMetadata(r.Context(), id, publishedOnly)
 	var object objectstorage.ReadSeekCloser
 	if err == nil {
