@@ -48,7 +48,7 @@ func (h *Handler) StartGenerated(w http.ResponseWriter, r *http.Request) {
 	if created {
 		status = http.StatusCreated
 	}
-	httpx.WriteJSON(w, status, session)
+	httpx.WriteJSON(w, status, SessionForViewer(r.Context(), session))
 }
 
 func (h *Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +94,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	if created {
 		status = http.StatusCreated
 	}
-	httpx.WriteJSON(w, status, session)
+	httpx.WriteJSON(w, status, SessionForViewer(r.Context(), session))
 }
 
 func (h *Handler) Section(w http.ResponseWriter, r *http.Request) {
@@ -113,11 +113,16 @@ func (h *Handler) Section(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
+	section.Attempt.ReviewLocked = true
+	section.Attempt.FullMockSessionID = &id
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"position": section.Position,
-		"skill":    section.Skill,
-		"attempt":  section.Attempt,
-		"material": material,
+		"position":        section.Position,
+		"skill":           section.Skill,
+		"attempt":         attempts.AttemptForViewer(r.Context(), section.Attempt),
+		"material":        attempts.MaterialForViewer(r.Context(), material, true),
+		"startedAt":       section.StartedAt,
+		"deadlineAt":      section.DeadlineAt,
+		"durationMinutes": section.DurationMinutes,
 	})
 }
 
@@ -132,7 +137,7 @@ func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, session)
+	httpx.WriteJSON(w, http.StatusOK, SessionForViewer(r.Context(), session))
 }
 
 func (h *Handler) Advance(w http.ResponseWriter, r *http.Request) {
@@ -146,7 +151,21 @@ func (h *Handler) Advance(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, session)
+	httpx.WriteJSON(w, http.StatusOK, SessionForViewer(r.Context(), session))
+}
+
+func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r, "sessionID")
+	if !ok {
+		return
+	}
+	userID, _ := auth.UserID(r.Context())
+	session, err := h.service.Pause(r.Context(), userID, id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, SessionForViewer(r.Context(), session))
 }
 
 func (h *Handler) Finish(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +179,7 @@ func (h *Handler) Finish(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, session)
+	httpx.WriteJSON(w, http.StatusOK, SessionForViewer(r.Context(), session))
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {

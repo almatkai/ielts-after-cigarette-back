@@ -47,6 +47,8 @@ type Attempt struct {
 	Band              *float64   `json:"band"`
 	StartedAt         time.Time  `json:"startedAt"`
 	SubmittedAt       *time.Time `json:"submittedAt"`
+	ReviewLocked      bool       `json:"reviewLocked,omitempty"`
+	FullMockSessionID *uuid.UUID `json:"fullMockSessionId,omitempty"`
 }
 
 type AnswerInput struct {
@@ -288,6 +290,22 @@ type ReviewAnswer struct {
 	TimestampEnd   *float64       `json:"timestampEnd,omitempty"`
 	AudioAssetID   *uuid.UUID     `json:"audioAssetId,omitempty"`
 	Transcript     string         `json:"transcript,omitempty"`
+	Locked         bool           `json:"locked,omitempty"`
+}
+
+// GuestPreview contains only the public slice of a graded attempt. Locked AI
+// suggestions have no text, just a stable position for the sign-in prompt.
+type GuestImprovement struct {
+	Number int    `json:"number"`
+	Label  string `json:"label"`
+	Text   string `json:"text,omitempty"`
+	Locked bool   `json:"locked"`
+}
+
+type GuestPreview struct {
+	TotalMistakes     int                `json:"totalMistakes"`
+	AvailableMistakes int                `json:"availableMistakes"`
+	Improvements      []GuestImprovement `json:"improvements,omitempty"`
 }
 
 type Detail struct {
@@ -299,6 +317,7 @@ type Detail struct {
 	Recordings         []SpeakingRecording    `json:"recordings,omitempty"`
 	SpeakingAssessment *SpeakingAssessmentJob `json:"speakingAssessment,omitempty"`
 	WritingAssessment  *WritingAssessmentJob  `json:"writingAssessment,omitempty"`
+	GuestPreview       *GuestPreview          `json:"guestPreview,omitempty"`
 }
 
 // MistakeReport combines a submitted attempt with the material needed by the

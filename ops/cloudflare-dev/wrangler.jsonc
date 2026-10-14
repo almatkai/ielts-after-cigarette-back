@@ -1,0 +1,13 @@
+{
+  "name": "ielts-dev",
+  "main": "worker.js",
+  "account_id": "ab39c7a0ec52f861379630cccb01061f",
+  "compatibility_date": "2026-10-07",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "ielts.woolet.cc", "custom_domain": true }],
+  "vpc_services": [{
+    "binding": "ORIGIN",
+    "service_id": "01a114c5-ec46-7253-ac99-7f8020e8b453"
+  }]
+}

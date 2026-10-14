@@ -33,6 +33,22 @@ func TestOnlyGoogleAuthEntryPointsArePublic(t *testing.T) {
 	}
 }
 
+func TestGuestEntryIsDisabledByDefaultAndChatRequiresAccount(t *testing.T) {
+	router := New(config.Config{JWTSecret: "test-secret-at-least-32-characters-long"}, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	for _, path := range []string{"/api/v1/assistant/chat", "/api/v1/assistant/chat/stream"} {
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest("POST", path, nil))
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("anonymous chat accessible: %s %d", path, w.Code)
+		}
+	}
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest("POST", "/api/v1/guest/start", nil))
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("guest launch enabled by default: %d", w.Code)
+	}
+}
+
 func TestFullMocksCannotBeSelectedOrManuallyCreated(t *testing.T) {
 	router := New(config.Config{JWTSecret: "test-secret-at-least-32-characters-long"}, nil, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	routes := map[string]bool{}

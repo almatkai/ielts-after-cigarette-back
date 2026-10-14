@@ -1,0 +1,172 @@
+# Guest Full Mock
+
+Entry page: `/app/`. Anonymous visitors see the normal dashboard navigation,
+practice categories and published test summaries. AI chat is hidden. Paid test
+buttons and private account pages ask visitors to sign in; their API access
+remains denied. The free Academic Full Mock is embedded in the dashboard and
+Full Mock page. Launching it accepts the linked terms inline and verifies
+Turnstile, without a separate opt-in page or format selection. `/app/try`
+redirects to the dashboard for old links.
+
+Migration 39 introduces `guest_mock_materials`. When guest mode is enabled,
+startup reserves four eligible Academic mock sections in one transaction under
+an advisory lock. Every new guest receives those exact material/version pairs.
+Reservations survive publication changes and restarts. Existing sessions retain
+their original pinned sections. Public catalogs, new practice starts and normal
+mock generation exclude the reserved material IDs, including when an account
+has exhausted the remaining bank. A partial or incomplete reservation denies a
+new trial instead of drawing different materials. Grading uses the existing
+version-pinned runners and queues. Grades, answer keys and AI feedback remain
+private until the entire Full Mock is submitted, for both guests and accounts.
+Completed-section detail returns `reviewLocked: true` and `fullMockSessionId`,
+without answers, review or evaluations. Submit, material, session and history
+responses also withhold section grades; pending mocks are excluded from mistake
+banks. Listening transcripts are withheld during a running mock. Guests cannot
+use the finish endpoint to unlock an incomplete mock; all four sections must be
+completed (including server-clock expiry).
+
+After completion, the compact four-card report shows the overall band. Selecting
+a section displays its review inline below the cards, not on another page.
+`?section=1..4` preserves the selection across reloads. Guest section bands/scores
+remain withheld by the API and blurred in the UI, opening sign-in on click.
+Only then does a submitted section expose the first
+`floor(errorCount * 0.30)` mistakes for detailed review:
+10 mistakes unlock 3, 4 unlock 1, and fewer than 4 unlock none. Reloads return
+the same subset. Objective mistakes expose their question and student's answer;
+locked answer keys, hints, explanations and evidence are not sent. Writing and
+Speaking use the same quota over their saved AI improvement suggestions; all
+criterion/task bands, summaries and other AI feedback remain account-only.
+Full Listening transcripts are excluded from guest material responses.
+
+## Enable
+
+1. Apply migrations `000038_guest_trials`, `000039_fixed_guest_mock` and
+   `000040_full_mock_section_clocks`, `000041_full_mock_section_pause` and
+   `000042_guest_trial_claim` before deploying the new API, including
+   when guest trials remain disabled.
+2. Keep `GUEST_TRIAL_EXAM_TYPES=academic` for the fixed trial. The current trial
+   is Academic, independent of the registered student's selected exam format.
+   Create a Cloudflare Turnstile widget for the frontend hostname(s).
+3. Configure the API environment:
+
+   ```dotenv
+   GUEST_TRIAL_ENABLED=true
+   GUEST_TRIAL_IP_LIMIT=5
+   GUEST_TRIAL_GLOBAL_LIMIT=100
+   TURNSTILE_SITE_KEY=<public site key>
+   TURNSTILE_SECRET_KEY=<server secret>
+   TURNSTILE_HOSTNAMES=your-frontend.example
+   REFRESH_COOKIE_SECURE=true
+   ```
+
+   The production GitHub Actions workflow reads `GUEST_TRIAL_ENABLED`,
+   `GUEST_TRIAL_IP_LIMIT`, `GUEST_TRIAL_GLOBAL_LIMIT`, `GUEST_TRIAL_EXAM_TYPES`,
+   `TURNSTILE_SITE_KEY` and `TURNSTILE_HOSTNAMES` from production environment
+   variables, and `TURNSTILE_SECRET_KEY` from a production environment secret.
+   The workflow keeps the feature disabled when `GUEST_TRIAL_ENABLED` is unset.
+
+4. Keep the exact frontend origin in `CORS_ALLOWED_ORIGINS`. The API validates
+   Origin on all cookie-authorized guest writes. Prefer frontend and API on the
+   same site; browsers may block cross-site cookies. If the deployment already
+   uses `SameSite=None`, guest cookies inherit that setting and require HTTPS.
+5. Allow `https://challenges.cloudflare.com` in any deployed CSP for scripts
+   and frames, and allow API access in `connect-src`. The public site key is
+   served by `/api/v1/guest/config`; no separate frontend key is needed.
+6. Ensure all four published full-test banks exist and the existing Writing,
+   Speaking, transcription workers and configured AI providers are operational.
+
+Turnstile validation checks `success`, the `guest_mock` action, and an explicit
+frontend hostname allowlist. Tokens are checked on the server, following
+[Cloudflare Siteverify documentation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/).
+Missing keys are permitted only in explicitly enabled `APP_ENV=development`.
+The feature defaults to disabled in all environments.
+
+## Limits and identity
+
+- Opaque 256-bit cookie, `HttpOnly`, path `/api/v1`; only its HMAC is stored in
+  PostgreSQL. The JWT secret keys that HMAC; rotating it invalidates guest
+  cookies. The cookie persists 180 days to remember a consumed trial.
+- A `GUEST` actor has no usable password, Google identity, access token or
+  refresh session. Guests are excluded from registration counts and authenticated
+  presence tracking.
+- Access expires 7 days after issuance. Each section's server clock begins on
+  first opening and survives reloads. «Продолжить позже» saves answers, then
+  pauses that section on the server; reopening resumes its saved remaining time.
+  The overview also offers «На паузу» for an already-running clock. Pausing is
+  idempotent, does not grant a new duration, and cannot rescue an expired section.
+  Closing a tab without explicitly pausing does not stop the clock or extend
+  the guest's 7-day access. Listening, Reading and Writing use their
+  material durations; Speaking allows 15 minutes. Section expiry grades saved
+  answers and leaves the next section untimed until opened. Restart/racing
+  requests reuse the latest mock under a PostgreSQL advisory lock. After completion,
+  «Пересдать тест» opens a confirmation and creates four fresh attempts with the
+  same reserved materials. The previous report remains accessible. The client sends
+  `retakeSessionId` to `POST /api/v1/guest/start`; duplicate requests for the same
+  source return the latest successor, even if that successor has finished. Running,
+  foreign, expired or claimed trials cannot be retaken. Retakes retain the same
+  identity/cookie and original seven-day expiry; no new Turnstile challenge is needed.
+- The default quotas allow 5 new starts (initial trials and retakes) per IP and 100 globally per
+  fixed 24-hour window, anchored to its first request. These are Redis quotas
+  shared by API replicas, not per-process limits. Failed starts may consume a
+  reservation; resuming an existing identity or retrying an already-created retake
+  does not consume a new start. Retake admission runs under the generation lock.
+- IP identifiers are HMACs. Only forwarding headers from the existing trusted
+  private/loopback proxy path are used; the edge proxy must replace client-sent
+  forwarding headers, and the API must not be exposed through an untrusted proxy.
+- 180 API requests per minute per guest, 6 audio uploads per Speaking attempt
+  (three parts plus retries), and 3 submit requests per attempt across the trial.
+  Uploads are bounded to 12 MiB of audio plus 1 MiB multipart overhead. Answer
+  requests are bounded to 128 KiB. Existing worker retries still apply.
+- Redis failures deny guest access. Setting guest mode off stops guest access
+  immediately, including review. Normal account authentication remains available.
+- Guests can access only owned attempts, their mock, and media referenced by
+  their pinned test versions. They cannot create practice attempts or access
+  account, history, admin or AI chat endpoints. Anonymous catalog access exposes
+  summaries only; test bodies, media and starts require an account or the
+  capability for the visitor's own trial.
+
+Cookie clearing, incognito, different devices and VPNs can obtain another guest
+identity. IP addresses are coarse rate signals and can be shared by many students.
+Neither cookies nor Turnstile prove a unique person. The global start cap bounds
+the number of admitted trials across changing IPs; it is not a monetary spending
+cap. Costs depend on providers, upload duration, input sizes and worker retries.
+This version uses the configured AI providers, without a new guest-specific model
+or invasive browser fingerprinting.
+
+## Results and retention
+
+On Google sign-in/registration (including same-tab redirect restoration), the
+client calls `POST /api/v1/guest/claim` with the new account Bearer token and the
+existing guest cookie before publishing the new auth identity. The API verifies
+Origin and atomically transfers **all completed attempts in the trial** and their mocks
+to that account. Pending Writing/Speaking jobs, answer rows, version pins and
+recordings keep their attempt IDs. An existing active account mock is untouched.
+Successful claiming unlocks every band and full review and persists across
+reloads and cookie loss, because ownership now belongs to the account. Concurrent
+claims are idempotent for that account; another account cannot claim the same
+trial. The consumed guest identity remains a tombstone and cannot start again.
+
+A running latest attempt, expired or missing trial is not transferred. An earlier
+completed report must not consume a guest identity while its retake is running.
+The claim response identifies the latest completed mock. Signing in during a
+running mock still switches to the account's own data; the claim feature is for
+completed reports. Unclaimed preview remains accessible with the guest cookie
+within its seven-day access period. Claimed results require the owning account,
+including after logout. The seven-day expiry does not delete DB rows or audio.
+Database and object-storage retention must be scheduled together. Keep consumed
+token tombstones for the cookie's 180-day lifetime when adding cleanup, otherwise
+old cookies could start a new trial after their rows are deleted.
+
+## Verification
+
+`go test ./...` runs handler/auth/config coverage. Set `TEST_DATABASE_URL` to an
+explicit local test database to also exercise migrations, actor creation,
+ownership, concurrent generation and expired-session reuse in isolated schemas.
+The frontend has `tests/guest-trial.spec.ts` for anonymous launch, 30% objective
+and AI preview, blurred section bands, sign-in/registration unlocking, claim
+failure/retry, guest retakes (desktop/mobile), retained reports, quota failure/retry,
+reload, public browsing, fixed Academic launch, mobile layout and
+locked navigation. Repository integration tests verify atomic/idempotent
+ownership transfer, preserved grades, denial to foreign accounts and rejection
+of running/expired trials. Browser tests
+mock AI results; they do not call paid providers.
