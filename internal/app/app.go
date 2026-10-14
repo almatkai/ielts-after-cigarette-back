@@ -19,6 +19,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/blog"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/dashboard"
@@ -102,6 +103,26 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	dashboardRepository := dashboard.NewPostgresRepository(pool)
 	dashboardHandler := dashboard.NewHandler(dashboard.NewService(dashboardRepository), logger)
 	adminHandler := adminapi.NewHandler()
+	blogRepository := blog.NewPostgresRepository(pool)
+	blogObjectStore := sharedObjectStore
+	if blogObjectStore == nil {
+		blogObjectStore = objectstorage.NewFileStore(cfg.BlogMediaDir)
+	}
+	speakingObjectStore := sharedObjectStore
+	if speakingObjectStore == nil {
+		speakingObjectStore = objectstorage.NewFileStore(cfg.SpeakingMediaDir)
+	}
+	usersHandler := adminapi.NewUsersHandler(pool, map[string]objectstorage.Store{"blog": blogObjectStore, "speaking": speakingObjectStore}, redisClient, logger, cfg.SuperAdminEmails)
+	if pool != nil {
+		tokens.WithAccountState(usersHandler.AccountState)
+		cleanupContext := options.WorkerContext
+		if cleanupContext == nil {
+			cleanupContext = context.Background()
+		}
+		usersHandler.StartCleanup(cleanupContext)
+	}
+	blogService := blog.NewService(blogRepository, blogObjectStore)
+	blogHandler := blog.NewHandler(blogService, logger, cfg.MaxRequestBody, cfg.MaxMediaUploadBytes)
 	readingRepository := reading.NewPostgresRepository(pool)
 	readingService := reading.NewService(readingRepository)
 	readingHandler := reading.NewHandler(readingService, logger, cfg.MaxRequestBody)
@@ -284,6 +305,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 		api.With(auth.AuthenticateOptional(tokens), analyticsRateLimit(rateLimiter)).Post("/analytics/ping", analyticsHandler.Ping)
 
+		// Public blog
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/posts", blogHandler.ListPublished)
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/posts/{slug}", blogHandler.GetPublic)
+		api.With(auth.AuthenticateOptional(tokens)).Get("/blog/media/{mediaID}", blogHandler.Media)
+
 		api.Route("/auth", func(public chi.Router) {
 			// No password registration or login routes: Google is the sole public entry point.
 			public.With(rateLimit(rateLimiter, logger, cfg, "login")).Post("/google", authHandler.GoogleLogin)
@@ -334,9 +360,43 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Patch("/profile", userHandler.UpdateProfile)
 			protected.Put("/profile/goal", userHandler.UpdateGoal)
 			protected.Get("/dashboard", dashboardHandler.Get)
+
+			// Writer applications (any authenticated user)
+			protected.Post("/blog/media", blogHandler.UploadMedia)
+			protected.Post("/writers/applications", blogHandler.Apply)
+			protected.Get("/writers/applications/mine", blogHandler.MyApplication)
+			protected.Get("/writers/applications/{applicationID}/certificate", blogHandler.Certificate)
+
+			// Writer workspace
+			protected.Route("/writer", func(writerRouter chi.Router) {
+				writerRouter.Use(auth.RequireAnyRole(auth.RoleWriter, auth.RoleAdmin))
+				writerRouter.Get("/posts", blogHandler.ListMine)
+				writerRouter.Post("/posts", blogHandler.Create)
+				writerRouter.Put("/posts/{postID}", blogHandler.Update)
+				writerRouter.Post("/posts/{postID}/publish", blogHandler.Publish)
+				writerRouter.Post("/posts/{postID}/archive", blogHandler.Archive)
+			})
+
 			protected.Route("/admin", func(adminRouter chi.Router) {
-				adminRouter.Use(auth.RequireAnyRole(auth.RoleEditor, auth.RoleAdmin))
+				adminRouter.Use(auth.RequireAdminWorkspace)
 				adminRouter.Get("/access", adminHandler.Access)
+				adminRouter.Group(func(users chi.Router) {
+					users.Use(auth.RequireAnyRole(auth.RoleAdmin))
+					users.Use(func(next http.Handler) http.Handler {
+						return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							w.Header().Set("Cache-Control", "no-store")
+							next.ServeHTTP(w, r)
+						})
+					})
+					users.Get("/users", usersHandler.ListUsers)
+					users.Get("/users/{userID}", usersHandler.GetUser)
+					users.Put("/users/{userID}", usersHandler.UpdateUser)
+					users.Delete("/users/{userID}", usersHandler.DeleteUser)
+					users.Post("/users/{userID}/password", usersHandler.ChangePassword)
+					users.Post("/users/{userID}/revoke-sessions", usersHandler.RevokeSessions)
+					users.Get("/users/{userID}/attempts", usersHandler.UserAttempts)
+					users.Get("/users/{userID}/attempts/{attemptID}", usersHandler.UserAttempt)
+				})
 				adminRouter.Group(func(aiAdmin chi.Router) {
 					aiAdmin.Use(auth.RequireAnyRole(auth.RoleAdmin))
 					aiAdmin.Get("/ai-providers", aiProvidersHandler.List)
@@ -352,46 +412,49 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 					aiAdmin.Get("/ai-limits", aiLimitsHandler.Get)
 					aiAdmin.Put("/ai-limits", aiLimitsHandler.Update)
 				})
-				adminRouter.Get("/full-mocks", fullMockHandler.List)
-				adminRouter.Get("/full-mocks/{mockID}", fullMockHandler.Get)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/full-mocks/{mockID}/archive", fullMockHandler.Archive)
-				adminRouter.Get("/reading/materials", readingHandler.List)
-				adminRouter.Post("/reading/materials", readingHandler.Create)
-				adminRouter.Post("/reading/import/parse", readingHandler.ParseImport)
-				adminRouter.Post("/reading/import", readingHandler.BulkImport)
-				adminRouter.Get("/reading/materials/{materialID}", readingHandler.Get)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/reading/materials/{materialID}/preview", readingHandler.Preview)
-				adminRouter.Put("/reading/materials/{materialID}", readingHandler.Update)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/publish", readingHandler.Publish)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/reading/materials/{materialID}/archive", readingHandler.Archive)
-				adminRouter.Get("/writing/materials", writingHandler.List)
-				adminRouter.Post("/writing/materials", writingHandler.Create)
-				adminRouter.Post("/writing/import/parse", writingHandler.ParseImport)
-				adminRouter.Post("/writing/import", writingHandler.BulkImport)
-				adminRouter.Post("/writing/media", writingHandler.UploadMedia)
-				adminRouter.Get("/writing/materials/{materialID}", writingHandler.Get)
-				adminRouter.Put("/writing/materials/{materialID}", writingHandler.Update)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/writing/materials/{materialID}/publish", writingHandler.Publish)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/writing/materials/{materialID}/archive", writingHandler.Archive)
-				adminRouter.Get("/speaking/materials", speakingHandler.List)
-				adminRouter.Post("/speaking/materials", speakingHandler.Create)
-				adminRouter.Post("/speaking/import/parse", speakingHandler.ParseImport)
-				adminRouter.Post("/speaking/import", speakingHandler.BulkImport)
-				adminRouter.Get("/speaking/materials/{materialID}", speakingHandler.Get)
-				adminRouter.Put("/speaking/materials/{materialID}", speakingHandler.Update)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/speaking/materials/{materialID}/publish", speakingHandler.Publish)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/speaking/materials/{materialID}/archive", speakingHandler.Archive)
-				adminRouter.Get("/listening/tests", listeningHandler.ListAdmin)
-				adminRouter.Post("/listening/tests", listeningHandler.Create)
-				adminRouter.Get("/listening/tests/{testID}", listeningHandler.GetAdmin)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/listening/tests/{testID}/preview", listeningHandler.Preview)
-				adminRouter.Put("/listening/tests/{testID}", listeningHandler.Update)
-				adminRouter.Post("/listening/import/parse", listeningHandler.ParseImport)
-				adminRouter.Post("/listening/import", listeningHandler.Import)
-				adminRouter.Post("/listening/media", listeningHandler.UploadMedia)
-				adminRouter.Post("/listening/tests/{testID}/transcribe", listeningHandler.Transcribe)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/publish", listeningHandler.Publish)
-				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/listening/tests/{testID}/archive", listeningHandler.Archive)
+				adminRouter.Group(func(content chi.Router) {
+					content.Use(auth.RequireAnyPermission(auth.PermissionContentEditor))
+					content.Get("/full-mocks", fullMockHandler.List)
+					content.Get("/full-mocks/{mockID}", fullMockHandler.Get)
+					content.Post("/full-mocks/{mockID}/archive", fullMockHandler.Archive)
+					content.Get("/reading/materials", readingHandler.List)
+					content.Post("/reading/materials", readingHandler.Create)
+					content.Post("/reading/import/parse", readingHandler.ParseImport)
+					content.Post("/reading/import", readingHandler.BulkImport)
+					content.Get("/reading/materials/{materialID}", readingHandler.Get)
+					content.Get("/reading/materials/{materialID}/preview", readingHandler.Preview)
+					content.Put("/reading/materials/{materialID}", readingHandler.Update)
+					content.Post("/reading/materials/{materialID}/publish", readingHandler.Publish)
+					content.Post("/reading/materials/{materialID}/archive", readingHandler.Archive)
+					content.Get("/writing/materials", writingHandler.List)
+					content.Post("/writing/materials", writingHandler.Create)
+					content.Post("/writing/import/parse", writingHandler.ParseImport)
+					content.Post("/writing/import", writingHandler.BulkImport)
+					content.Post("/writing/media", writingHandler.UploadMedia)
+					content.Get("/writing/materials/{materialID}", writingHandler.Get)
+					content.Put("/writing/materials/{materialID}", writingHandler.Update)
+					content.Post("/writing/materials/{materialID}/publish", writingHandler.Publish)
+					content.Post("/writing/materials/{materialID}/archive", writingHandler.Archive)
+					content.Get("/speaking/materials", speakingHandler.List)
+					content.Post("/speaking/materials", speakingHandler.Create)
+					content.Post("/speaking/import/parse", speakingHandler.ParseImport)
+					content.Post("/speaking/import", speakingHandler.BulkImport)
+					content.Get("/speaking/materials/{materialID}", speakingHandler.Get)
+					content.Put("/speaking/materials/{materialID}", speakingHandler.Update)
+					content.Post("/speaking/materials/{materialID}/publish", speakingHandler.Publish)
+					content.Post("/speaking/materials/{materialID}/archive", speakingHandler.Archive)
+					content.Get("/listening/tests", listeningHandler.ListAdmin)
+					content.Post("/listening/tests", listeningHandler.Create)
+					content.Get("/listening/tests/{testID}", listeningHandler.GetAdmin)
+					content.Get("/listening/tests/{testID}/preview", listeningHandler.Preview)
+					content.Put("/listening/tests/{testID}", listeningHandler.Update)
+					content.Post("/listening/import/parse", listeningHandler.ParseImport)
+					content.Post("/listening/import", listeningHandler.Import)
+					content.Post("/listening/media", listeningHandler.UploadMedia)
+					content.Post("/listening/tests/{testID}/transcribe", listeningHandler.Transcribe)
+					content.Post("/listening/tests/{testID}/publish", listeningHandler.Publish)
+					content.Post("/listening/tests/{testID}/archive", listeningHandler.Archive)
+				})
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/overview", analyticsHandler.Overview)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/realtime", analyticsHandler.Realtime)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/analytics/export/{dataset}", analyticsHandler.Export)
@@ -399,6 +462,20 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/super-admins", waitlistHandler.AdminListAdmins)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/super-admins", waitlistHandler.AdminAddAdmin)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Delete("/super-admins/{email}", waitlistHandler.AdminRemoveAdmin)
+
+				// Blog moderation and writer applications review.
+				adminRouter.Group(func(blogModeration chi.Router) {
+					blogModeration.Use(auth.RequireAnyPermission(auth.PermissionBlogModerator))
+					blogModeration.Get("/blog/posts", blogHandler.List)
+					blogModeration.Get("/blog/posts/{postID}", blogHandler.Get)
+					blogModeration.Put("/blog/posts/{postID}", blogHandler.Update)
+					blogModeration.Post("/blog/posts/{postID}/publish", blogHandler.Publish)
+					blogModeration.Post("/blog/posts/{postID}/archive", blogHandler.Archive)
+					blogModeration.Get("/writers/applications", blogHandler.ListApplications)
+					blogModeration.Get("/writers/applications/{applicationID}", blogHandler.GetApplication)
+					blogModeration.Post("/writers/applications/{applicationID}/approve", blogHandler.ApproveApplication)
+					blogModeration.Post("/writers/applications/{applicationID}/reject", blogHandler.RejectApplication)
+				})
 			})
 		})
 	})
@@ -452,6 +529,9 @@ func isMediaUpload(r *http.Request) bool {
 		return true
 	}
 	if r.URL.Path == "/api/v1/admin/writing/media" {
+		return true
+	}
+	if r.URL.Path == "/api/v1/blog/media" {
 		return true
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/v1/admin/listening/tests/") && strings.HasSuffix(r.URL.Path, "/transcribe") {
@@ -514,7 +594,7 @@ func dailyAssistantLimit(
 				return
 			}
 			role := auth.Role(r.Context())
-			if role == auth.RoleAdmin || role == auth.RoleEditor {
+			if role == auth.RoleAdmin {
 				next.ServeHTTP(w, r)
 				return
 			}

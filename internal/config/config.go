@@ -38,6 +38,7 @@ type Config struct {
 	ListeningMediaDir        string
 	WritingMediaDir          string
 	SpeakingMediaDir         string
+	BlogMediaDir             string
 	ObjectStorageBackend     string
 	ObjectStorageEndpoint    string
 	ObjectStorageAccessKey   string
@@ -123,6 +124,7 @@ func Load() (Config, error) {
 		ListeningMediaDir:       env("LISTENING_MEDIA_DIR", "./var/listening-media"),
 		WritingMediaDir:         env("WRITING_MEDIA_DIR", "./var/writing-media"),
 		SpeakingMediaDir:        env("SPEAKING_MEDIA_DIR", "./var/speaking-media"),
+		BlogMediaDir:            env("BLOG_MEDIA_DIR", "./var/blog-media"),
 		ObjectStorageBackend:    strings.ToLower(env("OBJECT_STORAGE_BACKEND", "filesystem")),
 		ObjectStorageEndpoint:   os.Getenv("OBJECT_STORAGE_ENDPOINT"),
 		ObjectStorageAccessKey:  os.Getenv("OBJECT_STORAGE_ACCESS_KEY"),
@@ -317,7 +319,7 @@ func (c Config) Validate() error {
 	switch c.ObjectStorageBackend {
 	case "filesystem":
 		if strings.TrimSpace(c.ListeningMediaDir) == "" || strings.TrimSpace(c.WritingMediaDir) == "" || strings.TrimSpace(c.SpeakingMediaDir) == "" {
-			problems = append(problems, "LISTENING_MEDIA_DIR, WRITING_MEDIA_DIR, and SPEAKING_MEDIA_DIR are required for filesystem storage")
+			problems = append(problems, "LISTENING_MEDIA_DIR, WRITING_MEDIA_DIR, SPEAKING_MEDIA_DIR, and BLOG_MEDIA_DIR are required for filesystem storage")
 		}
 	case "minio":
 		if strings.TrimSpace(c.ObjectStorageEndpoint) == "" || strings.TrimSpace(c.ObjectStorageAccessKey) == "" || strings.TrimSpace(c.ObjectStorageSecretKey) == "" || strings.TrimSpace(c.ObjectStorageBucket) == "" {

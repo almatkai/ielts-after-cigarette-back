@@ -94,6 +94,7 @@ jobs:
       STT_API_KEY: ${{ secrets.STT_API_KEY }}
       STT_API_URL: ${{ vars.STT_API_URL }}
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_PROVIDER_ENCRYPTION_KEY: ${{ secrets.AI_PROVIDER_ENCRYPTION_KEY }}
       AI_CHAT_COMPLETIONS_URL: ${{ vars.AI_CHAT_COMPLETIONS_URL }}
       AI_MODEL: ${{ vars.AI_MODEL }}
       AI_SPEAKING_MODEL: ${{ vars.AI_SPEAKING_MODEL }}
@@ -128,6 +129,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
       - name: Prepare production configuration
         run: |
+          : "${AI_PROVIDER_ENCRYPTION_KEY:?Set the AI_PROVIDER_ENCRYPTION_KEY GitHub Actions secret}"
           umask 077
           {
             printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE"
@@ -151,6 +153,7 @@ jobs:
             printf 'STT_API_KEY=%s\n' "$STT_API_KEY"
             printf 'STT_API_URL=%s\n' "$STT_API_URL"
             printf 'AI_API_KEY=%s\n' "$AI_API_KEY"
+            printf 'AI_PROVIDER_ENCRYPTION_KEY=%s\n' "$AI_PROVIDER_ENCRYPTION_KEY"
             printf 'AI_CHAT_COMPLETIONS_URL=%s\n' "$AI_CHAT_COMPLETIONS_URL"
             printf 'AI_MODEL=%s\n' "$AI_MODEL"
             printf 'AI_SPEAKING_MODEL=%s\n' "$AI_SPEAKING_MODEL"
