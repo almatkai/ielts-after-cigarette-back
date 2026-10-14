@@ -12,4 +12,4 @@ ALTER TABLE users DROP CONSTRAINT users_guest_status_valid;
 ALTER TABLE users DROP CONSTRAINT users_status_valid;
 ALTER TABLE users ADD CONSTRAINT users_status_valid CHECK (status IN ('WAITING', 'INVITED', 'REGISTERED'));
 ALTER TABLE users DROP CONSTRAINT users_role_valid;
-ALTER TABLE users ADD CONSTRAINT users_role_valid CHECK (role IN ('STUDENT', 'EDITOR', 'ADMIN'));
+ALTER TABLE users ADD CONSTRAINT users_role_valid CHECK (role IN ('STUDENT', 'WRITER', 'EDITOR', 'ADMIN'));
