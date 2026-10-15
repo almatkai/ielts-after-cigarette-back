@@ -133,7 +133,7 @@ func TestMistakesLoadsEveryPhaseConcurrently(t *testing.T) {
 		},
 	)
 
-	reports, err := service.Mistakes(context.Background(), userID)
+	reports, err := service.Mistakes(context.Background(), userID, "")
 	if err != nil {
 		t.Fatalf("mistakes failed: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestMistakesReportsTheEarliestPhaseError(t *testing.T) {
 		},
 	)
 
-	_, err := service.Mistakes(context.Background(), userID)
+	_, err := service.Mistakes(context.Background(), userID, "")
 	if !errors.Is(err, answersErr) {
 		t.Fatalf("error = %v, want the answer load error of the earliest phase", err)
 	}
@@ -212,7 +212,7 @@ func TestMistakesRejectsUnsupportedObjectiveMaterial(t *testing.T) {
 	submittedAttemptsForMistakes(repository, userID)
 	service := NewService(repository, map[string]MaterialProvider{})
 
-	if _, err := service.Mistakes(context.Background(), userID); !errors.Is(err, ErrUnsupportedMaterial) {
+	if _, err := service.Mistakes(context.Background(), userID, ""); !errors.Is(err, ErrUnsupportedMaterial) {
 		t.Fatalf("error = %v, want %v", err, ErrUnsupportedMaterial)
 	}
 }
@@ -234,7 +234,7 @@ func TestMistakesSkipsAttemptsStillInProgress(t *testing.T) {
 		},
 	)
 
-	reports, err := service.Mistakes(context.Background(), userID)
+	reports, err := service.Mistakes(context.Background(), userID, "")
 	if err != nil {
 		t.Fatalf("mistakes failed: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestMistakesReturnsEmptyPageWithoutSubmittedAttempts(t *testing.T) {
 	}
 	service := NewService(repository, map[string]MaterialProvider{})
 
-	reports, err := service.Mistakes(context.Background(), testUserID)
+	reports, err := service.Mistakes(context.Background(), testUserID, "")
 	if err != nil {
 		t.Fatalf("mistakes failed: %v", err)
 	}
