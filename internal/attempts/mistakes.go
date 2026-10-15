@@ -22,7 +22,7 @@ import (
 // Those four loads share no state, so they run concurrently. On a database a
 // network hop away the round trips dominate the latency, and running the loads
 // in sequence would add the round trip of every phase to the response time.
-func (s *Service) Mistakes(ctx context.Context, userID uuid.UUID) ([]MistakeReport, error) {
+func (s *Service) Mistakes(ctx context.Context, userID uuid.UUID, lang string) ([]MistakeReport, error) {
 	attempts, err := s.repository.ListByUser(ctx, userID, "")
 	if err != nil {
 		return nil, err
@@ -84,10 +84,34 @@ func (s *Service) Mistakes(ctx context.Context, userID uuid.UUID) ([]MistakeRepo
 			reports = append(reports, report)
 		}
 	}
+	if localized, err := s.localizeReports(ctx, reports, lang); err == nil {
+		reports = localized
+	}
 	return reports, nil
 }
 
-// runConcurrently runs independent loads in parallel and reports the failure of
+// localizeReports translates every mistake review in one round trip.
+func (s *Service) localizeReports(ctx context.Context, reports []MistakeReport, lang string) ([]MistakeReport, error) {
+	lang = normalizeReviewLang(lang)
+	if lang == "" || len(reports) == 0 {
+		return reports, nil
+	}
+	ids := make([]uuid.UUID, 0)
+	for _, report := range reports {
+		for _, item := range report.Review {
+			ids = append(ids, item.QuestionID)
+		}
+	}
+	translations, err := s.repository.QuestionTranslations(ctx, ids, lang)
+	if err != nil {
+		return reports, err
+	}
+	for r := range reports {
+		reports[r].Review = applyQuestionTranslations(reports[r].Review, translations)
+	}
+	return reports, nil
+}
+
 // the earliest one in argument order, so a load that fails surfaces the same
 // error it did when the loads ran one after another.
 func runConcurrently(loads ...func() error) error {

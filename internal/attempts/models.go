@@ -341,3 +341,13 @@ type MistakeReport struct {
 	WritingEvaluation  *WritingEvaluation  `json:"writingEvaluation,omitempty"`
 	SpeakingEvaluation *SpeakingEvaluation `json:"speakingEvaluation,omitempty"`
 }
+
+// QuestionTranslation carries the Kazakh/English review text for one
+// question. The Russian source stays in reading_questions/listening_questions;
+// only non-empty fields override the source when served.
+type QuestionTranslation struct {
+	QuestionID  uuid.UUID
+	Lang        string
+	Explanation string
+	Hint        string
+}

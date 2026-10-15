@@ -142,6 +142,10 @@ func (s *stubRepository) ListAnswersByAttempts(_ context.Context, attemptIDs []u
 	return items, nil
 }
 
+func (s *stubRepository) QuestionTranslations(_ context.Context, _ []uuid.UUID, _ string) (map[uuid.UUID]QuestionTranslation, error) {
+	return map[uuid.UUID]QuestionTranslation{}, nil
+}
+
 func (s *stubRepository) Submit(_ context.Context, result SubmitResult) error {
 	attempt, ok := s.attempts[result.AttemptID]
 	if !ok {
@@ -586,7 +590,7 @@ func TestForeignAttemptIsHidden(t *testing.T) {
 	if _, err := service.Submit(context.Background(), testOtherUser, attempt.ID, SaveAnswersInput{}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("submit: expected ErrNotFound, got %v", err)
 	}
-	if _, err := service.Get(context.Background(), testOtherUser, attempt.ID); !errors.Is(err, ErrNotFound) {
+	if _, err := service.Get(context.Background(), testOtherUser, attempt.ID, ""); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("get: expected ErrNotFound, got %v", err)
 	}
 }
@@ -595,7 +599,7 @@ func TestGetDetailIncludesReviewOnlyAfterSubmit(t *testing.T) {
 	service, _ := testService()
 	attempt := startForTest(t, service, testUserID)
 
-	draft, err := service.Get(context.Background(), testUserID, attempt.ID)
+	draft, err := service.Get(context.Background(), testUserID, attempt.ID, "")
 	if err != nil {
 		t.Fatalf("get draft failed: %v", err)
 	}
@@ -608,7 +612,7 @@ func TestGetDetailIncludesReviewOnlyAfterSubmit(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("submit failed: %v", err)
 	}
-	detail, err := service.Get(context.Background(), testUserID, attempt.ID)
+	detail, err := service.Get(context.Background(), testUserID, attempt.ID, "")
 	if err != nil {
 		t.Fatalf("get submitted failed: %v", err)
 	}
@@ -664,7 +668,7 @@ func TestReadingStartAndSubmit(t *testing.T) {
 		t.Fatalf("expected skill reading, got %q", repository.submitted.Skill)
 	}
 
-	detail, err := service.Get(context.Background(), testUserID, attempt.ID)
+	detail, err := service.Get(context.Background(), testUserID, attempt.ID, "")
 	if err != nil {
 		t.Fatalf("get submitted reading attempt failed: %v", err)
 	}
@@ -843,7 +847,7 @@ func TestWritingSubmitWithEvaluator(t *testing.T) {
 	}
 
 	// Verify Get includes writing evaluation
-	detail, err := svc.Get(context.Background(), testUserID, att.ID)
+	detail, err := svc.Get(context.Background(), testUserID, att.ID, "")
 	if err != nil {
 		t.Fatalf("get writing attempt detail failed: %v", err)
 	}
@@ -889,7 +893,7 @@ func TestWritingSubmitWithAsyncPipeline(t *testing.T) {
 		t.Fatalf("expected attempt %s enqueued, got %v", att.ID, queue.enqueued)
 	}
 
-	detail, err := svc.Get(context.Background(), testUserID, att.ID)
+	detail, err := svc.Get(context.Background(), testUserID, att.ID, "")
 	if err != nil {
 		t.Fatalf("get detail failed: %v", err)
 	}
@@ -944,7 +948,7 @@ func TestSpeakingSubmitWithEvaluator(t *testing.T) {
 	}
 
 	// Verify Get includes speaking evaluation
-	detail, err := svc.Get(context.Background(), testUserID, att.ID)
+	detail, err := svc.Get(context.Background(), testUserID, att.ID, "")
 	if err != nil {
 		t.Fatalf("get speaking detail failed: %v", err)
 	}
