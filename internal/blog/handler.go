@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -38,6 +39,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
+	if hidePublicBlog(w, r) {
+		return
+	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	items, total, err := h.service.ListPublished(r.Context(), limit, offset)
@@ -62,6 +66,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetPublic(w http.ResponseWriter, r *http.Request) {
+	if hidePublicBlog(w, r) {
+		return
+	}
 	slug := chi.URLParam(r, "slug")
 	post, err := h.service.GetPublic(r.Context(), slug)
 	if err != nil {
@@ -108,7 +115,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
-	role := auth.Role(r.Context())
+	role := blogManagementRole(r.Context())
 	actorUUID := actor
 	post, details, err := h.service.Update(r.Context(), id, actorUUID, uuid.Nil, role, input)
 	if h.writeValidation(w, r, details) {
@@ -131,7 +138,7 @@ func (h *Handler) Publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
-	role := auth.Role(r.Context())
+	role := blogManagementRole(r.Context())
 	actorUUID := actor
 	post, details, err := h.service.Publish(r.Context(), id, actorUUID, role, input)
 	if h.writeValidation(w, r, details) {
@@ -150,7 +157,7 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
-	role := auth.Role(r.Context())
+	role := blogManagementRole(r.Context())
 	actorUUID := actor
 	post, err := h.service.Archive(r.Context(), id, actorUUID, role)
 	if err != nil {
@@ -199,7 +206,7 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role := auth.Role(r.Context())
-	media, object, err := h.service.Media(r.Context(), id, role != auth.RoleEditor && role != auth.RoleAdmin && role != auth.RoleWriter)
+	media, object, err := h.service.Media(r.Context(), id, !auth.HasPermission(r.Context(), auth.PermissionBlogModerator) && role != auth.RoleAdmin && role != auth.RoleWriter)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -295,7 +302,7 @@ func (h *Handler) Certificate(w http.ResponseWriter, r *http.Request) {
 	}
 	requesterID, _ := auth.UserID(r.Context())
 	role := auth.Role(r.Context())
-	isAdmin := role == auth.RoleAdmin || role == auth.RoleEditor
+	isAdmin := role == auth.RoleAdmin || auth.HasPermission(r.Context(), auth.PermissionBlogModerator)
 	certificate, err := h.service.Certificate(r.Context(), id, requesterID, isAdmin)
 	if err != nil {
 		h.writeError(w, r, err)
@@ -365,4 +372,24 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 			"request_id", httpx.RequestID(r.Context()), "error", err)
 		httpx.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong", nil)
 	}
+}
+
+// PublicBlogEnabled controls the editorial launch; preparation stays available to authors.
+const PublicBlogEnabled = false
+
+func hidePublicBlog(w http.ResponseWriter, r *http.Request) bool {
+	if PublicBlogEnabled || auth.Role(r.Context()) == auth.RoleWriter || auth.Role(r.Context()) == auth.RoleAdmin || auth.HasPermission(r.Context(), auth.PermissionBlogModerator) {
+		return false
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	httpx.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "Страница не найдена", nil)
+	return true
+}
+
+func blogManagementRole(ctx context.Context) string {
+	role := auth.Role(ctx)
+	if role == auth.RoleAdmin || auth.HasPermission(ctx, auth.PermissionBlogModerator) {
+		return auth.RoleEditor
+	}
+	return role
 }

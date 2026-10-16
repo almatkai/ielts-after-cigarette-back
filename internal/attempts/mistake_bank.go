@@ -124,8 +124,8 @@ type MistakeDetail struct {
 	SpeakingEvaluation *SpeakingEvaluation `json:"speakingEvaluation,omitempty"`
 }
 
-func (s *Service) MistakeDetail(ctx context.Context, userID, attemptID uuid.UUID) (MistakeDetail, error) {
-	detail, err := s.Get(ctx, userID, attemptID)
+func (s *Service) MistakeDetail(ctx context.Context, userID, attemptID uuid.UUID, lang string) (MistakeDetail, error) {
+	detail, err := s.Get(ctx, userID, attemptID, lang)
 	if err != nil {
 		return MistakeDetail{}, err
 	}

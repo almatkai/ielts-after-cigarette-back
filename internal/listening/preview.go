@@ -43,7 +43,7 @@ func (s *Service) Preview(ctx context.Context, id uuid.UUID, published bool) (Pr
 
 func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
-	if auth.Role(r.Context()) != auth.RoleAdmin {
+	if auth.Role(r.Context()) != auth.RoleAdmin && !auth.HasPermission(r.Context(), auth.PermissionContentEditor) {
 		httpx.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "Only administrators can preview tests", nil)
 		return
 	}

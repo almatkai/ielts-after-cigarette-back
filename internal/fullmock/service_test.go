@@ -96,6 +96,10 @@ func (r *stubAttemptsRepo) ListAnswersByAttempts(_ context.Context, attemptIDs [
 	return items, nil
 }
 
+func (r *stubAttemptsRepo) QuestionTranslations(_ context.Context, _ []uuid.UUID, _ string) (map[uuid.UUID]attempts.QuestionTranslation, error) {
+	return map[uuid.UUID]attempts.QuestionTranslation{}, nil
+}
+
 func (r *stubAttemptsRepo) Submit(_ context.Context, res attempts.SubmitResult) error {
 	a, ok := r.attempts[res.AttemptID]
 	if !ok {

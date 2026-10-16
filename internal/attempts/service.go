@@ -111,8 +111,7 @@ func (s *Service) WithDailyLimiter(limiter DailyLimiter) *Service {
 }
 
 func isPrivileged(ctx context.Context) bool {
-	role := auth.Role(ctx)
-	return role == auth.RoleAdmin || role == auth.RoleEditor
+	return auth.Role(ctx) == auth.RoleAdmin
 }
 
 func (s *Service) provider(materialType string) (MaterialProvider, error) {
@@ -546,7 +545,7 @@ func (s *Service) List(ctx context.Context, userID uuid.UUID, materialType strin
 	return s.repository.ListByUser(ctx, userID, materialType)
 }
 
-func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail, error) {
+func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID, lang string) (Detail, error) {
 	attempt, err := s.own(ctx, userID, attemptID)
 	if err != nil {
 		return Detail{}, err
@@ -630,7 +629,57 @@ func (s *Service) Get(ctx context.Context, userID, attemptID uuid.UUID) (Detail,
 	if err != nil {
 		return Detail{}, err
 	}
-	return Detail{Attempt: attempt, Review: reviewFromMaterial(materials[ref], saved)}, nil
+	review := reviewFromMaterial(materials[ref], saved)
+	if localized, err := s.localizeReview(ctx, review, lang); err == nil {
+		review = localized
+	}
+	return Detail{Attempt: attempt, Review: review}, nil
+}
+
+// normalizeReviewLang keeps only served translation languages; anything
+// else (including "ru") means serve the Russian source text as stored.
+func normalizeReviewLang(raw string) string {
+	switch raw {
+	case "kk", "en":
+		return raw
+	default:
+		return ""
+	}
+}
+
+// localizeReview overrides explanation/hint with stored translations.
+// Missing rows or a repository error leave the source text untouched, so
+// review never fails because of translations.
+func (s *Service) localizeReview(ctx context.Context, review []ReviewAnswer, lang string) ([]ReviewAnswer, error) {
+	lang = normalizeReviewLang(lang)
+	if lang == "" || len(review) == 0 {
+		return review, nil
+	}
+	ids := make([]uuid.UUID, 0, len(review))
+	for _, item := range review {
+		ids = append(ids, item.QuestionID)
+	}
+	translations, err := s.repository.QuestionTranslations(ctx, ids, lang)
+	if err != nil {
+		return review, err
+	}
+	return applyQuestionTranslations(review, translations), nil
+}
+
+func applyQuestionTranslations(review []ReviewAnswer, translations map[uuid.UUID]QuestionTranslation) []ReviewAnswer {
+	for i, item := range review {
+		tr, ok := translations[item.QuestionID]
+		if !ok {
+			continue
+		}
+		if tr.Explanation != "" {
+			review[i].Explanation = tr.Explanation
+		}
+		if tr.Hint != "" {
+			review[i].Hint = tr.Hint
+		}
+	}
+	return review
 }
 
 // reviewFromMaterial joins a graded material with the saved answers into the

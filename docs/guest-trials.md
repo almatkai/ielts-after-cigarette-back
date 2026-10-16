@@ -8,7 +8,7 @@ Full Mock page. Launching it accepts the linked terms inline and verifies
 Turnstile, without a separate opt-in page or format selection. `/app/try`
 redirects to the dashboard for old links.
 
-Migration 36 introduces `guest_mock_materials`. When guest mode is enabled,
+Migration 39 introduces `guest_mock_materials`. When guest mode is enabled,
 startup reserves four eligible Academic mock sections in one transaction under
 an advisory lock. Every new guest receives those exact material/version pairs.
 Reservations survive publication changes and restarts. Existing sessions retain
@@ -40,9 +40,9 @@ Full Listening transcripts are excluded from guest material responses.
 
 ## Enable
 
-1. Apply migrations `000035_guest_trials`, `000036_fixed_guest_mock` and
-   `000037_full_mock_section_clocks`, `000038_full_mock_section_pause` and
-   `000039_guest_trial_claim` before deploying the new API, including
+1. Apply migrations `000038_guest_trials`, `000039_fixed_guest_mock` and
+   `000040_full_mock_section_clocks`, `000041_full_mock_section_pause` and
+   `000042_guest_trial_claim` before deploying the new API, including
    when guest trials remain disabled.
 2. Keep `GUEST_TRIAL_EXAM_TYPES=academic` for the fixed trial. The current trial
    is Academic, independent of the registered student's selected exam format.
@@ -58,6 +58,12 @@ Full Listening transcripts are excluded from guest material responses.
    TURNSTILE_HOSTNAMES=your-frontend.example
    REFRESH_COOKIE_SECURE=true
    ```
+
+   The production GitHub Actions workflow reads `GUEST_TRIAL_ENABLED`,
+   `GUEST_TRIAL_IP_LIMIT`, `GUEST_TRIAL_GLOBAL_LIMIT`, `GUEST_TRIAL_EXAM_TYPES`,
+   `TURNSTILE_SITE_KEY` and `TURNSTILE_HOSTNAMES` from production environment
+   variables, and `TURNSTILE_SECRET_KEY` from a production environment secret.
+   The workflow keeps the feature disabled when `GUEST_TRIAL_ENABLED` is unset.
 
 4. Keep the exact frontend origin in `CORS_ALLOWED_ORIGINS`. The API validates
    Origin on all cookie-authorized guest writes. Prefer frontend and API on the

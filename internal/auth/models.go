@@ -16,6 +16,20 @@ const (
 )
 
 const (
+	PermissionBlogModerator = "BLOG_MODERATOR"
+	PermissionContentEditor = "CONTENT_EDITOR"
+)
+
+func ValidPermission(value string) bool {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case PermissionBlogModerator, PermissionContentEditor:
+		return true
+	default:
+		return false
+	}
+}
+
+const (
 	StatusWaiting    = "WAITING"
 	StatusInvited    = "INVITED"
 	StatusRegistered = "REGISTERED"
@@ -57,6 +71,7 @@ type User struct {
 	Email        string
 	PasswordHash string
 	Role         string
+	Permissions  []string
 	GoogleSub    string
 	Status       string
 	Phone        string
@@ -70,6 +85,7 @@ type UserView struct {
 	Phone       string    `json:"phone,omitempty"`
 	DisplayName string    `json:"displayName"`
 	Role        string    `json:"role"`
+	Permissions []string  `json:"permissions"`
 	CurrentBand *float64  `json:"currentBand"`
 	TargetBand  *float64  `json:"targetBand"`
 	ExamDate    *string   `json:"examDate"`

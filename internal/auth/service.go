@@ -434,7 +434,7 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, metadata Session
 	if err != nil {
 		return AuthResult{}, err
 	}
-	accessToken, _, err := s.tokens.NewAccessToken(user.ID, user.Role)
+	accessToken, _, err := s.tokens.NewAccessToken(user.ID, user.Role, user.Permissions)
 	if err != nil {
 		return AuthResult{}, err
 	}
@@ -460,7 +460,7 @@ func (s *Service) User(ctx context.Context, userID uuid.UUID) (UserView, error) 
 }
 
 func (s *Service) issueSession(ctx context.Context, user UserView, metadata SessionMetadata) (AuthResult, map[string]string, error) {
-	accessToken, _, err := s.tokens.NewAccessToken(user.ID, user.Role)
+	accessToken, _, err := s.tokens.NewAccessToken(user.ID, user.Role, user.Permissions)
 	if err != nil {
 		return AuthResult{}, nil, err
 	}

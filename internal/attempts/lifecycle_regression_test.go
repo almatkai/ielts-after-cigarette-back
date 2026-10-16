@@ -23,7 +23,7 @@ func TestWritingFailurePreservesFinalAnswers(t *testing.T) {
 	if _, err := svc.Submit(ctx, testUserID, att.ID, input); !errors.Is(err, ErrAIEvaluationFailed) {
 		t.Fatalf("got %v", err)
 	}
-	detail, err := svc.Get(ctx, testUserID, att.ID)
+	detail, err := svc.Get(ctx, testUserID, att.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestAbandonedWritingDraftCanBeReadWithoutEvaluation(t *testing.T) {
 	id := uuid.New()
 	repo.attempts[id] = Attempt{ID: id, UserID: testUserID, MaterialType: MaterialWriting, Status: StatusAbandoned}
 	repo.answers[id] = []Answer{{QuestionID: questionChoiceID, Answer: map[string]any{"value": "unfinished work"}}}
-	detail, err := NewService(repo, nil).Get(ctx, testUserID, id)
+	detail, err := NewService(repo, nil).Get(ctx, testUserID, id, "")
 	if err != nil || len(detail.Answers) != 1 {
 		t.Fatalf("draft unavailable: %+v, %v", detail, err)
 	}

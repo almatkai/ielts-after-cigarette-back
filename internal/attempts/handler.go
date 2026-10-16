@@ -220,7 +220,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Mistakes(w http.ResponseWriter, r *http.Request) {
 	actor, _ := auth.UserID(r.Context())
-	items, err := h.service.Mistakes(r.Context(), actor)
+	items, err := h.service.Mistakes(r.Context(), actor, reviewLang(r))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -252,6 +252,12 @@ func (h *Handler) MistakeAttempts(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, result)
 }
 
+// reviewLang reads the ?lang= query param for translated review content.
+// Only kk/en are served; anything else falls back to the stored source text.
+func reviewLang(r *http.Request) string {
+	return normalizeReviewLang(r.URL.Query().Get("lang"))
+}
+
 func boundedQueryInt(r *http.Request, key string, fallback, max int) (int, bool) {
 	raw := r.URL.Query().Get(key)
 	if raw == "" {
@@ -267,7 +273,7 @@ func (h *Handler) MistakeDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
-	result, err := h.service.MistakeDetail(r.Context(), actor, attemptID)
+	result, err := h.service.MistakeDetail(r.Context(), actor, attemptID, reviewLang(r))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -281,7 +287,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
-	detail, err := h.service.Get(r.Context(), actor, attemptID)
+	detail, err := h.service.Get(r.Context(), actor, attemptID, reviewLang(r))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
