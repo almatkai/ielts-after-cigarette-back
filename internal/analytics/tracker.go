@@ -74,7 +74,7 @@ func dayKey(kind string, day time.Time) string {
 // authenticated.
 func (t *Tracker) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if userID, ok := auth.UserID(r.Context()); ok {
+		if userID, ok := auth.UserID(r.Context()); ok && auth.Role(r.Context()) != "GUEST" {
 			t.TouchUser(userID)
 		}
 		next.ServeHTTP(w, r)

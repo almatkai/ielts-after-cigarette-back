@@ -15,10 +15,14 @@ import (
 // full_mock_session_sections.attempt_id is UNIQUE, so the join cannot
 // duplicate rows; NULL marks attempts that belong to no Full Mock session.
 const summarySelect = `SELECT a.id, a.user_id, a.material_type, a.material_id,
-	a.material_version_id, a.status, a.score, a.max_score, a.band::double precision,
+	a.material_version_id, a.status,
+ CASE WHEN fm.status <> 'SUBMITTED' THEN NULL ELSE a.score END,
+ CASE WHEN fm.status <> 'SUBMITTED' THEN NULL ELSE a.max_score END,
+ CASE WHEN fm.status <> 'SUBMITTED' THEN NULL ELSE a.band::double precision END,
 	a.started_at, a.submitted_at, COALESCE(metadata.title,''), COALESCE(metadata.slug,''), fmss.session_id
 	FROM selected a
 	LEFT JOIN full_mock_session_sections fmss ON fmss.attempt_id = a.id
+ LEFT JOIN full_mock_sessions fm ON fm.id=fmss.session_id
 	LEFT JOIN LATERAL (
 		SELECT (SELECT title FROM listening_test_versions WHERE id=a.material_version_id) AS title,
 			(SELECT slug FROM listening_tests WHERE id=a.material_id) AS slug

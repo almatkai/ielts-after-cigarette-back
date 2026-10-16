@@ -220,7 +220,9 @@ func (h *Handler) Media(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, http.StatusBadRequest, "INVALID_ID", "Media ID must be UUID", nil)
 		return
 	}
-	publishedOnly := auth.Role(r.Context()) != auth.RoleAdmin && !auth.HasPermission(r.Context(), auth.PermissionContentEditor)
+	role := auth.Role(r.Context())
+	// Guest middleware restricts media to the owned mock's pinned version.
+	publishedOnly := role != auth.RoleAdmin && role != "GUEST" && !auth.HasPermission(r.Context(), auth.PermissionContentEditor)
 	media, err := h.service.MediaMetadata(r.Context(), id, publishedOnly)
 	var object objectstorage.ReadSeekCloser
 	if err == nil {

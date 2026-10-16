@@ -35,12 +35,17 @@ func (h *Handler) Material(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor, _ := auth.UserID(r.Context())
-	_, material, err := h.service.PublicMaterial(r.Context(), actor, id)
+	attempt, material, err := h.service.PublicMaterial(r.Context(), actor, id)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, material)
+	attempt, err = h.service.ReviewAttempt(r.Context(), actor, attempt)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, MaterialForViewer(r.Context(), material, attempt.ReviewLocked))
 }
 
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +175,12 @@ func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, attempt)
+	attempt, err = h.service.ReviewAttempt(r.Context(), actor, attempt)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, AttemptForViewer(r.Context(), attempt))
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +286,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, detail)
+	httpx.WriteJSON(w, http.StatusOK, DetailForViewer(r.Context(), detail))
 }
 
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {

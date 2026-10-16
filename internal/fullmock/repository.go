@@ -28,6 +28,9 @@ type Repository interface {
 	FindActiveSession(ctx context.Context, userID, testID uuid.UUID) (Session, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
 	ListSessionSections(ctx context.Context, sessionID uuid.UUID) ([]SessionSection, error)
+	StartSection(ctx context.Context, sessionID uuid.UUID, position, durationMinutes int) error
+	PauseSection(ctx context.Context, sessionID uuid.UUID, position int) error
+	AbandonSection(ctx context.Context, attemptID uuid.UUID) error
 	CreateSession(ctx context.Context, session Session, sections []SessionSection) error
 	Advance(ctx context.Context, id uuid.UUID, nextSection int, complete bool) error
 	Finish(ctx context.Context, id uuid.UUID) error
@@ -224,8 +227,15 @@ func (r *PostgresRepository) CreateSession(ctx context.Context, session Session,
 
 func (r *PostgresRepository) ListSessionSections(ctx context.Context, sessionID uuid.UUID) ([]SessionSection, error) {
 	rows, err := r.pool.Query(ctx, `SELECT s.position, s.skill, a.id, a.user_id, a.material_type, a.material_id,
-		a.material_version_id, a.status, a.score, a.max_score, a.band::double precision, a.started_at, a.submitted_at
+		a.material_version_id, a.status, a.score, a.max_score, a.band::double precision, a.started_at, a.submitted_at,
+		s.started_at, s.deadline_at, s.remaining_milliseconds,
+		CASE s.skill WHEN 'listening' THEN COALESCE(NULLIF(lv.duration_minutes,0),30)
+		WHEN 'reading' THEN COALESCE(NULLIF(rv.duration_minutes,0),60)
+		WHEN 'writing' THEN COALESCE(NULLIF(wv.duration_minutes,0),60) ELSE 15 END
 		FROM full_mock_session_sections s JOIN attempts a ON a.id=s.attempt_id
+		LEFT JOIN listening_test_versions lv ON s.skill='listening' AND lv.id=a.material_version_id
+		LEFT JOIN reading_material_versions rv ON s.skill='reading' AND rv.id=a.material_version_id
+		LEFT JOIN writing_material_versions wv ON s.skill='writing' AND wv.id=a.material_version_id
 		WHERE s.session_id=$1 ORDER BY s.position`, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("list full mock sections: %w", err)
@@ -237,7 +247,8 @@ func (r *PostgresRepository) ListSessionSections(ctx context.Context, sessionID 
 		if err := rows.Scan(&section.Position, &section.Skill, &section.Attempt.ID, &section.Attempt.UserID,
 			&section.Attempt.MaterialType, &section.Attempt.MaterialID, &section.Attempt.MaterialVersionID,
 			&section.Attempt.Status, &section.Attempt.Score, &section.Attempt.MaxScore, &section.Attempt.Band,
-			&section.Attempt.StartedAt, &section.Attempt.SubmittedAt); err != nil {
+			&section.Attempt.StartedAt, &section.Attempt.SubmittedAt,
+			&section.StartedAt, &section.DeadlineAt, &section.RemainingMilliseconds, &section.DurationMinutes); err != nil {
 			return nil, err
 		}
 		sections = append(sections, section)
@@ -245,22 +256,86 @@ func (r *PostgresRepository) ListSessionSections(ctx context.Context, sessionID 
 	return sections, rows.Err()
 }
 
+// First opening starts this section's clock. Locking the parent session also
+// serializes opening against advance/finish and concurrent tabs.
+func (r *PostgresRepository) StartSection(ctx context.Context, sessionID uuid.UUID, position, durationMinutes int) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var status string
+	var current int
+	if err := tx.QueryRow(ctx, `SELECT status,current_section FROM full_mock_sessions WHERE id=$1 FOR UPDATE`, sessionID).Scan(&status, &current); err != nil {
+		return err
+	}
+	if status != SessionInProgress || current != position {
+		return ErrSectionLocked
+	}
+	_, err = tx.Exec(ctx, `WITH opened AS (
+		UPDATE full_mock_session_sections sec
+		SET started_at=COALESCE(sec.started_at,CURRENT_TIMESTAMP),
+		deadline_at=COALESCE(sec.deadline_at,
+            CASE WHEN sec.remaining_milliseconds IS NOT NULL
+                THEN CURRENT_TIMESTAMP + sec.remaining_milliseconds * INTERVAL '1 millisecond'
+                ELSE COALESCE(sec.started_at,CURRENT_TIMESTAMP)+make_interval(mins=>$3) END),
+        remaining_milliseconds=NULL
+		WHERE sec.session_id=$1 AND sec.position=$2
+		AND EXISTS(SELECT 1 FROM attempts a WHERE a.id=sec.attempt_id AND a.status='IN_PROGRESS')
+		RETURNING attempt_id,started_at
+	) UPDATE attempts a SET started_at=opened.started_at FROM opened WHERE a.id=opened.attempt_id`, sessionID, position, durationMinutes)
+	if err != nil {
+		return fmt.Errorf("start full mock section: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
+// Pause is idempotent and serialized with opening/advance/finish. An expired
+// clock cannot be paused to avoid its grade; no client-supplied time is trusted.
+func (r *PostgresRepository) PauseSection(ctx context.Context, sessionID uuid.UUID, position int) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	var status string
+	var current int
+	if err := tx.QueryRow(ctx, `SELECT status,current_section FROM full_mock_sessions WHERE id=$1 FOR UPDATE`, sessionID).Scan(&status, &current); err != nil {
+		return err
+	}
+	if status != SessionInProgress || current != position {
+		return ErrSectionLocked
+	}
+	result, err := tx.Exec(ctx, `UPDATE full_mock_session_sections sec
+        SET remaining_milliseconds=COALESCE(sec.remaining_milliseconds,
+            GREATEST(1,FLOOR(EXTRACT(EPOCH FROM (sec.deadline_at-CURRENT_TIMESTAMP))*1000)::bigint)),
+            deadline_at=NULL
+        WHERE sec.session_id=$1 AND sec.position=$2
+        AND (sec.remaining_milliseconds IS NOT NULL OR sec.deadline_at > CURRENT_TIMESTAMP)
+        AND EXISTS (SELECT 1 FROM attempts a WHERE a.id=sec.attempt_id AND a.status='IN_PROGRESS')`, sessionID, position)
+	if err != nil {
+		return fmt.Errorf("pause full mock section: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return ErrSectionLocked
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *PostgresRepository) AbandonSection(ctx context.Context, attemptID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE attempts SET status='ABANDONED',submitted_at=CURRENT_TIMESTAMP WHERE id=$1 AND status='IN_PROGRESS'`, attemptID)
+	return err
+}
+
 func (r *PostgresRepository) Advance(ctx context.Context, id uuid.UUID, nextSection int, complete bool) error {
 	if complete {
 		return r.Finish(ctx, id)
 	}
-	// Activate the next section and its timer atomically. Repeated advance
-	// requests must not reset the clock or move an exam backwards.
-	result, err := r.pool.Exec(ctx, `WITH advanced AS (
+	// Advancing unlocks the next section. Its clock starts on first opening.
+	result, err := r.pool.Exec(ctx, `
 		UPDATE full_mock_sessions SET current_section=$2
 		WHERE id=$1 AND status=$3 AND current_section=$2-1
-		RETURNING id
-	)
-	UPDATE attempts SET started_at=CURRENT_TIMESTAMP
-	WHERE id IN (
-		SELECT sec.attempt_id FROM full_mock_session_sections sec
-		JOIN advanced ON advanced.id=sec.session_id WHERE sec.position=$2
-	)`, id, nextSection, SessionInProgress)
+		`, id, nextSection, SessionInProgress)
 	if err != nil {
 		return fmt.Errorf("advance full mock: %w", err)
 	}
@@ -329,18 +404,19 @@ type ExamAttemptMeta struct {
 	DurationMinutes int
 	SectionPosition int
 	SectionSkill    string
+	DeadlineAt      *time.Time
 }
 
 func (r *PostgresRepository) FindExamAttemptMeta(ctx context.Context, attemptID uuid.UUID) (*ExamAttemptMeta, error) {
 	var meta ExamAttemptMeta
 	err := r.pool.QueryRow(ctx, `SELECT s.id, s.user_id, s.status, s.current_section, s.started_at,
-		COALESCE(s.duration_minutes, t.duration_minutes), sec.position, sec.skill
+		COALESCE(s.duration_minutes, t.duration_minutes), sec.position, sec.skill, sec.deadline_at
 		FROM full_mock_session_sections sec
 		JOIN full_mock_sessions s ON s.id = sec.session_id
 		LEFT JOIN full_mock_tests t ON t.id = s.mock_test_id
 		WHERE sec.attempt_id = $1`, attemptID).Scan(
 		&meta.SessionID, &meta.UserID, &meta.SessionStatus, &meta.CurrentSection,
-		&meta.StartedAt, &meta.DurationMinutes, &meta.SectionPosition, &meta.SectionSkill,
+		&meta.StartedAt, &meta.DurationMinutes, &meta.SectionPosition, &meta.SectionSkill, &meta.DeadlineAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil

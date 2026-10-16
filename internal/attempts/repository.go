@@ -107,6 +107,8 @@ func (r *PostgresRepository) Get(ctx context.Context, id uuid.UUID) (Attempt, er
 func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, materialType string) ([]Summary, error) {
 	rows, err := r.pool.Query(ctx, `WITH selected AS (
 		SELECT * FROM attempts WHERE user_id=$1 AND ($2='' OR material_type=$2)
+ AND NOT EXISTS (SELECT 1 FROM full_mock_session_sections sec JOIN full_mock_sessions fm
+ ON fm.id=sec.session_id WHERE sec.attempt_id=attempts.id AND fm.status <> 'SUBMITTED')
 	) `+summarySelect+` ORDER BY a.started_at DESC`, userID, materialType)
 	if err != nil {
 		return nil, fmt.Errorf("list attempts: %w", err)

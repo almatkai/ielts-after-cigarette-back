@@ -35,6 +35,8 @@ const mistakeAttemptsSQL = `
 	WITH page AS MATERIALIZED (
 		SELECT a.* FROM attempts a
 		WHERE a.user_id = $1 AND a.material_type = $2 AND a.status = 'SUBMITTED'
+ AND NOT EXISTS (SELECT 1 FROM full_mock_session_sections sec JOIN full_mock_sessions fm
+ ON fm.id=sec.session_id WHERE sec.attempt_id=a.id AND fm.status <> 'SUBMITTED')
 		AND (
 			(a.material_type IN ('reading', 'listening') AND a.score < a.max_score)
 			OR (a.material_type = 'writing' AND EXISTS (SELECT 1 FROM writing_evaluations e WHERE e.attempt_id = a.id))
