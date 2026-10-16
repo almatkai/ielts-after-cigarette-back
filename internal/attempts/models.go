@@ -120,14 +120,26 @@ type WritingCriteria struct {
 	Grammar         WritingCriterion `json:"grammar"`
 }
 
+type WritingAnnotation struct {
+	ID            int      `json:"id"`
+	Quote         string   `json:"quote"`
+	Replacement   string   `json:"replacement"`
+	Type          string   `json:"type"`     // "grammar" | "vocabulary" | "cohesion" | "task_response"
+	Severity      string   `json:"severity"` // "error" | "suggestion"
+	ExplanationRu string   `json:"explanationRu"`
+	Alternatives  []string `json:"alternatives,omitempty"`
+}
+
 type WritingTaskFeedback struct {
-	TaskID       uuid.UUID       `json:"taskId"`
-	Position     int             `json:"position"`
-	Band         float64         `json:"band"`
-	Criteria     WritingCriteria `json:"criteria"`
-	Feedback     string          `json:"feedback"`
-	Strengths    []string        `json:"strengths"`
-	Improvements []string        `json:"improvements"`
+	TaskID         uuid.UUID           `json:"taskId"`
+	Position       int                 `json:"position"`
+	Band           float64             `json:"band"`
+	Criteria       WritingCriteria     `json:"criteria"`
+	Feedback       string              `json:"feedback"`
+	Strengths      []string            `json:"strengths"`
+	Improvements   []string            `json:"improvements"`
+	Annotations    []WritingAnnotation `json:"annotations,omitempty"`
+	ModelParagraph string              `json:"modelParagraph,omitempty"`
 }
 
 type WritingEvaluation struct {

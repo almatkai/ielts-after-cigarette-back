@@ -118,6 +118,7 @@ type BankReviewAnswer struct {
 
 type MistakeDetail struct {
 	Attempt            Attempt             `json:"attempt"`
+	Answers            []Answer            `json:"answers,omitempty"`
 	Review             []BankReviewAnswer  `json:"review"`
 	Contexts           []MistakeContext    `json:"contexts"`
 	WritingEvaluation  *WritingEvaluation  `json:"writingEvaluation,omitempty"`
@@ -137,6 +138,11 @@ func bankDetail(detail Detail) MistakeDetail {
 		Attempt: detail.Attempt,
 		Review:  []BankReviewAnswer{}, Contexts: []MistakeContext{},
 		WritingEvaluation: detail.WritingEvaluation, SpeakingEvaluation: detail.SpeakingEvaluation,
+	}
+	// Writing feedback refers to the student's original text. Other bank
+	// entries keep their compact per-question review contract.
+	if detail.WritingEvaluation != nil {
+		result.Answers = detail.Answers
 	}
 	indices := map[MistakeContext]int{}
 	for _, item := range detail.Review {

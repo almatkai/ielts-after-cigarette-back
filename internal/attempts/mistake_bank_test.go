@@ -60,6 +60,40 @@ func TestMistakeDetailKeepsOwnershipCheck(t *testing.T) {
 	}
 }
 
+func TestBankDetailIncludesOriginalWritingAnswersOnlyWithEvaluation(t *testing.T) {
+	taskID := uuid.New()
+	answers := []Answer{{QuestionID: taskID, Answer: map[string]any{"value": "An original essay with a useful idea."}}}
+	detail := Detail{
+		Attempt: Attempt{ID: uuid.New(), MaterialType: MaterialWriting},
+		Answers: answers,
+		WritingEvaluation: &WritingEvaluation{Tasks: []WritingTaskFeedback{{
+			TaskID: taskID, Position: 2, Annotations: []WritingAnnotation{{ID: 1, Quote: "useful idea"}},
+		}}},
+	}
+	result := bankDetail(detail)
+	if len(result.Answers) != 1 || result.Answers[0].QuestionID != taskID ||
+		result.Answers[0].Answer["value"] != answers[0].Answer["value"] {
+		t.Fatalf("bank lost the original writing text or task association: %#v", result)
+	}
+	if result.WritingEvaluation.Tasks[0].Annotations[0].Quote != "useful idea" {
+		t.Fatal("bank lost inline annotations")
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil || !strings.Contains(string(encoded), "An original essay with a useful idea.") {
+		t.Fatalf("answers missing from response: %s, error %v", encoded, err)
+	}
+	// Hidden/unavailable feedback and objective attempts must not gain a new
+	// answer channel through this compact bank response.
+	detail.WritingEvaluation = nil
+	if result := bankDetail(detail); len(result.Answers) != 0 {
+		t.Fatalf("answers exposed without a writing evaluation: %#v", result)
+	}
+	detail.MaterialType = MaterialReading
+	if result := bankDetail(detail); len(result.Answers) != 0 {
+		t.Fatalf("objective bank contract unexpectedly expanded: %#v", result)
+	}
+}
+
 func TestMistakeAttemptsRejectInvalidQueryBeforeLoading(t *testing.T) {
 	handler := NewHandler(nil, slog.New(slog.NewTextHandler(io.Discard, nil)), 1024)
 	for _, query := range []string{"materialType=all", "page=0", "page=-1", "page=1.5", "page=100001", "page=999999999999999999999", "limit=0", "limit=51"} {
