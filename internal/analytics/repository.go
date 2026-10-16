@@ -75,16 +75,17 @@ type Cohort struct {
 }
 
 type Overview struct {
-	Days        int           `json:"days"`
-	TimeZone    string        `json:"timeZone"`
-	Totals      Totals        `json:"totals"`
-	Daily       []DailyPoint  `json:"daily"`
-	Skills      []SkillStats  `json:"skills"`
-	Funnel      []FunnelStep  `json:"funnel"`
-	Sources     []SourceCount `json:"sources"`
-	Heatmap     []HeatCell    `json:"heatmap"`
-	Cohorts     []Cohort      `json:"cohorts"`
-	GeneratedAt time.Time     `json:"generatedAt"`
+	Days            int             `json:"days"`
+	TimeZone        string          `json:"timeZone"`
+	Totals          Totals          `json:"totals"`
+	Daily           []DailyPoint    `json:"daily"`
+	Skills          []SkillStats    `json:"skills"`
+	Funnel          []FunnelStep    `json:"funnel"`
+	Sources         []SourceCount   `json:"sources"`
+	Heatmap         []HeatCell      `json:"heatmap"`
+	Cohorts         []Cohort        `json:"cohorts"`
+	GuestConversion GuestConversion `json:"guestConversion"`
+	GeneratedAt     time.Time       `json:"generatedAt"`
 }
 
 const cohortWeeks = 8
@@ -307,6 +308,8 @@ func (r *Repository) Overview(ctx context.Context, now time.Time, days int) (Ove
 		}
 		return rows.Err()
 	})
+
+	queueGuestConversion(batch, &result.GuestConversion, from, today, now)
 
 	if err := r.pool.SendBatch(ctx, batch).Close(); err != nil {
 		return Overview{}, fmt.Errorf("analytics overview: %w", err)

@@ -157,6 +157,39 @@ Database and object-storage retention must be scheduled together. Keep consumed
 token tombstones for the cookie's 180-day lifetime when adding cleanup, otherwise
 old cookies could start a new trial after their rows are deleted.
 
+## Conversion analytics
+
+`GET /api/v1/admin/analytics/overview?days=7|14|30|90|180` includes
+`guestConversion`: `guests`, `started`, `completed`, `registered`, and `daily`
+rows with the same four counts plus `day`. The admin dashboard displays this
+separately from registrations/waitlist and from the registered-user funnel.
+
+- The cohort contains guest identities created during the selected calendar
+  window in `Asia/Almaty`, through the response's `generatedAt`. It is **not** all
+  anonymous visitors: a guest identity is issued when opening trial access.
+- Each guest counts once per stage, regardless of reloads or retakes. Expired
+  trials remain included. Clearing cookies or using another browser can create
+  another identity; these are not proven unique people.
+- Started/completed refer to an owned Full Mock, including the linked completed
+  mock after ownership transfer. A completion requires `SUBMITTED` and a valid
+  `submitted_at` by the observation time. Unrelated account mocks are excluded.
+- Registration requires `guest_trials.claimed_by` and a linked completed mock.
+  The account must be `REGISTERED`, with `COALESCE(terms_accepted_at, created_at)`
+  between submission and observation. Thus signing into an existing account,
+  or registering before finishing the mock, does not inflate conversion.
+  Unlinked registrations (for example after losing the guest cookie) cannot be
+  attributed and are not counted. Historical claimed trials are included without
+  a new tracking event or migration.
+- Every daily point groups **the same guests by their first trial-access day**,
+  not by the dates of later actions. Totals are sums of these cohorts, keeping
+  denominators consistent when completion and signup happen on later days.
+- The main rate is registered/guests; step rates are started/guests,
+  completed/started, registered/completed. Empty denominators display `—`.
+  Recent cohorts have had less time to convert and will continue to change.
+
+This is an observed, attributed funnel, not proof of causal uplift. Comparing
+whether a free mock increases signup would require a control group or experiment.
+
 ## Verification
 
 `go test ./...` runs handler/auth/config coverage. Set `TEST_DATABASE_URL` to an
