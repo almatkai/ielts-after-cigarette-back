@@ -5,7 +5,7 @@ services:
       METRICS_ADDR: :9090
     logging:
       driver: json-file
-      options: {max-size: '20m', max-file: '5'}
+      options: {max-size: '20m', max-file: '5' }
 
   worker:
     profiles: [workers]
@@ -28,7 +28,7 @@ services:
     stop_grace_period: 30s
     logging:
       driver: json-file
-      options: {max-size: '20m', max-file: '5'}
+      options: {max-size: '20m', max-file: '5' }
 
   backup:
     profiles: [backups]
@@ -45,15 +45,26 @@ services:
       AWS_SECRET_ACCESS_KEY: ${BACKUP_AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${BACKUP_AWS_REGION:-us-east-1}
       AWS_ENDPOINT_URL: ${BACKUP_AWS_ENDPOINT_URL:-}
+      BACKUP_GDRIVE_ENABLED: ${BACKUP_GDRIVE_ENABLED:-false}
+      BACKUP_GDRIVE_REMOTE: ${BACKUP_GDRIVE_REMOTE:-gdrive:iac-backups/postgres}
+      BACKUP_MEDIA_GDRIVE_REMOTE: ${BACKUP_MEDIA_GDRIVE_REMOTE:-gdrive:iac-backups/media}
+      BACKUP_GDRIVE_RETENTION_DAYS: ${BACKUP_GDRIVE_RETENTION_DAYS:-}
+      RCLONE_CONFIG_GDRIVE_TYPE: drive
+      RCLONE_CONFIG_GDRIVE_SCOPE: ${RCLONE_CONFIG_GDRIVE_SCOPE:-drive.file}
+      RCLONE_CONFIG_GDRIVE_TOKEN: ${RCLONE_CONFIG_GDRIVE_TOKEN:-}
+      RCLONE_CONFIG_GDRIVE_CLIENT_ID: ${RCLONE_CONFIG_GDRIVE_CLIENT_ID:-}
+      RCLONE_CONFIG_GDRIVE_CLIENT_SECRET: ${RCLONE_CONFIG_GDRIVE_CLIENT_SECRET:-}
+      RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID: ${RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID:-}
     volumes:
       - database_backups:/backups
       - backup_status:/status
+      - rclone_config:/root/.config/rclone
     depends_on:
       postgres: {condition: service_healthy}
     restart: unless-stopped
     logging:
       driver: json-file
-      options: {max-size: '10m', max-file: '3'}
+      options: {max-size: '10m', max-file: '3' }
 
   docker-log-proxy:
     profiles: [monitoring]
@@ -122,7 +133,7 @@ services:
     restart: unless-stopped
     logging:
       driver: json-file
-      options: {max-size: '5m', max-file: '3'}
+      options: {max-size: '5m', max-file: '3' }
 
   grafana:
     profiles: [monitoring]
@@ -151,6 +162,7 @@ networks:
 volumes:
   database_backups:
   backup_status:
+  rclone_config:
   alertbridge_state:
   prometheus_data:
   loki_data:
