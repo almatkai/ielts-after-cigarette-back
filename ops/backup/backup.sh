@@ -70,7 +70,11 @@ backup_once() {
     for artifact in "$work"/*; do
       destination=${BACKUP_GDRIVE_REMOTE%/}
       [[ "$(basename "$artifact")" != iac-media-* ]] || destination=${BACKUP_MEDIA_GDRIVE_REMOTE%/}
-      rclone copy "$artifact" "$destination" || return 1
+      rclone copy "$artifact" "$destination" \
+        --timeout 2m \
+        --contimeout 30s \
+        --low-level-retries 5 \
+        --drive-chunk-size 32M || return 1
     done
   fi
 
@@ -91,9 +95,9 @@ backup_once() {
   if [[ "$gdrive_enabled" == true ]]; then
     gdrive_retention=${BACKUP_GDRIVE_RETENTION_DAYS:-$retention}
     if [[ "$gdrive_retention" =~ ^[0-9]+$ && "$gdrive_retention" -ge 1 ]]; then
-      rclone delete --min-age "${gdrive_retention}d" "${BACKUP_GDRIVE_REMOTE%/}" 2>/dev/null || true
+      rclone delete --min-age "${gdrive_retention}d" "${BACKUP_GDRIVE_REMOTE%/}" --timeout 2m 2>/dev/null || true
       if [[ "${BACKUP_MEDIA_ENABLED:-false}" == true ]]; then
-        rclone delete --min-age "${gdrive_retention}d" "${BACKUP_MEDIA_GDRIVE_REMOTE%/}" 2>/dev/null || true
+        rclone delete --min-age "${gdrive_retention}d" "${BACKUP_MEDIA_GDRIVE_REMOTE%/}" --timeout 2m 2>/dev/null || true
       fi
     fi
   fi
