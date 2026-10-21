@@ -5,16 +5,24 @@ name: Test, build, and deploy
 # the production image and deploy it. Because both jobs live in one
 # branch-aware file, merging dev into main never removes the production
 # pipeline again.
+#
+# The build job intentionally does not wait for tests: it only produces an
+# image tagged with the commit SHA, so a red test run can never move a shared
+# tag. Deploy gates on both jobs.
 
 on:
   push:
     branches:
       - dev
       - main
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
 
 concurrency:
   group: ${{ github.ref_name }}
-  cancel-in-progress: false
+  # Superseded dev pushes are worthless; a main run may be mid-deploy.
+  cancel-in-progress: ${{ github.ref_name != 'main' }}
 
 permissions:
   contents: read
@@ -27,23 +35,58 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      # The regression tests in internal/testdb skip themselves without
+      # TEST_DATABASE_URL. Without this service they never run in CI.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ielts_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ielts_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ielts_test?sslmode=disable
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -race ./...
-      - run: go vet ./...
+      # vet is not cached by Go and used to cost more than the race suite
+      # itself, so both run at the same time.
+      - name: Test and vet
+        run: |
+          go vet ./... & vet_pid=$!
+          go test -race ./...
+          wait "$vet_pid"
 
   build:
     if: github.ref == 'refs/heads/main'
-    needs: test
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.image.outputs.name }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      # Compiling on the runner reuses the Go build cache that setup-go
+      # restores; compiling inside the image always starts from scratch
+      # because COPY . . invalidates the layer on every commit.
+      - name: Build release binaries
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -trimpath -ldflags="-s -w" -o dist/ ./cmd/api ./cmd/admin ./cmd/worker
       - uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -51,20 +94,20 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v4
       - id: image
-        run: echo "name=${REGISTRY}/${IMAGE_NAME}:main" >> "$GITHUB_OUTPUT"
+        run: echo "name=${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         with:
           context: .
+          file: Dockerfile.release
+          platforms: linux/amd64
           push: true
-          tags: |
-            ${{ steps.image.outputs.name }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ steps.image.outputs.name }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha
 
   deploy:
     if: github.ref == 'refs/heads/main'
-    needs: build
+    needs: [test, build]
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -188,18 +231,20 @@ jobs:
             printf 'INFOBIP_WHATSAPP_LANGUAGE=%s\n' "$INFOBIP_WHATSAPP_LANGUAGE"
             printf 'INFOBIP_TIMEOUT=%s\n' "$INFOBIP_TIMEOUT"
             printf 'SUPER_ADMIN_EMAILS=%s\n' "$SUPER_ADMIN_EMAILS"
-          printf 'SENTRY_DSN=%s\n' "$SENTRY_DSN"
-          printf 'SENTRY_ENVIRONMENT=%s\n' "$SENTRY_ENVIRONMENT"
-          printf 'SENTRY_RELEASE=%s\n' "$SENTRY_RELEASE"
+            printf 'SENTRY_DSN=%s\n' "$SENTRY_DSN"
+            printf 'SENTRY_ENVIRONMENT=%s\n' "$SENTRY_ENVIRONMENT"
+            printf 'SENTRY_RELEASE=%s\n' "$SENTRY_RELEASE"
           } > production.env
-          tar -czf deployment.tar.gz docker-compose.production.yml docker-compose.observability.yml docker-compose.pgstats.yml docker-compose.server.yml ops migrations scripts/deploy-production.sh
+      # One SSH connection for every file: previous versions opened three
+      # (install -d, scp, deploy) which cost more than the payload transfer.
       - name: Upload deployment files
         run: |
-          ssh -p "$DEPLOY_PORT" -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'install -d -m 700 ~/ielts-api'
-          scp -P "$DEPLOY_PORT" -i ~/.ssh/ielts_deploy production.env deployment.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:~/ielts-api/"
+          tar -czf - docker-compose.production.yml docker-compose.observability.yml docker-compose.pgstats.yml docker-compose.server.yml ops migrations scripts/deploy-production.sh production.env \
+            | ssh -p "$DEPLOY_PORT" -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
+                'install -d -m 700 ~/ielts-api && tar -xzf - -C ~/ielts-api'
       - name: Deploy
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '%s' "$GHCR_TOKEN" | ssh -p "$DEPLOY_PORT" -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 700 ~/ielts-api/.docker && DOCKER_CONFIG=~/ielts-api/.docker docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
-          ssh -p "$DEPLOY_PORT" -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'cd ~/ielts-api && tar -xzf deployment.tar.gz && bash scripts/deploy-production.sh' </dev/null
+          ssh -p "$DEPLOY_PORT" -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" 'cd ~/ielts-api && bash scripts/deploy-production.sh' </dev/null

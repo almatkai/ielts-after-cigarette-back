@@ -8,4 +8,9 @@
 bin
 coverage.out
 README.md
-
+docs
+ops
+services
+migrations
+.github
+docker-compose*.yml
