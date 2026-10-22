@@ -124,6 +124,7 @@ func TestStreamHandlesFragmentedToolCallsAndPageContext(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Error(err)
 		}
+		assertAssistantBrand(t, r, payload.Messages)
 		calls++
 		w.Header().Set("Content-Type", "text/event-stream")
 		if calls == 1 {
@@ -132,7 +133,7 @@ func TestStreamHandlesFragmentedToolCallsAndPageContext(t *testing.T) {
 			writeChunk(w, map[string]any{}, "tool_calls")
 		} else {
 			last := payload.Messages[len(payload.Messages)-1]
-			if last.Role != "tool" || last.ToolCallID != "call-page" || last.Content == nil || !strings.Contains(*last.Content, "Reading passage") {
+			if last.Role != "tool" || last.ToolCallID != "call-page" || last.Content == nil || !strings.Contains(*last.Content, "Reading passage") || !strings.Contains(*last.Content, "Daiyndyq IELTS") {
 				t.Errorf("missing tool context: %+v", last)
 			}
 			writeChunk(w, map[string]any{"content": "Page-aware answer"}, nil)
@@ -142,7 +143,8 @@ func TestStreamHandlesFragmentedToolCallsAndPageContext(t *testing.T) {
 	}))
 	defer server.Close()
 	request := streamRequest()
-	request.PageContext = &PageContext{Title: "Reading", Content: "Reading passage", URL: "https://example.test/reading"}
+	request.Messages = append([]ChatMessage{{Role: RoleAssistant, Content: "Ты на платформе IELTS After Cigarette."}}, request.Messages...)
+	request.PageContext = &PageContext{Title: "Reading — Daiyndyq IELTS", Content: "Reading passage", URL: "https://example.test/reading"}
 	service := NewService(server.URL, "key", "model", server.Client())
 	result, err := service.Stream(context.Background(), request, func(StreamEvent) error { return nil })
 	if err != nil || calls != 2 || result.Message.Content != "Page-aware answer" || len(result.ToolCalls) != 1 {

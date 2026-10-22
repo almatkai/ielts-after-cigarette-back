@@ -118,7 +118,7 @@ func (s *Service) streamCompletion(ctx context.Context, messages []openAIMessage
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
-	req.Header.Set("X-Title", "Daiyndyq IELTS Assistant")
+	req.Header.Set("X-Title", "Yrys Academy")
 	response, err := s.client.Do(req)
 	if err != nil {
 		return openAIMessage{}, err
