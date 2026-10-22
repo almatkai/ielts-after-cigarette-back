@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -16,6 +17,27 @@ import (
 type probeTransport func(*http.Request) (*http.Response, error)
 
 func (f probeTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestProbeUsesPublicPlatformBrand(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if got := r.Header.Get("X-Title"); got != "Yrys Academy" {
+			t.Errorf("probe app title = %q", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"OK"}}]}`))
+	}))
+	defer server.Close()
+	service := NewService(&memoryRepo{}, nil, Provider{}, testLogger(io.Discard))
+	// Only this fixture is trusted to reach a localhost provider.
+	result, err := service.probeProvider(context.Background(), Provider{
+		Endpoint: server.URL, APIKey: "test-key", Model: "test-model", TimeoutSeconds: 5, FromEnv: true,
+	})
+	if err != nil || !result.OK || calls != 1 {
+		t.Fatalf("probe failed: result=%+v calls=%d err=%v", result, calls, err)
+	}
+}
 
 func TestProbeUsesEncryptedKeyWithoutReturningOrChangingIt(t *testing.T) {
 	repo := &memoryRepo{}

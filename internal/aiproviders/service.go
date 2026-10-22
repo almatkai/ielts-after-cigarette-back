@@ -261,7 +261,7 @@ func (s *Service) probeProvider(ctx context.Context, p Provider) (TestResult, er
 	}
 	req.Header.Set("Authorization", "Bearer "+p.APIKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Title", "Daiyndyq IELTS")
+	req.Header.Set("X-Title", "Yrys Academy")
 	response, err := s.Client(p).Do(req)
 	if err == nil {
 		defer response.Body.Close()
