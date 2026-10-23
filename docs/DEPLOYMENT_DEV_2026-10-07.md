@@ -52,6 +52,10 @@ No secret or raw database dump is stored in this repository.
 
 ## Operations
 
+Before replacing the dev web image, retain its immutable assets as described in
+[the asset retention runbook](DEPLOYMENT_ASSET_RETENTION_2026-10-23.md).
+
+
 ```sh
 ssh -p 9865 almat@78.40.109.172
 cd /home/almat/ielts-guest-dev
