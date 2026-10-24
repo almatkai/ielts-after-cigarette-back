@@ -131,6 +131,7 @@ jobs:
       REFRESH_COOKIE_SECURE: ${{ vars.REFRESH_COOKIE_SECURE }}
       REFRESH_COOKIE_SAME_SITE: ${{ vars.REFRESH_COOKIE_SAME_SITE }}
       CORS_ALLOWED_ORIGINS: ${{ vars.CORS_ALLOWED_ORIGINS }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
       GUEST_TRIAL_ENABLED: ${{ vars.GUEST_TRIAL_ENABLED || 'false' }}
       GUEST_TRIAL_IP_LIMIT: ${{ vars.GUEST_TRIAL_IP_LIMIT || '5' }}
       GUEST_TRIAL_GLOBAL_LIMIT: ${{ vars.GUEST_TRIAL_GLOBAL_LIMIT || '100' }}
@@ -140,6 +141,8 @@ jobs:
       TURNSTILE_HOSTNAMES: ${{ vars.TURNSTILE_HOSTNAMES }}
       SHUTDOWN_TIMEOUT: ${{ vars.SHUTDOWN_TIMEOUT }}
       REQUEST_TIMEOUT: ${{ vars.REQUEST_TIMEOUT }}
+      MEDIA_UPLOAD_TIMEOUT: ${{ vars.MEDIA_UPLOAD_TIMEOUT || '5m' }}
+      MAX_MEDIA_UPLOAD_BYTES: ${{ vars.MAX_MEDIA_UPLOAD_BYTES || '52428800' }}
       MAX_REQUEST_BODY_BYTES: ${{ vars.MAX_REQUEST_BODY_BYTES }}
       STT_API_KEY: ${{ secrets.STT_API_KEY }}
       STT_API_URL: ${{ vars.STT_API_URL }}
@@ -197,6 +200,7 @@ jobs:
             printf 'REFRESH_COOKIE_SECURE=%s\n' "$REFRESH_COOKIE_SECURE"
             printf 'REFRESH_COOKIE_SAME_SITE=%s\n' "$REFRESH_COOKIE_SAME_SITE"
             printf 'CORS_ALLOWED_ORIGINS=%s\n' "$CORS_ALLOWED_ORIGINS"
+            printf 'GOOGLE_CLIENT_ID=%s\n' "$GOOGLE_CLIENT_ID"
             printf 'GUEST_TRIAL_ENABLED=%s\n' "$GUEST_TRIAL_ENABLED"
             printf 'GUEST_TRIAL_IP_LIMIT=%s\n' "$GUEST_TRIAL_IP_LIMIT"
             printf 'GUEST_TRIAL_GLOBAL_LIMIT=%s\n' "$GUEST_TRIAL_GLOBAL_LIMIT"
@@ -206,6 +210,8 @@ jobs:
             printf 'TURNSTILE_HOSTNAMES=%s\n' "$TURNSTILE_HOSTNAMES"
             printf 'SHUTDOWN_TIMEOUT=%s\n' "$SHUTDOWN_TIMEOUT"
             printf 'REQUEST_TIMEOUT=%s\n' "$REQUEST_TIMEOUT"
+            printf 'MEDIA_UPLOAD_TIMEOUT=%s\n' "$MEDIA_UPLOAD_TIMEOUT"
+            printf 'MAX_MEDIA_UPLOAD_BYTES=%s\n' "$MAX_MEDIA_UPLOAD_BYTES"
             printf 'MAX_REQUEST_BODY_BYTES=%s\n' "$MAX_REQUEST_BODY_BYTES"
             printf 'STT_API_KEY=%s\n' "$STT_API_KEY"
             printf 'STT_API_URL=%s\n' "$STT_API_URL"
