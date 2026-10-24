@@ -39,11 +39,19 @@ func gradingRouter(first, last string) *aiproviders.Service {
 func criterionJSON() map[string]any { return map[string]any{"band": 6.5, "feedback": "Good"} }
 
 func TestWritingAndSpeakingRetryInvalidModelOutput(t *testing.T) {
-	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { completion(w, "not a valid evaluation", "primary") }))
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Title"); got != "Yrys Academy" {
+			t.Errorf("primary provider app title = %q", got)
+		}
+		completion(w, "not a valid evaluation", "primary")
+	}))
 	defer first.Close()
 	task1, task2 := uuid.New(), uuid.New()
 	part1, part2, part3 := uuid.New(), uuid.New(), uuid.New()
 	last := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Title"); got != "Yrys Academy" {
+			t.Errorf("fallback provider app title = %q", got)
+		}
 		var payload struct {
 			Model string `json:"model"`
 		}
@@ -112,8 +120,8 @@ func TestSpeakingTimeoutReportsTimeoutCode(t *testing.T) {
 	part1 := uuid.New()
 	last := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		content := map[string]any{
-			"criteria": map[string]any{"fluency": criterionJSON(), "lexicalResource": criterionJSON(), "grammar": criterionJSON()},
-			"summary": "Good",
+			"criteria":     map[string]any{"fluency": criterionJSON(), "lexicalResource": criterionJSON(), "grammar": criterionJSON()},
+			"summary":      "Good",
 			"partFeedback": []any{map[string]any{"partId": part1.String(), "transcript": "Answer", "feedback": "Good", "strengths": []string{}, "improvements": []string{}}},
 		}
 		encoded, _ := json.Marshal(content)
