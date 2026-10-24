@@ -55,7 +55,7 @@ func TestMistakeDetailKeepsOwnershipCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := NewService(repo, nil)
-	if _, err := service.MistakeDetail(context.Background(), other, attempt.ID); err != ErrNotFound {
+	if _, err := service.MistakeDetail(context.Background(), other, attempt.ID, ""); err != ErrNotFound {
 		t.Fatalf("foreign attempt error = %v", err)
 	}
 }
