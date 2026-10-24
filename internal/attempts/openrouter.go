@@ -154,7 +154,7 @@ func (e *OpenRouterEvaluator) Evaluate(ctx context.Context, input WritingEvaluat
 	}
 	req.Header.Set("Authorization", "Bearer "+e.apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Title", "Daiyndyq IELTS")
+	req.Header.Set("X-Title", "Yrys Academy")
 	response, err := e.client.Do(req)
 	if err != nil {
 		return WritingEvaluation{}, fmt.Errorf("%w: request AI provider: %w", ErrAIEvaluationFailed, err)
@@ -495,7 +495,7 @@ func (e *OpenRouterEvaluator) EvaluateSpeaking(ctx context.Context, input Speaki
 	}
 	req.Header.Set("Authorization", "Bearer "+e.apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Title", "Daiyndyq IELTS")
+	req.Header.Set("X-Title", "Yrys Academy")
 	response, err := e.client.Do(req)
 	if err != nil {
 		return SpeakingEvaluation{}, fmt.Errorf("%w: request AI provider: %w", ErrAIEvaluationFailed, err)

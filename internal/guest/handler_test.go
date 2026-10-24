@@ -2,6 +2,7 @@ package guest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/fullmock"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -313,5 +315,61 @@ func TestAnonymousBrowsingOnlyAllowsCatalogSummaries(t *testing.T) {
 	router.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/listening/tests", nil))
 	if w.Code != 401 {
 		t.Fatal("browsing enabled when feature off")
+	}
+}
+
+func TestSessionDistinguishesRecognizedExpiredTrial(t *testing.T) {
+	claimed := uuid.New()
+	for _, tc := range []struct {
+		name    string
+		cookie  bool
+		item    Trial
+		repoErr error
+		enabled bool
+		status  int
+		expired bool
+	}{
+		{name: "missing cookie", enabled: true, status: 401},
+		{name: "unknown cookie", cookie: true, enabled: true, status: 401},
+		{name: "claimed expired cookie", cookie: true, item: Trial{UserID: uuid.New(), ClaimedBy: &claimed, ExpiresAt: time.Now().Add(-time.Hour)}, enabled: true, status: 401},
+		{name: "expired cookie", cookie: true, item: Trial{UserID: uuid.New(), ExpiresAt: time.Now().Add(-time.Hour)}, enabled: true, status: 401, expired: true},
+		{name: "valid cookie", cookie: true, item: Trial{UserID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour)}, enabled: true, status: 200},
+		{name: "disabled", cookie: true, item: Trial{UserID: uuid.New(), ExpiresAt: time.Now().Add(-time.Hour)}, status: 401},
+		{name: "repository unavailable", cookie: true, repoErr: errors.New("database unavailable"), enabled: true, status: 500},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := testHandler()
+			h.cfg.Enabled = tc.enabled
+			h.repo.(*fakeRepo).item = tc.item
+			h.repo.(*fakeRepo).err = tc.repoErr
+			r := httptest.NewRequest("GET", "/api/v1/guest/session", nil)
+			if tc.cookie {
+				r = cookieRequest("GET", "/api/v1/guest/session")
+			}
+			w := httptest.NewRecorder()
+			h.Session(w, r)
+			if w.Code != tc.status {
+				t.Fatalf("status=%d want=%d: %s", w.Code, tc.status, w.Body.String())
+			}
+			if w.Header().Get("Cache-Control") != "no-store" || len(w.Result().Cookies()) != 0 {
+				t.Fatal("session response changed cookie or cache policy")
+			}
+			if w.Code == 200 {
+				return
+			}
+			var body httpx.ErrorResponse
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if (body.Details["reason"] == "trial_expired") != tc.expired {
+				t.Fatalf("expiry signal=%v want=%v: %s", body.Details, tc.expired, w.Body.String())
+			}
+			if tc.expired && (body.Code != "GUEST_EXPIRED" || body.Message != "Срок гостевого доступа истёк. Войдите для продолжения подготовки") {
+				t.Fatalf("unexpected expiry response: %+v", body)
+			}
+			if tc.status == 401 && !tc.expired && (body.Code != "GUEST_EXPIRED" || body.Message != "Гостевая сессия отсутствует или истекла") {
+				t.Fatalf("generic denial changed: %+v", body)
+			}
+		})
 	}
 }

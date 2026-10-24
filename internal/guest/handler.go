@@ -107,12 +107,16 @@ func (h *Handler) Session(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := h.find(r)
-	if errors.Is(err, ErrNotFound) || err == nil && (item.ClaimedBy != nil || !item.ExpiresAt.After(time.Now())) {
+	if errors.Is(err, ErrNotFound) || err == nil && item.ClaimedBy != nil {
 		h.denied(w, r)
 		return
 	}
 	if err != nil {
 		httpx.InternalError(w, r, h.logger, err)
+		return
+	}
+	if !item.ExpiresAt.After(time.Now()) {
+		httpx.WriteError(w, r, 401, "GUEST_EXPIRED", "Срок гостевого доступа истёк. Войдите для продолжения подготовки", map[string]string{"reason": "trial_expired"})
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, item)

@@ -26,7 +26,7 @@ func TestSectionReviewsRemainPrivateUntilEntireMockCompletes(t *testing.T) {
 				correct := true
 				attemptRepo.answers[id] = []attempts.Answer{{QuestionID: uuid.New(), Answer: map[string]any{"value": "PRIVATE_ANSWER"}, IsCorrect: &correct}}
 				repo.attemptMeta[id] = &ExamAttemptMeta{SessionID: sessionID, UserID: owner, SessionStatus: SessionInProgress}
-				detail, err := attemptService.Get(ctx, owner, id)
+				detail, err := attemptService.Get(ctx, owner, id, "")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -51,7 +51,7 @@ func TestSectionReviewsRemainPrivateUntilEntireMockCompletes(t *testing.T) {
 					t.Fatalf("completed mock did not unlock: %+v %v", projected, err)
 				}
 				if skill == "reading" || skill == "listening" {
-					detail, err = attemptService.Get(ctx, owner, id)
+					detail, err = attemptService.Get(ctx, owner, id, "")
 					if err != nil || detail.ReviewLocked || detail.Band == nil {
 						t.Fatalf("completed detail did not unlock: %+v %v", detail, err)
 					}

@@ -102,6 +102,33 @@ docs/API.md            REST-контракт и примеры
 `.env` исключён из Git. Значения по умолчанию в Compose предназначены только для
 локальной разработки и должны быть переопределены в любом общем окружении.
 
+## Production domain migration
+
+Целевой origin: `https://ielts.yrys.academy`; API остаётся на `/api/v1/*`
+этого же хоста. Пример **только несекретных** настроек:
+[deploy/production-domain.env.example](deploy/production-domain.env.example).
+Наложите их на существующий production config, не заменяйте весь файл примером.
+GitHub `production` Environment передаёт CORS, Secure/SameSite, Turnstile hostname,
+Google client ID и лимиты медиа через workflow → `production.env` → Compose.
+`GOOGLE_CLIENT_ID` должен совпадать с существующим frontend client ID;
+ротация клиента для смены домена не нужна. Пустое значение сохраняет текущий
+fallback из `internal/config/config.go`.
+
+На время сознательного сосуществования старого и нового хостов CORS и
+`TURNSTILE_HOSTNAMES` могут содержать оба значения через запятую; после
+переключения оставьте production origin/hostname из примера. Настройки
+`ielts.woolet.cc` и отдельный `glitchtip.woolet.cc` не меняются.
+Refresh и pending-registration cookies остаются host-only с path
+`/api/v1/auth`, guest cookie — host-only с path `/api/v1`. Старые cookies не
+перейдут на новый домен: потребуется повторный вход или новая guest identity.
+Не меняйте JWT issuer/audience, cookie names, module/storage identities или
+ключи. HTTP-Referer к внешним AI-провайдерам и SMTP здесь не используются.
+Смена домена не требует миграции БД.
+
+Общий staged cutover и rollback: `ielts_landing/docs/YRYS_DOMAIN_MIGRATION.md`
+в репозитории лендинга. Этот коммит готовит конфигурацию; DNS, TLS, настройки
+Google/Turnstile и выпуск остаются отдельными действиями владельцев.
+
 ## Запуск через Docker
 
 ```bash

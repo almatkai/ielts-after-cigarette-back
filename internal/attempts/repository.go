@@ -46,6 +46,9 @@ type Repository interface {
 	// round trip, which keeps the mistakes page from paying a query per
 	// historical attempt.
 	ListAnswersByAttempts(context.Context, []uuid.UUID) (map[uuid.UUID][]Answer, error)
+	// QuestionTranslations loads Kazakh/English review text for the given
+	// questions. Missing rows mean no translation: callers keep the source.
+	QuestionTranslations(ctx context.Context, questionIDs []uuid.UUID, lang string) (map[uuid.UUID]QuestionTranslation, error)
 	Submit(context.Context, SubmitResult) error
 }
 
@@ -224,6 +227,30 @@ func (r *PostgresRepository) ListAnswersByAttempts(ctx context.Context, attemptI
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate attempt answers: %w", err)
+	}
+	return items, nil
+}
+
+func (r *PostgresRepository) QuestionTranslations(ctx context.Context, questionIDs []uuid.UUID, lang string) (map[uuid.UUID]QuestionTranslation, error) {
+	items := map[uuid.UUID]QuestionTranslation{}
+	if len(questionIDs) == 0 || (lang != "kk" && lang != "en") {
+		return items, nil
+	}
+	rows, err := r.pool.Query(ctx, `SELECT question_id, lang, explanation, hint
+		FROM question_translations WHERE question_id = ANY($1) AND lang = $2`, questionIDs, lang)
+	if err != nil {
+		return nil, fmt.Errorf("list question translations: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item QuestionTranslation
+		if err := rows.Scan(&item.QuestionID, &item.Lang, &item.Explanation, &item.Hint); err != nil {
+			return nil, fmt.Errorf("scan question translation: %w", err)
+		}
+		items[item.QuestionID] = item
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate question translations: %w", err)
 	}
 	return items, nil
 }
