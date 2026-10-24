@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -405,19 +404,10 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 	}
 	session.MockTest = test
 	session.Sections = sections
-	if session.Status == SessionSubmitted {
-		bands := make([]float64, 0, len(sections))
-		for _, section := range sections {
-			if section.Attempt.Band == nil {
-				return session, nil
-			}
-			bands = append(bands, *section.Attempt.Band)
-		}
-		if len(bands) == 4 {
-			overall := math.Round(((bands[0]+bands[1]+bands[2]+bands[3])/4)*2) / 2
-			session.OverallBand = &overall
-		}
-	}
+	// Legacy raw/AI bands have no validated conversion or qualified provenance.
+	// A completed mock is useful practice, but cannot yield a readiness overall.
+	session.OverallBand = nil
+
 	return session, nil
 }
 

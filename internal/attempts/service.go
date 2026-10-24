@@ -781,16 +781,16 @@ func gradeAnswer(correct, given map[string]any) bool {
 	if value, ok := correct["value"]; ok {
 		expected, _ := value.(string)
 		actual, _ := given["value"].(string)
-		return expected != "" && strings.EqualFold(normalizeText(actual), normalizeText(expected))
+		return expected != "" && strings.EqualFold(normalizeGradedValue(actual), normalizeGradedValue(expected))
 	}
 	if accepted, ok := correct["accepted"]; ok {
 		value, _ := given["value"].(string)
-		value = normalizeText(value)
+		value = normalizeGradedValue(value)
 		if value == "" {
 			return false
 		}
 		for _, variant := range stringList(accepted) {
-			if value == normalizeText(variant) {
+			if value == normalizeGradedValue(variant) {
 				return true
 			}
 		}
@@ -829,6 +829,16 @@ func gradePoints(question GradingQuestion, given map[string]any) int {
 		return question.Points
 	}
 	return points
+}
+
+// The UI and imported answer keys use both spellings for the reserved IELTS
+// answer. Do not normalize underscores in arbitrary free-text answers or IDs.
+func normalizeGradedValue(value string) string {
+	value = normalizeText(value)
+	if value == "not_given" {
+		return "not given"
+	}
+	return value
 }
 
 func normalizeText(value string) string {

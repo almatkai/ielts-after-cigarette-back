@@ -1019,3 +1019,27 @@ func TestPracticeFindInProgressExcludesExamAttempts(t *testing.T) {
 		t.Fatalf("practice attempt must have different ID than exam attempt")
 	}
 }
+
+func TestGradeAnswerNotGivenDisplayAndStoredAliases(t *testing.T) {
+	for _, key := range []map[string]any{
+		{"value": "NOT GIVEN"}, {"value": "NOT_GIVEN"},
+		{"accepted": []any{"NOT GIVEN"}}, {"accepted": []any{"NOT_GIVEN"}},
+	} {
+		for _, answer := range []string{"NOT GIVEN", "NOT_GIVEN", " not_given ", " not given "} {
+			if !gradeAnswer(key, map[string]any{"value": answer}) {
+				t.Fatalf("reserved answer mismatch: key=%v answer=%q", key, answer)
+			}
+		}
+		for _, wrong := range []string{"TRUE", "FALSE", "", "NOTGIVEN"} {
+			if gradeAnswer(key, map[string]any{"value": wrong}) {
+				t.Fatalf("incorrect answer accepted: key=%v answer=%q", key, wrong)
+			}
+		}
+	}
+	if gradeAnswer(map[string]any{"value": "green_roof"}, map[string]any{"value": "green roof"}) {
+		t.Fatal("reserved-answer alias changed arbitrary free-text spelling")
+	}
+	if gradeAnswer(map[string]any{"optionId": "NOT GIVEN"}, map[string]any{"optionId": "NOT_GIVEN"}) {
+		t.Fatal("reserved-answer alias changed opaque choice IDs")
+	}
+}
