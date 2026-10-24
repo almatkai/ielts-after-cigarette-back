@@ -47,10 +47,18 @@ pull_targets=(backend)
 if [[ $full_operational == true ]]; then
 	pull_targets+=(worker)
 fi
-"${compose[@]}" pull "${pull_targets[@]}"
-
+# Databases first: if they need to boot, they now do it while the release
+# image is still downloading instead of after it.
 "${compose[@]}" up -d postgres redis
+
+# Pull in the background so the migration container can start while layers
+# are still downloading; `wait` aborts the deploy if the pull failed.
+"${compose[@]}" pull "${pull_targets[@]}" &
+pull_pid=$!
+
 "${compose[@]}" run --rm -T migrate </dev/null
+wait "$pull_pid"
+
 "${compose[@]}" up -d backend
 # Recreate with the same release image after backend, in dependency order.
 if [[ $full_operational == true ]]; then

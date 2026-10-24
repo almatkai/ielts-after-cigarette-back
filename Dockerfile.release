@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+
+# Release image. The CI workflow compiles the Go binaries on the runner, where
+# the Go build cache restored by setup-go is warm, and this file only assembles
+# the runtime layer. Dockerfile (building from source) stays in use for local
+# development, so `docker compose up --build` keeps working unchanged.
+
+FROM alpine:3.22
+RUN apk add --no-cache ca-certificates tzdata ffmpeg
+WORKDIR /app
+COPY dist/api dist/admin dist/worker /app/
+RUN mkdir -p /data/listening-media /data/writing-media /data/speaking-media && chown -R 65532:65532 /data
+EXPOSE 8080
+USER 65532:65532
+ENTRYPOINT ["/app/api"]

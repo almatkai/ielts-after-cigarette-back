@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:var(--font-sans);color:var(--foreground);background:transparent}
+#iac-academic-coverage{padding:4px 0 12px;max-width:100%}
+h2{font-size:1.2rem;font-weight:500;margin:0 0 8px}
+p{margin:8px 0;color:var(--muted-foreground);font-size:.9rem}
+.controls{display:flex;gap:16px;flex-wrap:wrap;margin:20px 0}
+label{display:flex;flex-direction:column;gap:7px;flex:1;min-width:150px}
+select{font:inherit;color:var(--foreground);background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;max-width:100%;min-height:44px}
+.row{display:grid;grid-template-columns:85px minmax(0,1fr) 34px;gap:12px;align-items:center;margin:20px 0}
+.track{height:22px;background:var(--muted);overflow:hidden}
+.bar{height:100%;background:var(--chart-1);transition:width .25s ease}
+.number{font-variant-numeric:tabular-nums;text-align:right}
+#coverage-detail{margin-top:24px;color:var(--foreground)}
+.units{margin-bottom:0}
+@media(prefers-reduced-motion:reduce){.bar{transition:none}}
+</style>
+</head>
+<body>
+<section id="iac-academic-coverage" aria-labelledby="coverage-title">
+<h2 id="coverage-title">Что назначает текущий планировщик</h2>
+<p>30 дней · 26 учебных дней · синтетический банк из 240 материалов</p>
+<div class="controls">
+<label>Бюджет дня<select id="coverage-budget"><option value="30">30 минут</option><option value="45" selected>45 минут</option><option value="60">60 минут</option><option value="90">90 минут</option></select></label>
+<label>Начальная история<select id="coverage-history"><option value="none">Без сданных работ</option><option value="errors">Все 4 секции сданы, ошибки в Reading</option></select></label>
+</div>
+<p class="units">Назначенных основных заданий по секциям</p>
+<div id="coverage-rows" role="img" aria-label="Количество назначений по четырём секциям"></div>
+<p id="coverage-detail" aria-live="polite"></p>
+<p>Статический расчёт будущего плана, не результат обучения. Завершение заданий вызывает перепланирование. Стандартный Writing в этом сценарии длится 60 минут.</p>
+</section>
+<script>
+(()=>{const root=document.getElementById('iac-academic-coverage');const budget=root.querySelector('#coverage-budget');const history=root.querySelector('#coverage-history');const rows=root.querySelector('#coverage-rows');const detail=root.querySelector('#coverage-detail');
+const dataset={none:{30:{counts:[9,8,0,9],minutes:349},45:{counts:[9,8,0,9],minutes:349},60:{counts:[7,6,6,7],minutes:627},90:{counts:[7,6,6,7],minutes:627}},errors:{30:{counts:[0,26,0,0],minutes:520},45:{counts:[0,26,0,0],minutes:520},60:{counts:[0,26,0,0],minutes:520},90:{counts:[0,26,0,0],minutes:520}}};
+const skills=['Listening','Reading','Writing','Speaking'];
+function draw(){const record=dataset[history.value][budget.value];rows.innerHTML=skills.map((skill,i)=>'<div class="row"><span>'+skill+'</span><div class="track"><div class="bar" style="width:'+record.counts[i]/26*100+'%"></div></div><span class="number">'+record.counts[i]+'</span></div>').join('');rows.setAttribute('aria-label',skills.map((s,i)=>s+': '+record.counts[i]).join(', '));detail.textContent='Запланировано '+record.minutes+' из '+26*Number(budget.value)+' доступных минут, включая разборы.';}
+budget.addEventListener('change',draw);history.addEventListener('change',draw);draw();})();
+</script>
+</body>
+</html>
