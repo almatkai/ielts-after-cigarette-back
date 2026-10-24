@@ -4866,7 +4866,7 @@ JOIN (VALUES
 ON CONFLICT (question_id, lang) DO UPDATE SET explanation = EXCLUDED.explanation;
 
 INSERT INTO question_translations (question_id, skill, lang, explanation, hint)
-SELECT q.id, 'reading', 'kk', v.tr, ''
+SELECT q.id, 'reading', 'kk', '', v.tr
 FROM reading_questions q
 JOIN (VALUES
   ($tr$Al Pomodoro (B): «Вы можете есть на террасе круглый год (eat on the terrace all year round)» — на открытом воздухе. Ответ: B.$tr$, $tr$Al Pomodoro (B): «Жыл бойы террасада тамақтануға болады (eat on the terrace all year round)» — яғни ашық ауада. Жауаб: B.$tr$),
@@ -7298,7 +7298,7 @@ JOIN (VALUES
 ON CONFLICT (question_id, lang) DO UPDATE SET hint = EXCLUDED.hint;
 
 INSERT INTO question_translations (question_id, skill, lang, explanation, hint)
-SELECT q.id, 'reading', 'en', v.tr, ''
+SELECT q.id, 'reading', 'en', '', v.tr
 FROM reading_questions q
 JOIN (VALUES
   ($tr$Al Pomodoro (B): «Вы можете есть на террасе круглый год (eat on the terrace all year round)» — на открытом воздухе. Ответ: B.$tr$, $tr$Al Pomodoro (B): «You can eat on the terrace all year round» — i.e. in the open air. Answer: B.$tr$),
@@ -14594,7 +14594,7 @@ JOIN (VALUES
 ON CONFLICT (question_id, lang) DO UPDATE SET explanation = EXCLUDED.explanation;
 
 INSERT INTO question_translations (question_id, skill, lang, explanation, hint)
-SELECT q.id, 'listening', 'kk', v.tr, ''
+SELECT q.id, 'listening', 'kk', '', v.tr
 FROM listening_questions q
 JOIN (VALUES
   ($tr$Al Pomodoro (B): «Вы можете есть на террасе круглый год (eat on the terrace all year round)» — на открытом воздухе. Ответ: B.$tr$, $tr$Al Pomodoro (B): «Жыл бойы террасада тамақтануға болады (eat on the terrace all year round)» — яғни ашық ауада. Жауаб: B.$tr$),
@@ -17026,7 +17026,7 @@ JOIN (VALUES
 ON CONFLICT (question_id, lang) DO UPDATE SET hint = EXCLUDED.hint;
 
 INSERT INTO question_translations (question_id, skill, lang, explanation, hint)
-SELECT q.id, 'listening', 'en', v.tr, ''
+SELECT q.id, 'listening', 'en', '', v.tr
 FROM listening_questions q
 JOIN (VALUES
   ($tr$Al Pomodoro (B): «Вы можете есть на террасе круглый год (eat on the terrace all year round)» — на открытом воздухе. Ответ: B.$tr$, $tr$Al Pomodoro (B): «You can eat on the terrace all year round» — i.e. in the open air. Answer: B.$tr$),

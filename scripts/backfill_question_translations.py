@@ -6,8 +6,8 @@ Usage:
 union.json maps Russian source text -> {"kk": ..., "en": ...}. Build it from
 the reviewed frontend i18n batches (hints/explanations only, no UI chrome).
 Each statement matches source text exactly; rows without a match insert
-nothing, so re-running only fills gaps (ON CONFLICT updates the matched
-field). Dollar-quoting ($tr$) keeps quotes/entities intact.
+nothing; ON CONFLICT refreshes only the matched field and preserves the other
+field. Dollar-quoting ($tr$) keeps quotes/entities intact.
 """
 import json
 import sys
@@ -24,9 +24,9 @@ def main() -> None:
     union = json.load(open(sys.argv[1]))
     stmts = []
     for skill, table in (("reading", "reading_questions"), ("listening", "listening_questions")):
-        match = "q.explanation = v.ru" if True else ""
-        for field, column in (("explanation", "explanation"), ("hint", "hint")):
+        for column in ("explanation", "hint"):
             col_expr = "q.explanation" if column == "explanation" else "q.content->>'hint'"
+            values = "v.tr, ''" if column == "explanation" else "'', v.tr"
             for lang in ("kk", "en"):
                 rows = [
                     f"({q(ru)}, {q(v[lang])})"
@@ -36,7 +36,7 @@ def main() -> None:
                 vals = ",\n  ".join(rows)
                 stmts.append(
                     f"INSERT INTO question_translations (question_id, skill, lang, explanation, hint)\n"
-                    f"SELECT q.id, '{skill}', '{lang}', v.tr, ''\n"
+                    f"SELECT q.id, '{skill}', '{lang}', {values}\n"
                     f"FROM {table} q\n"
                     f"JOIN (VALUES\n  {vals}\n) AS v(ru, tr) ON {col_expr} = v.ru\n"
                     f"ON CONFLICT (question_id, lang) DO UPDATE SET {column} = EXCLUDED.{column};"
