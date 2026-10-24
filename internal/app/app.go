@@ -34,6 +34,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/studyplan"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
@@ -222,6 +223,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	fullMockService := fullmock.NewService(fullMockRepository, attemptsService)
 	attemptsService.SetExamGuard(fullMockService)
 	fullMockHandler := fullmock.NewHandler(fullMockService, logger, cfg.MaxRequestBody)
+	studyPlanHandler := studyplan.NewHandler(studyplan.NewService(pool, attemptsService, fullMockRepository), logger, cfg.MaxRequestBody)
 
 	assistantService := assistant.NewService(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).WithProviders(aiProviders)
 	assistantHandler := assistant.NewHandler(assistantService, logger, cfg.MaxRequestBody)
@@ -360,6 +362,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Patch("/profile", userHandler.UpdateProfile)
 			protected.Put("/profile/goal", userHandler.UpdateGoal)
 			protected.Get("/dashboard", dashboardHandler.Get)
+			studyPlanHandler.Routes(protected)
 
 			// Writer applications (any authenticated user)
 			protected.Post("/blog/media", blogHandler.UploadMedia)
@@ -379,6 +382,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 			protected.Route("/admin", func(adminRouter chi.Router) {
 				adminRouter.Use(auth.RequireAdminWorkspace)
+				studyplan.NewEditorialHandler(pool, cfg.MaxRequestBody).Routes(adminRouter)
 				adminRouter.Get("/access", adminHandler.Access)
 				adminRouter.Group(func(users chi.Router) {
 					users.Use(auth.RequireAnyRole(auth.RoleAdmin))

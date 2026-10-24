@@ -735,7 +735,7 @@ func TestDeadlineEnforcement(t *testing.T) {
 	}
 }
 
-func TestOverallBandRounding(t *testing.T) {
+func TestUnvalidatedLegacyBandsNeverProduceOverall(t *testing.T) {
 	mockSvc, fullMockRepo, _, _, testItem := setupTestFullMockService(t)
 	ctx := context.Background()
 	userID := uuid.New()
@@ -760,7 +760,7 @@ func TestOverallBandRounding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get session failed: %v", err)
 	}
-	if decorated.OverallBand == nil || *decorated.OverallBand != 7.0 {
-		t.Fatalf("expected overall band 7.0, got %v", decorated.OverallBand)
+	if decorated.OverallBand != nil {
+		t.Fatalf("unvalidated section bands leaked overall: %v", decorated.OverallBand)
 	}
 }

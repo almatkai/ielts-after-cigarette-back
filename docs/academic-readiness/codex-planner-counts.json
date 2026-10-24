@@ -1,0 +1,6114 @@
+[
+  {
+    "bank": "1-per-class",
+    "history": "none",
+    "budget": 30,
+    "available": 780,
+    "planned": 185,
+    "blockedDays": 12,
+    "skills": {
+      "listening": {
+        "minutes": 50,
+        "contacts": 5
+      },
+      "reading": {
+        "minutes": 80,
+        "contacts": 4
+      },
+      "speaking": {
+        "minutes": 55,
+        "contacts": 5
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "1-per-class",
+    "history": "none",
+    "budget": 45,
+    "available": 1170,
+    "planned": 345,
+    "blockedDays": 8,
+    "skills": {
+      "listening": {
+        "minutes": 210,
+        "contacts": 9
+      },
+      "reading": {
+        "minutes": 80,
+        "contacts": 4
+      },
+      "speaking": {
+        "minutes": 55,
+        "contacts": 5
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "1-per-class",
+    "history": "none",
+    "budget": 60,
+    "available": 1560,
+    "planned": 825,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 210,
+        "contacts": 9
+      },
+      "reading": {
+        "minutes": 320,
+        "contacts": 8
+      },
+      "speaking": {
+        "minutes": 55,
+        "contacts": 5
+      },
+      "writing": {
+        "minutes": 240,
+        "contacts": 4
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "1-per-class",
+    "history": "none",
+    "budget": 90,
+    "available": 2340,
+    "planned": 825,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 210,
+        "contacts": 9
+      },
+      "reading": {
+        "minutes": 320,
+        "contacts": 8
+      },
+      "speaking": {
+        "minutes": 55,
+        "contacts": 5
+      },
+      "writing": {
+        "minutes": 240,
+        "contacts": 4
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "1-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 30,
+    "available": 780,
+    "planned": 194,
+    "blockedDays": 12,
+    "skills": {
+      "listening": {
+        "minutes": 50,
+        "contacts": 5
+      },
+      "reading": {
+        "minutes": 100,
+        "contacts": 5
+      },
+      "speaking": {
+        "minutes": 44,
+        "contacts": 4
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 30,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "1-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 45,
+    "available": 1170,
+    "planned": 354,
+    "blockedDays": 8,
+    "skills": {
+      "listening": {
+        "minutes": 210,
+        "contacts": 9
+      },
+      "reading": {
+        "minutes": 100,
+        "contacts": 5
+      },
+      "speaking": {
+        "minutes": 44,
+        "contacts": 4
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 45,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 45,
+        "planned": 0,
+        "items": [
+          "BLOCKED"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "1-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 60,
+    "available": 1560,
+    "planned": 884,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 200,
+        "contacts": 8
+      },
+      "reading": {
+        "minutes": 400,
+        "contacts": 10
+      },
+      "speaking": {
+        "minutes": 44,
+        "contacts": 4
+      },
+      "writing": {
+        "minutes": 240,
+        "contacts": 4
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 60,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "1-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 90,
+    "available": 2340,
+    "planned": 884,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 200,
+        "contacts": 8
+      },
+      "reading": {
+        "minutes": 400,
+        "contacts": 10
+      },
+      "speaking": {
+        "minutes": 44,
+        "contacts": 4
+      },
+      "writing": {
+        "minutes": 240,
+        "contacts": 4
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 50,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 80,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 90,
+        "planned": 40,
+        "items": [
+          "listening:40:l40-00"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "reading:60:r60-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "none",
+    "budget": 30,
+    "available": 780,
+    "planned": 349,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 90,
+        "contacts": 9
+      },
+      "reading": {
+        "minutes": 160,
+        "contacts": 8
+      },
+      "speaking": {
+        "minutes": 99,
+        "contacts": 9
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 30,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 30,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "none",
+    "budget": 45,
+    "available": 1170,
+    "planned": 349,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 90,
+        "contacts": 9
+      },
+      "reading": {
+        "minutes": 160,
+        "contacts": 8
+      },
+      "speaking": {
+        "minutes": 99,
+        "contacts": 9
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 45,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 45,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "none",
+    "budget": 60,
+    "available": 1560,
+    "planned": 627,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 70,
+        "contacts": 7
+      },
+      "reading": {
+        "minutes": 120,
+        "contacts": 6
+      },
+      "speaking": {
+        "minutes": 77,
+        "contacts": 7
+      },
+      "writing": {
+        "minutes": 360,
+        "contacts": 6
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 120,
+          "contacts": 2
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 120,
+          "contacts": 2
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-01"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-01"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 60,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-01"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 60,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 60,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "none",
+    "budget": 90,
+    "available": 2340,
+    "planned": 627,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 70,
+        "contacts": 7
+      },
+      "reading": {
+        "minutes": 120,
+        "contacts": 6
+      },
+      "speaking": {
+        "minutes": 77,
+        "contacts": 7
+      },
+      "writing": {
+        "minutes": 360,
+        "contacts": 6
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 120,
+          "contacts": 2
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 20,
+          "contacts": 2
+        },
+        "reading": {
+          "minutes": 20,
+          "contacts": 1
+        },
+        "speaking": {
+          "minutes": 22,
+          "contacts": 2
+        },
+        "writing": {
+          "minutes": 60,
+          "contacts": 1
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 120,
+          "contacts": 2
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 10,
+          "contacts": 1
+        },
+        "reading": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "speaking": {
+          "minutes": 11,
+          "contacts": 1
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-01"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-01"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-00"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-01"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-01"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 90,
+        "planned": 60,
+        "items": [
+          "writing:60:w60-01"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 90,
+        "planned": 10,
+        "items": [
+          "listening:10:l10-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 90,
+        "planned": 11,
+        "items": [
+          "speaking:11:s11-00"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 30,
+    "available": 780,
+    "planned": 520,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "reading": {
+        "minutes": 520,
+        "contacts": 26
+      },
+      "speaking": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 30,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 45,
+    "available": 1170,
+    "planned": 520,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "reading": {
+        "minutes": 520,
+        "contacts": 26
+      },
+      "speaking": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 45,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 60,
+    "available": 1560,
+    "planned": 520,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "reading": {
+        "minutes": 520,
+        "contacts": 26
+      },
+      "speaking": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 60,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      }
+    ]
+  },
+  {
+    "bank": "40-per-class",
+    "history": "all-submitted-reading-wrong",
+    "budget": 90,
+    "available": 2340,
+    "planned": 520,
+    "blockedDays": 0,
+    "skills": {
+      "listening": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "reading": {
+        "minutes": 520,
+        "contacts": 26
+      },
+      "speaking": {
+        "minutes": 0,
+        "contacts": 0
+      },
+      "writing": {
+        "minutes": 0,
+        "contacts": 0
+      }
+    },
+    "weeks": {
+      "1": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "2": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "3": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "4": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 120,
+          "contacts": 6
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      },
+      "5": {
+        "listening": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "reading": {
+          "minutes": 40,
+          "contacts": 2
+        },
+        "speaking": {
+          "minutes": 0,
+          "contacts": 0
+        },
+        "writing": {
+          "minutes": 0,
+          "contacts": 0
+        }
+      }
+    },
+    "days": [
+      {
+        "date": "2026-10-26",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-10-27",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-10-28",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-10-29",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "week": 1,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "week": 1,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-02",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-06",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-07",
+        "week": 2,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "week": 2,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-09",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "week": 3,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "week": 3,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-16",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-02"
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-03"
+        ]
+      },
+      {
+        "date": "2026-11-20",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-04"
+        ]
+      },
+      {
+        "date": "2026-11-21",
+        "week": 4,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-05"
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "week": 4,
+        "budget": 0,
+        "planned": 0,
+        "items": []
+      },
+      {
+        "date": "2026-11-23",
+        "week": 5,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-00"
+        ]
+      },
+      {
+        "date": "2026-11-24",
+        "week": 5,
+        "budget": 90,
+        "planned": 20,
+        "items": [
+          "reading:20:r20-01"
+        ]
+      }
+    ]
+  }
+]
