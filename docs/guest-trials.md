@@ -85,7 +85,8 @@ The feature defaults to disabled in all environments.
 
 - Opaque 256-bit cookie, `HttpOnly`, path `/api/v1`; only its HMAC is stored in
   PostgreSQL. The JWT secret keys that HMAC; rotating it invalidates guest
-  cookies. The cookie persists 180 days to remember a consumed trial.
+  cookies. The cookie persists 180 days to recognize the identity, including a
+  claimed trial that remains consumed after its access expires.
 - A `GUEST` actor has no usable password, Google identity, access token or
   refresh session. Guests are excluded from registration counts and authenticated
   presence tracking.
@@ -105,7 +106,19 @@ The feature defaults to disabled in all environments.
   source return the latest successor, even if that successor has finished. Running,
   foreign, expired or claimed trials cannot be retaken. Retakes retain the same
   identity/cookie and original seven-day expiry; no new Turnstile challenge is needed.
-- The default quotas allow 5 new starts (initial trials and retakes) per IP and 100 globally per
+- After an **unclaimed** identity's seven-day access expires, an ordinary new
+  start can obtain a separate guest actor with a new seven-day expiry. It must
+  pass the same challenge throttle, Turnstile and IP/global quotas as an initial
+  trial. A new cookie is issued only after that actor is created. This does not
+  extend the old identity, resume its mock, restore its results or delete its rows.
+  An expired request with `retakeSessionId` remains denied with `403 GUEST_EXPIRED`;
+  a claimed cookie remains denied first with `403 GUEST_CLAIMED`, even after expiry.
+  `GET /api/v1/guest/session` stays read-only, leaves the cookie intact, and returns
+  `401 GUEST_EXPIRED` with `details.reason: "session_expired"` and the generic
+  message `Гостевая сессия отсутствует или истекла` for a recognized expired
+  unclaimed identity. The session has ended, but a fresh trial can be requested.
+- The default quotas allow 5 new starts (initial trials, new identities after
+  unclaimed expiry, and retakes) per IP and 100 globally per
   fixed 24-hour window, anchored to its first request. These are Redis quotas
   shared by API replicas, not per-process limits. Failed starts may consume a
   reservation; resuming an existing identity or retrying an already-created retake
@@ -153,9 +166,11 @@ running mock still switches to the account's own data; the claim feature is for
 completed reports. Unclaimed preview remains accessible with the guest cookie
 within its seven-day access period. Claimed results require the owning account,
 including after logout. The seven-day expiry does not delete DB rows or audio.
-Database and object-storage retention must be scheduled together. Keep consumed
-token tombstones for the cookie's 180-day lifetime when adding cleanup, otherwise
-old cookies could start a new trial after their rows are deleted.
+Expired unclaimed rows also remain inaccessible when a new identity is admitted;
+the new actor has no ownership of the old attempts or results. Database and
+object-storage retention must be scheduled together. Keep **claimed** token
+tombstones for the cookie's 180-day lifetime when adding cleanup, otherwise an
+old claimed cookie could start a new trial after its row is deleted.
 
 ## Conversion analytics
 
@@ -168,7 +183,8 @@ separately from registrations/waitlist and from the registered-user funnel.
   window in `Asia/Almaty`, through the response's `generatedAt`. It is **not** all
   anonymous visitors: a guest identity is issued when opening trial access.
 - Each guest counts once per stage, regardless of reloads or retakes. Expired
-  trials remain included. Clearing cookies or using another browser can create
+  trials remain included. A new trial after unclaimed expiry creates another
+  identity. Clearing cookies or using another browser can also create
   another identity; these are not proven unique people.
 - Started/completed refer to an owned Full Mock, including the linked completed
   mock after ownership transfer. A completion requires `SUBMITTED` and a valid
@@ -194,7 +210,7 @@ whether a free mock increases signup would require a control group or experiment
 
 `go test ./...` runs handler/auth/config coverage. Set `TEST_DATABASE_URL` to an
 explicit local test database to also exercise migrations, actor creation,
-ownership, concurrent generation and expired-session reuse in isolated schemas.
+ownership, concurrent generation and expired-identity isolation in isolated schemas.
 The frontend has `tests/guest-trial.spec.ts` for anonymous launch, 30% objective
 and AI preview, blurred section bands, sign-in/registration unlocking, claim
 failure/retry, guest retakes (desktop/mobile), retained reports, quota failure/retry,
