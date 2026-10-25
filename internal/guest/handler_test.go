@@ -117,7 +117,7 @@ func TestGuestCapabilityBoundary(t *testing.T) {
 					w.WriteHeader(204)
 				})
 			}
-			for _, path := range []string{"/full-mocks/start", "/listening/tests/{testID}/attempts", "/attempts/{attemptID}/submit"} {
+			for _, path := range []string{"/full-mocks/start", "/listening/tests/{testID}/attempts", "/attempts/{attemptID}/submit", "/attempts/{attemptID}/assessment/retry"} {
 				protected.Post(path, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
 			}
 		})
@@ -126,7 +126,7 @@ func TestGuestCapabilityBoundary(t *testing.T) {
 		method, path string
 		status       int
 	}{
-		{"GET", "/api/v1/full-mock-sessions/abc", 204}, {"GET", "/api/v1/attempts/abc", 204}, {"GET", "/api/v1/attempts/abc/status", 204}, {"POST", "/api/v1/attempts/abc/submit", 204},
+		{"GET", "/api/v1/full-mock-sessions/abc", 204}, {"GET", "/api/v1/attempts/abc", 204}, {"GET", "/api/v1/attempts/abc/status", 204}, {"POST", "/api/v1/attempts/abc/submit", 204}, {"POST", "/api/v1/attempts/abc/assessment/retry", 204},
 		{"GET", "/api/v1/profile", 401}, {"GET", "/api/v1/attempts", 401}, {"GET", "/api/v1/admin/analytics/overview", 401}, {"GET", "/api/v1/listening/tests", 204}, {"POST", "/api/v1/full-mocks/start", 401}, {"POST", "/api/v1/listening/tests/abc/attempts", 401},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
