@@ -296,6 +296,20 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, DetailForViewer(r.Context(), detail))
 }
 
+func (h *Handler) RetryAssessment(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.id(w, r)
+	if !ok {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	attempt, err := h.service.RetryAssessment(r.Context(), actor, id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, AttemptForViewer(r.Context(), attempt))
+}
+
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 	attemptID, ok := h.id(w, r)
 	if !ok {
@@ -350,6 +364,8 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		return
 	}
 	switch {
+	case errors.Is(err, ErrAssessmentRetryNotAllowed):
+		httpx.WriteError(w, r, http.StatusConflict, "ASSESSMENT_RETRY_NOT_ALLOWED", "Only failed analysis can be retried", nil)
 	case errors.Is(err, ErrNotFound):
 		httpx.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "Attempt was not found", nil)
 	case errors.Is(err, ErrMaterialNotFound):

@@ -207,6 +207,20 @@ func (s *Service) Advance(ctx context.Context, userID, sessionID uuid.UUID) (Ses
 		return Session{}, ErrSectionIncomplete
 	}
 	if session.CurrentSection == len(sections) {
+		for _, section := range sections {
+			if section.Attempt.Status == attempts.StatusProcessing {
+				return Session{}, ErrAssessmentPending
+			}
+			if section.Attempt.Status == attempts.StatusInProgress && (section.Skill == attempts.MaterialWriting || section.Skill == attempts.MaterialSpeaking) {
+				detail, err := s.attempts.Status(ctx, userID, section.Attempt.ID)
+				if err != nil {
+					return Session{}, err
+				}
+				if (detail.WritingAssessment != nil && assessmentBlocksReport(detail.WritingAssessment.Status)) || (detail.SpeakingAssessment != nil && assessmentBlocksReport(detail.SpeakingAssessment.Status)) {
+					return Session{}, ErrAssessmentPending
+				}
+			}
+		}
 		err = s.repository.Advance(ctx, session.ID, 5, true)
 	} else {
 		err = s.repository.Advance(ctx, session.ID, session.CurrentSection+1, false)
@@ -236,7 +250,7 @@ func (s *Service) Pause(ctx context.Context, userID, sessionID uuid.UUID) (Sessi
 // It intentionally leaves OverallBand empty unless all four sections have a
 // band, preserving the fact that this was an incomplete exam.
 func (s *Service) Finish(ctx context.Context, userID, sessionID uuid.UUID) (Session, error) {
-	session, err := s.repository.GetSession(ctx, sessionID)
+	session, err := s.GetSession(ctx, userID, sessionID)
 	if err != nil {
 		return Session{}, err
 	}
@@ -245,6 +259,11 @@ func (s *Service) Finish(ctx context.Context, userID, sessionID uuid.UUID) (Sess
 	}
 	if session.Status != SessionInProgress {
 		return Session{}, ErrSessionCompleted
+	}
+	for _, section := range session.Sections {
+		if section.Attempt.Status == attempts.StatusProcessing || assessmentBlocksReport(section.AssessmentStatus) {
+			return Session{}, ErrAssessmentPending
+		}
 	}
 	if auth.Role(ctx) == "GUEST" {
 		sections, err := s.repository.ListSessionSections(ctx, session.ID)
@@ -402,6 +421,25 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 			}
 		}
 	}
+	for i := range sections {
+		section := &sections[i]
+		if section.Skill != attempts.MaterialWriting && section.Skill != attempts.MaterialSpeaking {
+			continue
+		}
+		if section.Attempt.Status == attempts.StatusSubmitted || section.Attempt.Status == attempts.StatusAbandoned {
+			continue
+		}
+		detail, err := s.attempts.Status(ctx, userID, section.Attempt.ID)
+		if err != nil {
+			return Session{}, err
+		}
+		if detail.WritingAssessment != nil {
+			section.AssessmentStatus = detail.WritingAssessment.Status
+		}
+		if detail.SpeakingAssessment != nil {
+			section.AssessmentStatus = detail.SpeakingAssessment.Status
+		}
+	}
 	session.MockTest = test
 	session.Sections = sections
 	// Legacy raw/AI bands have no validated conversion or qualified provenance.
@@ -416,6 +454,15 @@ func (s *Service) decorate(ctx context.Context, userID uuid.UUID, session Sessio
 func (s *Service) expireSection(ctx context.Context, session Session, section SessionSection) error {
 	if session.Status != SessionInProgress || section.Position != session.CurrentSection || section.Attempt.Status != attempts.StatusInProgress || section.DeadlineAt == nil || !time.Now().After(*section.DeadlineAt) {
 		return nil
+	}
+	if section.Skill == attempts.MaterialWriting || section.Skill == attempts.MaterialSpeaking {
+		detail, err := s.attempts.Status(ctx, session.UserID, section.Attempt.ID)
+		if err != nil {
+			return err
+		}
+		if (detail.WritingAssessment != nil && assessmentBlocksReport(detail.WritingAssessment.Status)) || (detail.SpeakingAssessment != nil && assessmentBlocksReport(detail.SpeakingAssessment.Status)) {
+			return nil
+		}
 	}
 	_, err := s.attempts.SubmitSavedForExpiredExam(ctx, session.UserID, section.Attempt.ID)
 	if errors.Is(err, attempts.ErrWritingIncomplete) || errors.Is(err, attempts.ErrSpeakingIncomplete) {
@@ -465,4 +512,8 @@ func validate(input SaveInput) map[string]string {
 		details["speakingMaterialId"] = "is required"
 	}
 	return details
+}
+
+func assessmentBlocksReport(status string) bool {
+	return status == "QUEUED" || status == "PROCESSING" || status == "FAILED"
 }
