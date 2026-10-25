@@ -69,7 +69,7 @@ func TestAttemptsDailyLimitWriting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first submit failed: %v", err)
 	}
-	if submitted.Status != StatusSubmitted {
+	if submitted.Status != StatusProcessing {
 		t.Fatalf("expected submitted status, got: %s", submitted.Status)
 	}
 

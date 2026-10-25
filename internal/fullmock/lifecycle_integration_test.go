@@ -199,3 +199,67 @@ func TestEmptyAISectionExpiresWithoutBlockingNextSection(t *testing.T) {
 		})
 	}
 }
+
+func TestFailedAssessmentCanBeRetriedAfterDeadlineWithoutLosingSubmission(t *testing.T) {
+	pool := testdb.Open(t)
+	ctx := context.Background()
+	user := mockUser(t, pool, "academic")
+	seedMockBank(t, pool, user)
+	repo := NewPostgresRepository(pool)
+	attemptRepo := attempts.NewPostgresRepository(pool)
+	providers := map[string]attempts.MaterialProvider{}
+	for _, skill := range mockSkills {
+		providers[skill] = incompleteAIProvider{expiryProvider{uuid.New()}}
+	}
+	attemptService := attempts.NewService(attemptRepo, providers)
+	svc := NewService(repo, attemptService)
+	attemptService.SetExamGuard(svc)
+	session, _, err := svc.StartGenerated(ctx, user, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for next := 2; next <= 4; next++ {
+		if err := repo.Advance(ctx, session.ID, next, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	section, _, err := svc.GetSection(ctx, user, session.ID, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := attemptRepo.QueueSpeakingAssessment(ctx, section.Attempt.ID, []attempts.AnswerInput{{QuestionID: uuid.New(), Answer: map[string]any{"value": "saved speaking answer"}}}); err != nil {
+		t.Fatal(err)
+	}
+	execSeed(t, pool, `UPDATE speaking_assessment_jobs SET attempts=2 WHERE attempt_id=$1`, section.Attempt.ID)
+	if claimed, err := attemptRepo.ClaimAssessment(ctx, section.Attempt.ID); err != nil || !claimed {
+		t.Fatalf("claim: %v %v", claimed, err)
+	}
+	if err := attemptRepo.FailAssessment(ctx, section.Attempt.ID, "fake provider unavailable"); err != nil {
+		t.Fatal(err)
+	}
+	execSeed(t, pool, `UPDATE full_mock_session_sections SET started_at=CURRENT_TIMESTAMP-INTERVAL '2 hours',deadline_at=CURRENT_TIMESTAMP-INTERVAL '1 minute' WHERE session_id=$1 AND position=4`, session.ID)
+	snapshot, err := svc.GetSession(ctx, user, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Sections[3].AssessmentStatus != "FAILED" || snapshot.Sections[3].Attempt.Status != attempts.StatusInProgress {
+		t.Fatalf("expiry discarded failed submission: %+v", snapshot.Sections[3])
+	}
+	if _, err := svc.Finish(ctx, user, session.ID); err == nil {
+		t.Fatal("failed analysis allowed report")
+	}
+	if retried, err := attemptService.RetryAssessment(ctx, user, section.Attempt.ID); err != nil || retried.Status != attempts.StatusProcessing {
+		t.Fatalf("retry past deadline: %+v %v", retried, err)
+	}
+	snapshot, err = svc.GetSession(ctx, user, session.ID)
+	if err != nil || snapshot.Sections[3].AssessmentStatus != "QUEUED" {
+		t.Fatalf("retry status: %+v %v", snapshot, err)
+	}
+	answers, err := attemptRepo.ListAnswers(ctx, section.Attempt.ID)
+	if err != nil || len(answers) != 1 || answers[0].Answer["value"] != "saved speaking answer" {
+		t.Fatalf("lost submission: %+v %v", answers, err)
+	}
+	if _, err := svc.Advance(ctx, user, session.ID); err == nil {
+		t.Fatal("queued retry allowed report")
+	}
+}

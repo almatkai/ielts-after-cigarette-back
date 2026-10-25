@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/database"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/jobs"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/observability"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
@@ -61,7 +63,7 @@ func run() int {
 	defer redisClient.Close()
 	repository := attempts.NewPostgresRepository(pool)
 	evaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).
-		WithSpeakingModel(cfg.AISpeakingModel).WithSpeakingAudio(false).WithProviders(aiproviders.NewConfigured(pool, cfg, logger))
+		WithSpeakingModel(cfg.AISpeakingModel).WithSpeakingAudio(cfg.AISpeakingAudioEnabled && !cfg.SpeechEnabled).WithProviders(aiproviders.NewConfigured(pool, cfg, logger))
 	writingRepository := writing.NewPostgresRepository(pool)
 	writingProvider := attempts.NewWritingProvider(writing.NewService(writingRepository))
 	writingWorker := writingpipeline.NewWorker(repository, writingProvider, evaluator, jobs.NewWritingQueue(redisClient), logger)
@@ -77,24 +79,29 @@ func run() int {
 			}
 		}()
 	}
-	if cfg.SpeechEnabled {
-		store, err := openStore(cfg)
-		if err != nil {
-			logger.Error("configure object storage", "error", err)
-			return 1
-		}
-		if err := store.Check(startupCtx); err != nil {
-			logger.Error("connect to object storage", "error", err)
-			return 1
-		}
-		speakingRepository := speaking.NewPostgresRepository(pool)
-		provider := attempts.NewSpeakingProvider(speaking.NewService(speakingRepository))
-		speechClient := speech.NewClient(cfg.SpeechServiceURL, cfg.SpeechServiceToken, &http.Client{Timeout: cfg.SpeechTimeout})
-		speakingWorker := speakingpipeline.NewWorker(repository, provider, store, speechClient, evaluator, jobs.NewSpeakingQueue(redisClient), logger)
-		start(speakingWorker.Run)
+	store, err := openStore(cfg)
+	if err != nil {
+		logger.Error("configure object storage", "error", err)
+		return 1
 	}
+	if err := store.Check(startupCtx); err != nil {
+		logger.Error("connect to object storage", "error", err)
+		return 1
+	}
+	speakingRepository := speaking.NewPostgresRepository(pool)
+	provider := attempts.NewSpeakingProvider(speaking.NewService(speakingRepository))
+	var speechClient *speech.Client
+	if cfg.SpeechEnabled {
+		speechClient = speech.NewClient(cfg.SpeechServiceURL, cfg.SpeechServiceToken, &http.Client{Timeout: cfg.SpeechTimeout})
+	}
+	speakingWorker := speakingpipeline.NewWorker(repository, provider, store, speechClient, evaluator, jobs.NewSpeakingQueue(redisClient), logger)
+	if !cfg.SpeechEnabled {
+		speakingWorker.WithLegacyTranscriber(sttAdapter{listening.NewSTTService(cfg.STTAPIURL, cfg.STTAPIKey, cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel)})
+	}
+	start(speakingWorker.Run)
+
 	start(writingWorker.Run)
-	logger.Info("workers started", "speaking", cfg.SpeechEnabled, "writing", true)
+	logger.Info("workers started", "speaking", true, "writing", true)
 	code := 0
 	select {
 	case <-ctx.Done():
@@ -116,4 +123,14 @@ func openStore(cfg config.Config) (objectstorage.Store, error) {
 		})
 	}
 	return objectstorage.NewFileStore(cfg.SpeakingMediaDir), nil
+}
+
+type sttAdapter struct{ service *listening.STTService }
+
+func (a sttAdapter) Transcribe(ctx context.Context, filename string, source io.Reader) (string, error) {
+	result, err := a.service.Transcribe(ctx, filename, source)
+	if err != nil {
+		return "", err
+	}
+	return result.Text, nil
 }
