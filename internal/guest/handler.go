@@ -116,7 +116,7 @@ func (h *Handler) Session(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !item.ExpiresAt.After(time.Now()) {
-		httpx.WriteError(w, r, 401, "GUEST_EXPIRED", "Срок гостевого доступа истёк. Войдите для продолжения подготовки", map[string]string{"reason": "trial_expired"})
+		httpx.WriteError(w, r, 401, "GUEST_EXPIRED", "Гостевая сессия отсутствует или истекла", map[string]string{"reason": "session_expired"})
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, item)
@@ -156,18 +156,20 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, r, 403, "GUEST_CLAIMED", "Тест сохранён в аккаунте. Войдите, чтобы открыть результаты", nil)
 			return
 		}
-		if !item.ExpiresAt.After(time.Now()) {
-			httpx.WriteError(w, r, 403, "GUEST_EXPIRED", "Срок гостевого доступа истёк. Войдите для продолжения подготовки", nil)
+		if item.ExpiresAt.After(time.Now()) {
+			if input.RetakeSession != nil {
+				h.retake(w, r, item, *input.RetakeSession)
+			} else {
+				h.startOrResume(w, r, item)
+			}
 			return
 		}
 		if input.RetakeSession != nil {
-			h.retake(w, r, item, *input.RetakeSession)
-		} else {
-			h.startOrResume(w, r, item)
+			httpx.WriteError(w, r, 403, "GUEST_EXPIRED", "Срок гостевого доступа истёк. Войдите для продолжения подготовки", nil)
+			return
 		}
-		return
-	}
-	if !errors.Is(err, ErrNotFound) {
+		// An unclaimed expiry can request a new identity through fresh admission.
+	} else if !errors.Is(err, ErrNotFound) {
 		httpx.InternalError(w, r, h.logger, err)
 		return
 	}
@@ -202,8 +204,8 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		httpx.InternalError(w, r, h.logger, err)
 		return
 	}
-	// Keep the consumed identity longer than review access, so expiration does
-	// not silently grant a second mock to the same browser.
+	// Retain claimed identities beyond review access. An unclaimed expiry replaces
+	// this cookie only after fresh admission creates a separate actor.
 	http.SetCookie(w, &http.Cookie{Name: CookieName, Value: token, Path: "/api/v1", HttpOnly: true, Secure: h.cfg.Secure, SameSite: h.cfg.SameSite, MaxAge: int(cookieTTL.Seconds()), Expires: time.Now().Add(cookieTTL)})
 	h.startOrResume(w, r, item)
 }
