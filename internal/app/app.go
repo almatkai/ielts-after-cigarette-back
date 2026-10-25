@@ -34,6 +34,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/speakingpipeline"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/studyplan"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
@@ -188,11 +189,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	if cfg.SpeechEnabled {
 		attemptsService.WithSpeakingPipeline(jobs.NewSpeakingQueue(redisClient))
 	}
-	if redisClient != nil {
+	{
 		writingQueue := jobs.NewWritingQueue(redisClient)
 		attemptsService.WithWritingPipeline(writingQueue)
 
-		if !cfg.WritingWorkerExternal {
+		if pool != nil && !cfg.WritingWorkerExternal {
 			writingWorker := writingpipeline.NewWorker(
 				attemptsRepository,
 				attempts.NewWritingProvider(writingService),
@@ -210,6 +211,25 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 				}
 			}()
 		}
+	}
+	// Speech-service deployments already run the external speaking worker.
+	// Legacy deployments also need a worker: never evaluate in the HTTP save.
+	if pool != nil && !cfg.SpeechEnabled && !cfg.WritingWorkerExternal {
+		store := sharedObjectStore
+		if store == nil {
+			store = objectstorage.NewFileStore(cfg.SpeakingMediaDir)
+		}
+		worker := speakingpipeline.NewWorker(attemptsRepository, attempts.NewSpeakingProvider(speakingService), store, nil, aiEvaluator, jobs.NewSpeakingQueue(redisClient), logger).
+			WithLegacyTranscriber(&speakingSTTAdapter{stt: sttService})
+		workerCtx := options.WorkerContext
+		if workerCtx == nil {
+			workerCtx = context.Background()
+		}
+		go func() {
+			if err := worker.Run(workerCtx); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("in-process speaking worker stopped", "error", err)
+			}
+		}()
 	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool)
@@ -350,6 +370,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Post("/attempts/{attemptID}/recordings", attemptsHandler.UploadSpeakingRecording)
 			protected.Get("/attempts/{attemptID}/recordings/{partID}", attemptsHandler.SpeakingRecording)
 			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)
+			protected.Post("/attempts/{attemptID}/assessment/retry", attemptsHandler.RetryAssessment)
 			protected.Get("/attempts/mistakes", attemptsHandler.Mistakes)
 			protected.Get("/attempts/mistakes/attempts", attemptsHandler.MistakeAttempts)
 			protected.Get("/attempts/{attemptID}/mistakes", attemptsHandler.MistakeDetail)

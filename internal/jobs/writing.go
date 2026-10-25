@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -23,7 +24,11 @@ func (q *WritingQueue) EnqueueWritingAssessment(ctx context.Context, attemptID u
 }
 
 func (q *WritingQueue) PopWritingAssessment(ctx context.Context) (uuid.UUID, error) {
-	values, err := q.client.BRPop(ctx, 0, writingAssessmentQueue).Result()
+	if q.client == nil {
+		<-ctx.Done()
+		return uuid.Nil, ctx.Err()
+	}
+	values, err := q.client.BRPop(ctx, 1*time.Second, writingAssessmentQueue).Result()
 	if err != nil {
 		return uuid.Nil, err
 	}

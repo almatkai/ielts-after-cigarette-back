@@ -352,6 +352,50 @@ func (r *PostgresRepository) Finish(ctx context.Context, id uuid.UUID) error {
 	}
 	defer tx.Rollback(ctx)
 
+	// Session first, then attempts in stable ID order: this matches section
+	// opening/abandon and cannot deadlock with submit/retry, which lock only an
+	// attempt before changing its job. Never lock job rows here: worker failure
+	// persists job state before updating the attempt.
+	var status string
+	if err := tx.QueryRow(ctx, `SELECT status FROM full_mock_sessions WHERE id=$1 FOR UPDATE`, id).Scan(&status); err != nil {
+		return err
+	}
+	if status != SessionInProgress {
+		return ErrSessionCompleted
+	}
+	rows, err := tx.Query(ctx, `SELECT a.id FROM attempts a
+  JOIN full_mock_session_sections sec ON sec.attempt_id=a.id
+  WHERE sec.session_id=$1 ORDER BY a.id FOR UPDATE OF a`, id)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var attemptID uuid.UUID
+		if err := rows.Scan(&attemptID); err != nil {
+			rows.Close()
+			return err
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	// A separate statement gets a fresh READ COMMITTED snapshot AFTER waiting
+	// for all in-flight submission/retry commits. Those operations hold the
+	// same attempt locks until both the response and its job are persisted.
+	var pending bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(
+  SELECT 1 FROM full_mock_session_sections sec JOIN attempts a ON a.id=sec.attempt_id
+  WHERE sec.session_id=$1 AND (a.status='PROCESSING'
+   OR EXISTS(SELECT 1 FROM writing_assessment_jobs j WHERE j.attempt_id=a.id AND j.status IN ('QUEUED','PROCESSING','FAILED'))
+   OR EXISTS(SELECT 1 FROM speaking_assessment_jobs j WHERE j.attempt_id=a.id AND j.status IN ('QUEUED','PROCESSING','FAILED')))
+ )`, id).Scan(&pending); err != nil {
+		return err
+	}
+	if pending {
+		return ErrAssessmentPending
+	}
+
 	result, err := tx.Exec(ctx, `UPDATE full_mock_sessions SET current_section=5, status=$2,
 		submitted_at=CURRENT_TIMESTAMP WHERE id=$1 AND status=$3`, id, SessionSubmitted, SessionInProgress)
 	if err != nil {

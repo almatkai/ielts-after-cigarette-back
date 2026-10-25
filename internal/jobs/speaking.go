@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -17,10 +18,16 @@ type SpeakingQueue struct{ client *redis.Client }
 func NewSpeakingQueue(client *redis.Client) *SpeakingQueue { return &SpeakingQueue{client: client} }
 
 func (q *SpeakingQueue) EnqueueTranscription(ctx context.Context, recordingID uuid.UUID) error {
+	if q.client == nil {
+		return nil
+	}
 	return q.client.LPush(ctx, transcriptionQueue, recordingID.String()).Err()
 }
 
 func (q *SpeakingQueue) EnqueueAssessment(ctx context.Context, attemptID uuid.UUID) error {
+	if q.client == nil {
+		return nil
+	}
 	return q.client.LPush(ctx, assessmentQueue, attemptID.String()).Err()
 }
 
@@ -33,7 +40,11 @@ func (q *SpeakingQueue) PopAssessment(ctx context.Context) (uuid.UUID, error) {
 }
 
 func (q *SpeakingQueue) pop(ctx context.Context, key string) (uuid.UUID, error) {
-	values, err := q.client.BRPop(ctx, 0, key).Result()
+	if q.client == nil {
+		<-ctx.Done()
+		return uuid.Nil, ctx.Err()
+	}
+	values, err := q.client.BRPop(ctx, 1*time.Second, key).Result()
 	if err != nil {
 		return uuid.Nil, err
 	}

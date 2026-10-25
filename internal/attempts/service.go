@@ -367,16 +367,12 @@ func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input Save
 	for _, item := range input.Answers {
 		given[item.QuestionID] = item.Answer
 	}
-	request := WritingEvaluationRequest{ExamType: material.ExamType, Tasks: make([]WritingTaskAnswer, 0, len(material.WritingTasks))}
-	answers := make([]Answer, 0, len(material.WritingTasks))
 	for _, task := range material.WritingTasks {
 		answer := given[task.ID]
 		text, _ := answer["value"].(string)
 		if strings.TrimSpace(text) == "" || len([]rune(text)) > 15000 {
 			return Attempt{}, ErrWritingIncomplete
 		}
-		request.Tasks = append(request.Tasks, WritingTaskAnswer{Task: task, Text: text})
-		answers = append(answers, Answer{QuestionID: task.ID, Answer: map[string]any{"value": text}})
 	}
 	if s.dailyLimiter != nil && !isPrivileged(ctx) {
 		res, limitErr := s.dailyLimiter.Allow(ctx, "writing", attempt.UserID.String())
@@ -387,37 +383,17 @@ func (s *Service) submitWriting(ctx context.Context, attempt Attempt, input Save
 			return Attempt{}, ErrDailyLimitExceeded
 		}
 	}
-	if s.writingJobs != nil {
-		repository, ok := s.repository.(interface {
-			QueueWritingAssessment(context.Context, uuid.UUID, []AnswerInput) error
-		})
-		if !ok {
-			return Attempt{}, ErrAIUnavailable
-		}
-		if err := repository.QueueWritingAssessment(ctx, attempt.ID, input.Answers); err != nil {
-			return Attempt{}, err
-		}
-		_ = s.writingJobs.EnqueueWritingAssessment(ctx, attempt.ID)
-		return s.repository.Get(ctx, attempt.ID)
-	}
-	if s.evaluator == nil {
+	repository, ok := s.repository.(interface {
+		QueueWritingAssessment(context.Context, uuid.UUID, []AnswerInput) error
+	})
+	if !ok {
 		return Attempt{}, ErrAIUnavailable
 	}
-	evaluation, err := s.evaluator.Evaluate(ctx, request)
-	if err != nil {
+	if err := repository.QueueWritingAssessment(ctx, attempt.ID, input.Answers); err != nil {
 		return Attempt{}, err
 	}
-	evaluation.AttemptID = attempt.ID
-	band := evaluation.OverallBand
-	score := int(math.Round(band * 10))
-	accuracy := math.Round(band/9*10000) / 100
-	if err := s.repository.Submit(ctx, SubmitResult{
-		AttemptID: attempt.ID, UserID: attempt.UserID, Skill: MaterialWriting,
-		Answers: answers, Score: score, MaxScore: 90, Band: band, Accuracy: accuracy,
-		WritingEvaluation: &evaluation,
-	}); err != nil {
-		return Attempt{}, err
-	}
+	// PostgreSQL is the durable queue. Workers poll it independently of this
+	// request; a missing or slow Redis must never hold up a student's save.
 	return s.repository.Get(ctx, attempt.ID)
 }
 
@@ -449,42 +425,16 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 	for _, recording := range recordings {
 		recordingByPart[recording.PartID] = recording
 	}
-	request := SpeakingEvaluationRequest{ExamType: material.ExamType, Parts: make([]SpeakingPartAnswer, 0, len(material.SpeakingParts))}
 	for _, part := range material.SpeakingParts {
 		answer := given[part.ID]
 		transcript, _ := answer["value"].(string)
 		transcript = strings.TrimSpace(transcript)
-		recording, hasRecording := recordingByPart[part.ID]
+		_, hasRecording := recordingByPart[part.ID]
 		if transcript == "" && !hasRecording {
 			return Attempt{}, ErrSpeakingIncomplete
 		}
-		// Synchronous transcription is only a fallback for deployments without
-		// the speaking pipeline. When a queue is configured the worker
-		// transcribes asynchronously, and doing it here would block the HTTP
-		// request for the full STT round-trip (risking gateway timeouts) while
-		// the result is discarded: QueueSpeakingAssessment persists
-		// input.Answers, not the transcripts computed in this loop.
-		if s.speakingJobs == nil && transcript == "" && hasRecording && s.speakingTranscriber != nil && s.speakingStore != nil {
-			file, err := s.speakingStore.Open(ctx, recording.StorageKey)
-			if err == nil {
-				text, transcribeErr := s.speakingTranscriber.Transcribe(ctx, recording.OriginalName, file)
-				_ = file.Close()
-				if transcribeErr == nil && strings.TrimSpace(text) != "" {
-					transcript = strings.TrimSpace(text)
-					given[part.ID] = map[string]any{"value": transcript}
-				}
-			}
-		}
-		item := SpeakingPartAnswer{Part: part, Transcript: transcript}
-		if hasRecording && s.speakingJobs == nil {
-			audio, err := s.readSpeakingAudio(ctx, recording)
-			if err != nil {
-				return Attempt{}, err
-			}
-			item.Audio = audio
-		}
-		request.Parts = append(request.Parts, item)
 	}
+
 	if s.dailyLimiter != nil && !isPrivileged(ctx) {
 		res, limitErr := s.dailyLimiter.Allow(ctx, "speaking", attempt.UserID.String())
 		if limitErr != nil {
@@ -494,48 +444,13 @@ func (s *Service) submitSpeaking(ctx context.Context, attempt Attempt, input Sav
 			return Attempt{}, ErrDailyLimitExceeded
 		}
 	}
-	if s.speakingJobs != nil {
-		repository, ok := s.repository.(interface {
-			QueueSpeakingAssessment(context.Context, uuid.UUID, []AnswerInput) error
-		})
-		if !ok {
-			return Attempt{}, ErrAIUnavailable
-		}
-		if err := repository.QueueSpeakingAssessment(ctx, attempt.ID, input.Answers); err != nil {
-			return Attempt{}, err
-		}
-		_ = s.speakingJobs.EnqueueAssessment(ctx, attempt.ID)
-		return s.repository.Get(ctx, attempt.ID)
-	}
-	if s.speakingEvaluator == nil {
+	repository, ok := s.repository.(interface {
+		QueueSpeakingAssessment(context.Context, uuid.UUID, []AnswerInput) error
+	})
+	if !ok {
 		return Attempt{}, ErrAIUnavailable
 	}
-	evaluation, err := s.speakingEvaluator.EvaluateSpeaking(ctx, request)
-	if err != nil {
-		return Attempt{}, err
-	}
-	evaluation.AttemptID = attempt.ID
-	feedbackByPart := make(map[uuid.UUID]SpeakingPartFeedback, len(evaluation.Parts))
-	for _, item := range evaluation.Parts {
-		feedbackByPart[item.PartID] = item
-	}
-	answers := make([]Answer, 0, len(material.SpeakingParts))
-	for _, part := range material.SpeakingParts {
-		transcript, _ := given[part.ID]["value"].(string)
-		transcript = strings.TrimSpace(transcript)
-		if feedback, ok := feedbackByPart[part.ID]; ok && strings.TrimSpace(feedback.Transcript) != "" {
-			transcript = strings.TrimSpace(feedback.Transcript)
-		}
-		answers = append(answers, Answer{QuestionID: part.ID, Answer: map[string]any{"value": transcript}})
-	}
-	band := evaluation.OverallBand
-	score := int(math.Round(band * 10))
-	accuracy := math.Round(band/9*10000) / 100
-	if err := s.repository.Submit(ctx, SubmitResult{
-		AttemptID: attempt.ID, UserID: attempt.UserID, Skill: MaterialSpeaking,
-		Answers: answers, Score: score, MaxScore: 90, Band: band, Accuracy: accuracy,
-		SpeakingEvaluation: &evaluation,
-	}); err != nil {
+	if err := repository.QueueSpeakingAssessment(ctx, attempt.ID, input.Answers); err != nil {
 		return Attempt{}, err
 	}
 	return s.repository.Get(ctx, attempt.ID)
@@ -898,4 +813,106 @@ func bandFor(materialType, examType string, score, maxScore int) float64 {
 		}
 	}
 	return 0
+}
+
+// AssessSpeaking runs only in a background worker after a durable job is claimed.
+// This preserves the legacy audio/STT evaluator when SPEECH_ENABLED is false.
+func (s *Service) AssessSpeaking(ctx context.Context, attemptID uuid.UUID) (Attempt, error) {
+	attempt, err := s.repository.Get(ctx, attemptID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	if attempt.Status == StatusSubmitted {
+		return attempt, nil
+	}
+	if attempt.Status != StatusProcessing || attempt.MaterialType != MaterialSpeaking {
+		return Attempt{}, ErrAlreadySubmitted
+	}
+	provider, err := s.provider(attempt.MaterialType)
+	if err != nil {
+		return Attempt{}, err
+	}
+	material, err := provider.GradingStructure(ctx, attempt.MaterialID, attempt.MaterialVersionID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	saved, err := s.repository.ListAnswers(ctx, attempt.ID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	given := make(map[uuid.UUID]map[string]any, len(saved))
+	for _, item := range saved {
+		given[item.QuestionID] = item.Answer
+	}
+	recordings, err := s.speakingRecordings(ctx, attempt.ID)
+	if err != nil {
+		return Attempt{}, err
+	}
+	recordingByPart := make(map[uuid.UUID]SpeakingRecording, len(recordings))
+	for _, recording := range recordings {
+		recordingByPart[recording.PartID] = recording
+	}
+	request := SpeakingEvaluationRequest{ExamType: material.ExamType, Parts: make([]SpeakingPartAnswer, 0, len(material.SpeakingParts))}
+	for _, part := range material.SpeakingParts {
+		answer := given[part.ID]
+		transcript, _ := answer["value"].(string)
+		transcript = strings.TrimSpace(transcript)
+		recording, hasRecording := recordingByPart[part.ID]
+		if transcript == "" && !hasRecording {
+			return Attempt{}, ErrSpeakingIncomplete
+		}
+		// Legacy STT and audio evaluation happen entirely in this worker.
+		if transcript == "" && hasRecording && s.speakingTranscriber != nil && s.speakingStore != nil {
+			file, err := s.speakingStore.Open(ctx, recording.StorageKey)
+			if err == nil {
+				text, transcribeErr := s.speakingTranscriber.Transcribe(ctx, recording.OriginalName, file)
+				_ = file.Close()
+				if transcribeErr == nil && strings.TrimSpace(text) != "" {
+					transcript = strings.TrimSpace(text)
+					given[part.ID] = map[string]any{"value": transcript}
+				}
+			}
+		}
+		item := SpeakingPartAnswer{Part: part, Transcript: transcript}
+		if hasRecording {
+			audio, err := s.readSpeakingAudio(ctx, recording)
+			if err != nil {
+				return Attempt{}, err
+			}
+			item.Audio = audio
+		}
+		request.Parts = append(request.Parts, item)
+	}
+	if s.speakingEvaluator == nil {
+		return Attempt{}, ErrAIUnavailable
+	}
+	evaluation, err := s.speakingEvaluator.EvaluateSpeaking(ctx, request)
+	if err != nil {
+		return Attempt{}, err
+	}
+	evaluation.AttemptID = attempt.ID
+	feedbackByPart := make(map[uuid.UUID]SpeakingPartFeedback, len(evaluation.Parts))
+	for _, item := range evaluation.Parts {
+		feedbackByPart[item.PartID] = item
+	}
+	answers := make([]Answer, 0, len(material.SpeakingParts))
+	for _, part := range material.SpeakingParts {
+		transcript, _ := given[part.ID]["value"].(string)
+		transcript = strings.TrimSpace(transcript)
+		if feedback, ok := feedbackByPart[part.ID]; ok && strings.TrimSpace(feedback.Transcript) != "" {
+			transcript = strings.TrimSpace(feedback.Transcript)
+		}
+		answers = append(answers, Answer{QuestionID: part.ID, Answer: map[string]any{"value": transcript}})
+	}
+	band := evaluation.OverallBand
+	score := int(math.Round(band * 10))
+	accuracy := math.Round(band/9*10000) / 100
+	if err := s.repository.Submit(ctx, SubmitResult{
+		AttemptID: attempt.ID, UserID: attempt.UserID, Skill: MaterialSpeaking,
+		Answers: answers, Score: score, MaxScore: 90, Band: band, Accuracy: accuracy,
+		SpeakingEvaluation: &evaluation,
+	}); err != nil {
+		return Attempt{}, err
+	}
+	return s.repository.Get(ctx, attempt.ID)
 }

@@ -21,6 +21,7 @@ const (
 var (
 	ErrNotFound          = errors.New("full mock not found")
 	ErrSessionNotFound   = errors.New("full mock session not found")
+	ErrAssessmentPending = errors.New("full mock assessment is not complete")
 	ErrSectionIncomplete = errors.New("current full mock section is not submitted")
 	ErrSessionCompleted  = errors.New("full mock session is already completed")
 	ErrSectionLocked     = errors.New("full mock section is locked")
@@ -87,6 +88,7 @@ type Overview struct {
 }
 
 type SessionSection struct {
+	AssessmentStatus      string           `json:"assessmentStatus,omitempty"`
 	Position              int              `json:"position"`
 	Skill                 string           `json:"skill"`
 	Attempt               attempts.Attempt `json:"attempt"`

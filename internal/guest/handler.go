@@ -379,7 +379,7 @@ func allowedRoute(r *http.Request) bool {
 		return r.Method == http.MethodGet
 	case "/api/v1/full-mock-sessions/{sessionID}/advance", "/api/v1/full-mock-sessions/{sessionID}/finish",
 		"/api/v1/full-mock-sessions/{sessionID}/pause",
-		"/api/v1/attempts/{attemptID}/recordings", "/api/v1/attempts/{attemptID}/submit":
+		"/api/v1/attempts/{attemptID}/recordings", "/api/v1/attempts/{attemptID}/submit", "/api/v1/attempts/{attemptID}/assessment/retry":
 		return r.Method == http.MethodPost
 	case "/api/v1/attempts/{attemptID}/answers":
 		return r.Method == http.MethodPost || r.Method == http.MethodPut
