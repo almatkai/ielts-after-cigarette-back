@@ -33,10 +33,7 @@ export function translate(sql, args = []) {
     /\bFOR\s+(?:NO KEY\s+)?UPDATE(?:\s+OF\s+\w+(?:,\s*\w+)*)?(?:\s+SKIP LOCKED)?/gi,
     "",
   );
-  s = s
-    .replace(/\bILIKE\b/gi, "LIKE")
-    .replace(/\bGREATEST\(/gi, "max(")
-    .replace(/\bLEAST\(/gi, "min(");
+  s = s.replace(/\bILIKE\b/gi, "LIKE");
   s = s.replace(
     /(?:CURRENT_TIMESTAMP|now\(\))\s*-\s*INTERVAL\s*'(\d+) (seconds?|minutes?|days?)'/gi,
     (_, n, u) => `strftime('%Y-%m-%dT%H:%M:%f000000Z','now','-${n} ${u}')`,
@@ -138,6 +135,18 @@ export function translate(sql, args = []) {
       .join(",")})`;
   });
   s = functions(s, (name, a) => {
+    if (/^(greatest|least)$/i.test(name)) {
+      // PostgreSQL ignores NULL arguments; SQLite's scalar max/min do not.
+      // Aggregate over a local rowset so NULLs are skipped without evaluating
+      // arguments twice or converting their numeric/text values through JSON.
+      const aggregate = name.toLowerCase() === "greatest" ? "max" : "min";
+      return `(SELECT ${aggregate}(cf_extremum_value) FROM (${a
+        .map(
+          (value, i) =>
+            `SELECT ${value}${i === 0 ? " AS cf_extremum_value" : ""}`,
+        )
+        .join(" UNION ALL ")}))`;
+    }
     if (name.toLowerCase() === "split_part" && a[1] === "'@'" && a[2] === "1")
       return `(CASE WHEN instr(${a[0]},'@')>0 THEN substr(${a[0]},1,instr(${a[0]},'@')-1) ELSE ${a[0]} END)`;
     if (name.toLowerCase() === "concat_ws")

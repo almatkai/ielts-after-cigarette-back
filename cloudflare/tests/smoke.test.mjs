@@ -1092,6 +1092,30 @@ test("admin literal Unicode search works beyond the native LIKE pattern limit", 
   assert.equal(result.total, 1);
   assert.equal(result.items[0].id, uid);
 });
+test("admin users without profiles retain their account update timestamp", async () => {
+  const id = randomUUID();
+  const email = id + "@example.invalid";
+  const updatedAt = "2026-10-01T12:34:56.123456789Z";
+  await sql(
+    "INSERT INTO users(id,email,role,status,referral_code,updated_at) VALUES(?,?,'STUDENT','WAITING',?,?)",
+    [id, email, id.replaceAll("-", "").slice(0, 16), updatedAt],
+  );
+  try {
+    const result = await api("/admin/users?q=" + encodeURIComponent(email), {
+      as: admin,
+      role: "ADMIN",
+    });
+    assert.equal(result.total, 1);
+    assert.equal(result.items[0].updatedAt, updatedAt);
+    const detail = await api(`/admin/users/${id}`, {
+      as: admin,
+      role: "ADMIN",
+    });
+    assert.equal(detail.updatedAt, updatedAt);
+  } finally {
+    await sql("DELETE FROM users WHERE id=?", [id]);
+  }
+});
 test("large multipart media uses bounded native buffers and streamed R2 parts", async () => {
   const data = Buffer.alloc(50 * 1024 * 1024, 1);
   Buffer.from("ID3").copy(data);

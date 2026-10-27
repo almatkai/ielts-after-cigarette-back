@@ -532,7 +532,7 @@
     {
       "method": "GET",
       "path": "/api/v1/admin/users",
-      "contractRequests": 2,
+      "contractRequests": 3,
       "statuses": [
         200
       ],
@@ -550,7 +550,7 @@
     {
       "method": "GET",
       "path": "/api/v1/admin/users/{userID}",
-      "contractRequests": 2,
+      "contractRequests": 3,
       "statuses": [
         200
       ],
