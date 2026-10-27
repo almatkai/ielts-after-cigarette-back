@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "ab39c7a0ec52f861379630cccb01061f",
+  "name": "ielts-api-dev",
+  "main": "runtime/worker.mjs",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": true,
+  "vars": { "IAC_REQUIRE_IMPORT": "true" },
+  "durable_objects": {
+    "bindings": [
+      { "name": "IAC_STATE", "class_name": "IELTSDev" },
+      {
+        "name": "IAC_AUDIO",
+        "class_name": "IACAudio",
+        "script_name": "ielts-audio-dev",
+      },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["IELTSDev"] }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "ielts-media-dev" }],
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true },
+  ],
+  "observability": { "enabled": false },
+}

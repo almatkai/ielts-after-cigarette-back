@@ -1,0 +1,5571 @@
+{
+  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "migrations": [
+    {
+      "file": "000001_initial.up.sql",
+      "sha256": "99c13d2cb62b911fd533c4f2026e2d352fe1b34d222a7e379a55a20a9934f0c5"
+    },
+    {
+      "file": "000002_phone_verification_and_waitlist.up.sql",
+      "sha256": "a04de2dd5bb106485a7b9099f9010de7fd4dae00306b3faf931f1b0e1b835e8b"
+    },
+    {
+      "file": "000003_waitlist_names.up.sql",
+      "sha256": "f645e2f5e5a5b593d35d8e69bc44ca7057c86dde32c16ac65d4c8f47f22bca0b"
+    },
+    {
+      "file": "000004_user_roles.up.sql",
+      "sha256": "0ec022dbaf301c3b6b1c44f2da5163e6a6b0c63478c686b33268b6d84036c80f"
+    },
+    {
+      "file": "000005_reading_materials.up.sql",
+      "sha256": "620ed11f0b5aefdebbaa5701c6c088f7e6b52ec691f2df7db0045f6e921dc3ec"
+    },
+    {
+      "file": "000006_waitlist_google_sub.up.sql",
+      "sha256": "560f7d79b34325a24698a7794f160e1474b46d91d59917c6e98f64d506c82213"
+    },
+    {
+      "file": "000007_waitlist_unverified_phone.up.sql",
+      "sha256": "0ecaffc4237ff9c47b9751d535de00faeff8cb432837761a1a629ecaaa9f62a6"
+    },
+    {
+      "file": "000008_super_admins.up.sql",
+      "sha256": "975f20fa85edab686f3a80c3f1376200777db21e5c5671befe03e3e7a4550c0c"
+    },
+    {
+      "file": "000009_waitlist_referral.up.sql",
+      "sha256": "9f76a23441a0f8445a7e44762070754bb59fb6c76d486658bec8b3575add42bd"
+    },
+    {
+      "file": "000010_users_google_sub.up.sql",
+      "sha256": "3f92308f6c8533c52631f8ad5db66927c7a98f14c6d5a678ae411b8f9231ed89"
+    },
+    {
+      "file": "000011_merge_waitlist_into_users.up.sql",
+      "sha256": "a26a09c21e91b6cada15195165830d65437fdc74da72d6496883007be2486587"
+    },
+    {
+      "file": "000012_reading_questions.up.sql",
+      "sha256": "700fc2fe360915dbbf57bbfadf487008fe2c4d2f7a5301ff305792a73aa43e4b"
+    },
+    {
+      "file": "000013_listening.up.sql",
+      "sha256": "e823165ee6051b4e15294d2e222b8da00122f00b07ee3bad97c6338dba5c2386"
+    },
+    {
+      "file": "000014_attempts.up.sql",
+      "sha256": "d25ee55266d8c8752e6c81a46e91dba4adfcd07c0a3bc28c409ddee426fd39fd"
+    },
+    {
+      "file": "000015_attempts_reading.up.sql",
+      "sha256": "163c30bc6a78f88cc4820e0513e490558dc0672e9c97736d13021932ed563a5d"
+    },
+    {
+      "file": "000016_writing.up.sql",
+      "sha256": "771334bf7c8db007f276dd1699bdd4d468a9728eb2a9c99fb38d39127636dd2c"
+    },
+    {
+      "file": "000017_speaking.up.sql",
+      "sha256": "56179b1713ef86e54333fc4df95b0a7d6048d09da1f47c87b3af7152efdcac1f"
+    },
+    {
+      "file": "000018_full_mock.up.sql",
+      "sha256": "39a2abed79d276c3037788d6061187d6fdb7b59fa69dea921d5113285aa59538"
+    },
+    {
+      "file": "000019_full_mock_session_lifecycle.up.sql",
+      "sha256": "2596a47da69c04f46698e4a139b6cf22a7bef4410c07e5fd967c09dfd4ef5639"
+    },
+    {
+      "file": "000020_writing_duration.up.sql",
+      "sha256": "8c8560596cbb77f75c8446328ffabf821c558f07ccce2d232d99d56587839e55"
+    },
+    {
+      "file": "000021_reading_tests.up.sql",
+      "sha256": "9056597447b90d4aec286933b624e06f3a75f899a2f2837affb4177c76167bfd"
+    },
+    {
+      "file": "000022_attempts_lifecycle.up.sql",
+      "sha256": "34f947ecc631ca09d2457deb60b9ba67fc47fe5d7efa4029031ae40a16421b10"
+    },
+    {
+      "file": "000023_writing_media.up.sql",
+      "sha256": "48ea6e7d2abd55101c50771bbebc284258a69a4b2935624f64e9bc3ea43f1ab2"
+    },
+    {
+      "file": "000024_speaking_stt_pipeline.up.sql",
+      "sha256": "9ff84f2b2985064715f218a707db45118eeefc67b5fc7e5bf3ff5774f40bd8ae"
+    },
+    {
+      "file": "000025_speaking_transcription_backfill.up.sql",
+      "sha256": "56fe38f8a4570dfc74d4d2ccea9c26907dc9f9af29aec169686b657089dd6d76"
+    },
+    {
+      "file": "000026_listening_transcripts.up.sql",
+      "sha256": "a50226dcca32d3d9460e900873582f6055f8bb8cec547fff2d90e43e13342a10"
+    },
+    {
+      "file": "000027_writing_assessment_jobs.up.sql",
+      "sha256": "15af8feaa1a6eda3c6d0e8cecfe4a8c7c4e8072775894161108f36ace60c088b"
+    },
+    {
+      "file": "000028_mistake_bank_index.up.sql",
+      "sha256": "5747a7760bc780173af821ec18856e0cb55db370451518acd50098a309993b4c"
+    },
+    {
+      "file": "000029_attempt_history_index.up.sql",
+      "sha256": "f485fb4266874f76ee7ca9f1418532eac8402e797a437032b0ce8e347adac956"
+    },
+    {
+      "file": "000030_dynamic_full_mock.up.sql",
+      "sha256": "51342e71b364b255b9a3d41fc0f425a29f7eb9df39db4193d4fd8695d14a7ad5"
+    },
+    {
+      "file": "000031_ai_providers.up.sql",
+      "sha256": "df2a4eab6361aeb2db76607add5c5cdeb4c5e195a4268e59a0c27640a1fdff68"
+    },
+    {
+      "file": "000032_ai_routing_stats.up.sql",
+      "sha256": "21636b62db5922fde51696dbc2954b7f893a9c54bc867c724ac0537e78b06efd"
+    },
+    {
+      "file": "000033_analytics.up.sql",
+      "sha256": "41bd7679e5cf8ac207672b08b60261d9c463dc207698d8b29226d20e61a5bac5"
+    },
+    {
+      "file": "000034_daily_limits.up.sql",
+      "sha256": "bfe8ead64ac7a65fb8b85a10db29ee96a95fff9aae239fa77db59bab9625cd18"
+    },
+    {
+      "file": "000035_blog_and_writers.up.sql",
+      "sha256": "b91375bb52aeabf0d6397d1b00a5eccfe829a09c6c7be839a1526f6c9691d8da"
+    },
+    {
+      "file": "000036_user_management.up.sql",
+      "sha256": "d13a2f48a4375f79ad4e5db4c32114f80b796e665a6a2d78fa3b38f645f4843a"
+    },
+    {
+      "file": "000037_editor_permissions.up.sql",
+      "sha256": "0e5bfc020b91767d3c49ad8733ff41b9d2e4318ad40bb104042682de5b4baaa1"
+    },
+    {
+      "file": "000038_guest_trials.up.sql",
+      "sha256": "54a144442d4ce8c7c475844a4374f0baaae42aa519fb9db1863323c2f4d97967"
+    },
+    {
+      "file": "000039_fixed_guest_mock.up.sql",
+      "sha256": "82bdae2ae3822b11934950b8820a35816bde70388aead4792fde17827830be3a"
+    },
+    {
+      "file": "000040_full_mock_section_clocks.up.sql",
+      "sha256": "b3bf06c872fa59264673df14ba7daafbe3c7343dbde0dddbe2d46bc7a21b40ea"
+    },
+    {
+      "file": "000041_full_mock_section_pause.up.sql",
+      "sha256": "dcb3009d811bd329ff9e72e5d59a2aab7f72559069c2a18be54311206b5bafa5"
+    },
+    {
+      "file": "000042_guest_trial_claim.up.sql",
+      "sha256": "590e21854c812b44f127c6292dbf2839a040f078b5ad7168d945a4a599b70dbb"
+    },
+    {
+      "file": "000043_question_translations.up.sql",
+      "sha256": "809e75d277a7fa502a708089a913a9b9ff8ad56298c54696707b975879408332"
+    },
+    {
+      "file": "000044_question_translations_backfill.up.sql",
+      "sha256": "39479175d0bb65d9e29e3c5589f1865d63f4eda827ad7e76d5a336608b98caf0"
+    },
+    {
+      "file": "000045_adaptive_study_plan.up.sql",
+      "sha256": "cde6a9ca2264b4cc4a738e8b5a6ba5e14cf85831137fb9365da9fb187c7e8ce1"
+    },
+    {
+      "file": "000046_learning_content_metadata.up.sql",
+      "sha256": "67f175060ce113b6db650c18b24fe67f41a9fa76bbfd015d68888384636af361"
+    }
+  ],
+  "tables": [
+    {
+      "name": "account_object_deletions",
+      "columns": [
+        {
+          "name": "store",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "storage_key",
+          "type": "text",
+          "required": true,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "account_object_deletions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (store, storage_key)"
+        },
+        {
+          "name": "account_object_deletions_store_check",
+          "type": "c",
+          "definition": "CHECK (((store)::text = ANY ((ARRAY['blog'::character varying, 'speaking'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "account_object_deletions_pkey",
+          "definition": "CREATE UNIQUE INDEX account_object_deletions_pkey ON public.account_object_deletions USING btree (store, storage_key)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "ai_provider_calls",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "run_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "provider_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "provider_name",
+          "type": "character varying(120)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "purpose",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "from_env",
+          "type": "boolean",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "duration_ms",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "first_response_ms",
+          "type": "bigint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "first_token_ms",
+          "type": "bigint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "outcome",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "won",
+          "type": "boolean",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "trigger",
+          "type": "character varying(24)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mode",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "code",
+          "type": "character varying(64)",
+          "required": true,
+          "default": "''::character varying"
+        },
+        {
+          "name": "http_status",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "request_id",
+          "type": "character varying(128)",
+          "required": true,
+          "default": "''::character varying"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ai_provider_calls_duration_ms_check",
+          "type": "c",
+          "definition": "CHECK ((duration_ms >= 0))"
+        },
+        {
+          "name": "ai_provider_calls_first_response_ms_check",
+          "type": "c",
+          "definition": "CHECK ((first_response_ms >= 0))"
+        },
+        {
+          "name": "ai_provider_calls_first_token_ms_check",
+          "type": "c",
+          "definition": "CHECK ((first_token_ms >= 0))"
+        },
+        {
+          "name": "ai_provider_calls_outcome_check",
+          "type": "c",
+          "definition": "CHECK (((outcome)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying, 'timeout'::character varying, 'cancelled'::character varying])::text[])))"
+        },
+        {
+          "name": "ai_provider_calls_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "ai_provider_calls_purpose_check",
+          "type": "c",
+          "definition": "CHECK (((purpose)::text = ANY ((ARRAY['assistant'::character varying, 'writing'::character varying, 'speaking'::character varying, 'test'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ai_provider_calls_model_idx",
+          "definition": "CREATE INDEX ai_provider_calls_model_idx ON public.ai_provider_calls USING btree (provider_id, model, purpose, started_at DESC)"
+        },
+        {
+          "name": "ai_provider_calls_pkey",
+          "definition": "CREATE UNIQUE INDEX ai_provider_calls_pkey ON public.ai_provider_calls USING btree (id)"
+        },
+        {
+          "name": "ai_provider_calls_window_idx",
+          "definition": "CREATE INDEX ai_provider_calls_window_idx ON public.ai_provider_calls USING btree (started_at DESC)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "ai_provider_rotation",
+      "columns": [
+        {
+          "name": "priority",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "purpose",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "cursor",
+          "type": "bigint",
+          "required": true,
+          "default": "0"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ai_provider_rotation_cursor_check",
+          "type": "c",
+          "definition": "CHECK ((cursor >= 0))"
+        },
+        {
+          "name": "ai_provider_rotation_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (priority, purpose)"
+        },
+        {
+          "name": "ai_provider_rotation_priority_check",
+          "type": "c",
+          "definition": "CHECK (((priority >= 0) AND (priority <= 10000)))"
+        },
+        {
+          "name": "ai_provider_rotation_purpose_check",
+          "type": "c",
+          "definition": "CHECK (((purpose)::text = ANY ((ARRAY['assistant'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ai_provider_rotation_pkey",
+          "definition": "CREATE UNIQUE INDEX ai_provider_rotation_pkey ON public.ai_provider_rotation USING btree (priority, purpose)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "ai_provider_routing",
+      "columns": [
+        {
+          "name": "singleton",
+          "type": "boolean",
+          "required": true,
+          "default": "true"
+        },
+        {
+          "name": "mode",
+          "type": "text",
+          "required": true,
+          "default": "'sequential'::text"
+        },
+        {
+          "name": "max_parallel",
+          "type": "integer",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "hedge_delay_ms",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "provider_ids",
+          "type": "uuid[]",
+          "required": true,
+          "default": "'{}'::uuid[]"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ai_provider_routing_hedge_delay_ms_check",
+          "type": "c",
+          "definition": "CHECK (((hedge_delay_ms >= 0) AND (hedge_delay_ms <= 10000)))"
+        },
+        {
+          "name": "ai_provider_routing_max_parallel_check",
+          "type": "c",
+          "definition": "CHECK (((max_parallel >= 1) AND (max_parallel <= 4)))"
+        },
+        {
+          "name": "ai_provider_routing_mode_check",
+          "type": "c",
+          "definition": "CHECK ((mode = 'sequential'::text))"
+        },
+        {
+          "name": "ai_provider_routing_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (singleton)"
+        },
+        {
+          "name": "ai_provider_routing_singleton_check",
+          "type": "c",
+          "definition": "CHECK (singleton)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ai_provider_routing_pkey",
+          "definition": "CREATE UNIQUE INDEX ai_provider_routing_pkey ON public.ai_provider_routing USING btree (singleton)"
+        }
+      ],
+      "seed": [
+        {
+          "singleton": true,
+          "mode": "sequential",
+          "max_parallel": 1,
+          "hedge_delay_ms": 0,
+          "provider_ids": [],
+          "revision": 1
+        }
+      ],
+      "triggers": []
+    },
+    {
+      "name": "ai_providers",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "character varying(120)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "endpoint",
+          "type": "character varying(1000)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "speaking_model",
+          "type": "character varying(200)",
+          "required": true,
+          "default": "''::character varying"
+        },
+        {
+          "name": "scopes",
+          "type": "text[]",
+          "required": true,
+          "default": "ARRAY['assistant'::text, 'writing'::text, 'speaking'::text]"
+        },
+        {
+          "name": "enabled",
+          "type": "boolean",
+          "required": true,
+          "default": "false"
+        },
+        {
+          "name": "priority",
+          "type": "integer",
+          "required": true,
+          "default": "100"
+        },
+        {
+          "name": "timeout_seconds",
+          "type": "integer",
+          "required": true,
+          "default": "20"
+        },
+        {
+          "name": "key_ciphertext",
+          "type": "bytea",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ai_provider_key",
+          "type": "c",
+          "definition": "CHECK (((octet_length(key_ciphertext) >= 38) AND (octet_length(key_ciphertext) <= 16384)))"
+        },
+        {
+          "name": "ai_provider_priority",
+          "type": "c",
+          "definition": "CHECK (((priority >= 0) AND (priority <= 10000)))"
+        },
+        {
+          "name": "ai_provider_scopes",
+          "type": "c",
+          "definition": "CHECK (((cardinality(scopes) > 0) AND (scopes <@ ARRAY['assistant'::text, 'writing'::text, 'speaking'::text])))"
+        },
+        {
+          "name": "ai_provider_timeout",
+          "type": "c",
+          "definition": "CHECK (((timeout_seconds >= 5) AND (timeout_seconds <= 60)))"
+        },
+        {
+          "name": "ai_providers_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "ai_providers_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ai_providers_chain_idx",
+          "definition": "CREATE INDEX ai_providers_chain_idx ON public.ai_providers USING btree (priority, id) WHERE enabled"
+        },
+        {
+          "name": "ai_providers_pkey",
+          "definition": "CREATE UNIQUE INDEX ai_providers_pkey ON public.ai_providers USING btree (id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "attempt_answers",
+      "columns": [
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "question_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "answer",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "is_correct",
+          "type": "boolean",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "points_awarded",
+          "type": "smallint",
+          "required": false,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "attempt_answers_answer_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(answer) = 'object'::text))"
+        },
+        {
+          "name": "attempt_answers_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "attempt_answers_pk",
+          "type": "p",
+          "definition": "PRIMARY KEY (attempt_id, question_id)"
+        },
+        {
+          "name": "attempt_answers_points_valid",
+          "type": "c",
+          "definition": "CHECK (((points_awarded IS NULL) OR (points_awarded >= 0)))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "attempt_answers_pk",
+          "definition": "CREATE UNIQUE INDEX attempt_answers_pk ON public.attempt_answers USING btree (attempt_id, question_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "attempts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_type",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_version_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'IN_PROGRESS'::character varying"
+        },
+        {
+          "name": "score",
+          "type": "smallint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "max_score",
+          "type": "smallint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "band",
+          "type": "numeric(2,1)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "attempts_band_valid",
+          "type": "c",
+          "definition": "CHECK (((band IS NULL) OR (((band >= (0)::numeric) AND (band <= (9)::numeric)) AND ((band * (2)::numeric) = trunc((band * (2)::numeric))))))"
+        },
+        {
+          "name": "attempts_material_type_valid",
+          "type": "c",
+          "definition": "CHECK (((material_type)::text = ANY ((ARRAY['listening'::character varying, 'reading'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))"
+        },
+        {
+          "name": "attempts_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "attempts_score_valid",
+          "type": "c",
+          "definition": "CHECK (((score IS NULL) OR ((max_score IS NOT NULL) AND ((score >= 0) AND (score <= max_score)))))"
+        },
+        {
+          "name": "attempts_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['IN_PROGRESS'::character varying, 'PROCESSING'::character varying, 'SUBMITTED'::character varying, 'ABANDONED'::character varying])::text[])))"
+        },
+        {
+          "name": "attempts_submitted_fields",
+          "type": "c",
+          "definition": "CHECK ((((status)::text = ANY ((ARRAY['IN_PROGRESS'::character varying, 'PROCESSING'::character varying, 'ABANDONED'::character varying])::text[])) OR ((score IS NOT NULL) AND (max_score IS NOT NULL) AND (submitted_at IS NOT NULL))))"
+        },
+        {
+          "name": "attempts_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "attempts_completed_material_idx",
+          "definition": "CREATE INDEX attempts_completed_material_idx ON public.attempts USING btree (user_id, material_type, material_id) WHERE ((status)::text = ANY ((ARRAY['SUBMITTED'::character varying, 'PROCESSING'::character varying])::text[]))"
+        },
+        {
+          "name": "attempts_history_idx",
+          "definition": "CREATE INDEX attempts_history_idx ON public.attempts USING btree (user_id, COALESCE(submitted_at, started_at) DESC, id DESC)"
+        },
+        {
+          "name": "attempts_mistake_bank_idx",
+          "definition": "CREATE INDEX attempts_mistake_bank_idx ON public.attempts USING btree (user_id, material_type, submitted_at DESC, id DESC) WHERE ((status)::text = 'SUBMITTED'::text)"
+        },
+        {
+          "name": "attempts_pkey",
+          "definition": "CREATE UNIQUE INDEX attempts_pkey ON public.attempts USING btree (id)"
+        },
+        {
+          "name": "attempts_started_at_idx",
+          "definition": "CREATE INDEX attempts_started_at_idx ON public.attempts USING btree (started_at)"
+        },
+        {
+          "name": "attempts_user_material_idx",
+          "definition": "CREATE INDEX attempts_user_material_idx ON public.attempts USING btree (user_id, material_type, started_at DESC)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "blog_media",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "original_name",
+          "type": "character varying(255)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mime_type",
+          "type": "character varying(100)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "storage_key",
+          "type": "character varying(500)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "byte_size",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "uploaded_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "blog_media_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "blog_media_size_valid",
+          "type": "c",
+          "definition": "CHECK ((byte_size > 0))"
+        },
+        {
+          "name": "blog_media_storage_key_key",
+          "type": "u",
+          "definition": "UNIQUE (storage_key)"
+        },
+        {
+          "name": "blog_media_uploaded_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "blog_media_created_at_idx",
+          "definition": "CREATE INDEX blog_media_created_at_idx ON public.blog_media USING btree (created_at DESC)"
+        },
+        {
+          "name": "blog_media_pkey",
+          "definition": "CREATE UNIQUE INDEX blog_media_pkey ON public.blog_media USING btree (id)"
+        },
+        {
+          "name": "blog_media_storage_key_key",
+          "definition": "CREATE UNIQUE INDEX blog_media_storage_key_key ON public.blog_media USING btree (storage_key)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "blog_posts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "author_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "slug",
+          "type": "character varying(255)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(300)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "cover_media_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "body_html",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "body_json",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "reading_time_minutes",
+          "type": "integer",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "status",
+          "type": "character varying(20)",
+          "required": true,
+          "default": "'DRAFT'::character varying"
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "content_updated_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "blog_posts_author_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "blog_posts_body_json_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(body_json) = 'object'::text))"
+        },
+        {
+          "name": "blog_posts_cover_media_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (cover_media_id) REFERENCES blog_media(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "blog_posts_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "blog_posts_reading_time_valid",
+          "type": "c",
+          "definition": "CHECK (((reading_time_minutes >= 1) AND (reading_time_minutes <= 120)))"
+        },
+        {
+          "name": "blog_posts_slug_key",
+          "type": "u",
+          "definition": "UNIQUE (slug)"
+        },
+        {
+          "name": "blog_posts_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))"
+        },
+        {
+          "name": "blog_posts_title_not_blank",
+          "type": "c",
+          "definition": "CHECK ((btrim((title)::text) <> ''::text))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "blog_posts_author_idx",
+          "definition": "CREATE INDEX blog_posts_author_idx ON public.blog_posts USING btree (author_id, updated_at DESC)"
+        },
+        {
+          "name": "blog_posts_pkey",
+          "definition": "CREATE UNIQUE INDEX blog_posts_pkey ON public.blog_posts USING btree (id)"
+        },
+        {
+          "name": "blog_posts_published_idx",
+          "definition": "CREATE INDEX blog_posts_published_idx ON public.blog_posts USING btree (status, published_at DESC)"
+        },
+        {
+          "name": "blog_posts_slug_key",
+          "definition": "CREATE UNIQUE INDEX blog_posts_slug_key ON public.blog_posts USING btree (slug)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "blog_posts_set_updated_at",
+          "definition": "CREATE TRIGGER blog_posts_set_updated_at BEFORE UPDATE ON public.blog_posts FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "full_mock_session_sections",
+      "columns": [
+        {
+          "name": "session_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "position",
+          "type": "smallint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "skill",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "deadline_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "remaining_milliseconds",
+          "type": "bigint",
+          "required": false,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "full_mock_section_clock",
+          "type": "c",
+          "definition": "CHECK ((((started_at IS NULL) AND (deadline_at IS NULL) AND (remaining_milliseconds IS NULL)) OR ((started_at IS NOT NULL) AND (((deadline_at IS NOT NULL) AND (deadline_at > started_at) AND (remaining_milliseconds IS NULL)) OR ((deadline_at IS NULL) AND (remaining_milliseconds IS NOT NULL))))))"
+        },
+        {
+          "name": "full_mock_section_pause_valid",
+          "type": "c",
+          "definition": "CHECK (((remaining_milliseconds IS NULL) OR ((remaining_milliseconds > 0) AND (started_at IS NOT NULL) AND (deadline_at IS NULL))))"
+        },
+        {
+          "name": "full_mock_session_sections_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "full_mock_session_sections_attempt_id_key",
+          "type": "u",
+          "definition": "UNIQUE (attempt_id)"
+        },
+        {
+          "name": "full_mock_session_sections_pk",
+          "type": "p",
+          "definition": "PRIMARY KEY (session_id, \"position\")"
+        },
+        {
+          "name": "full_mock_session_sections_position_skill_valid",
+          "type": "c",
+          "definition": "CHECK ((((\"position\" = 1) AND ((skill)::text = 'listening'::text)) OR ((\"position\" = 2) AND ((skill)::text = 'reading'::text)) OR ((\"position\" = 3) AND ((skill)::text = 'writing'::text)) OR ((\"position\" = 4) AND ((skill)::text = 'speaking'::text))))"
+        },
+        {
+          "name": "full_mock_session_sections_position_valid",
+          "type": "c",
+          "definition": "CHECK (((\"position\" >= 1) AND (\"position\" <= 4)))"
+        },
+        {
+          "name": "full_mock_session_sections_session_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (session_id) REFERENCES full_mock_sessions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "full_mock_session_sections_skill_valid",
+          "type": "c",
+          "definition": "CHECK (((skill)::text = ANY ((ARRAY['listening'::character varying, 'reading'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "full_mock_session_sections_attempt_id_key",
+          "definition": "CREATE UNIQUE INDEX full_mock_session_sections_attempt_id_key ON public.full_mock_session_sections USING btree (attempt_id)"
+        },
+        {
+          "name": "full_mock_session_sections_pk",
+          "definition": "CREATE UNIQUE INDEX full_mock_session_sections_pk ON public.full_mock_session_sections USING btree (session_id, \"position\")"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "full_mock_sessions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mock_test_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'IN_PROGRESS'::character varying"
+        },
+        {
+          "name": "current_section",
+          "type": "smallint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(16)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(200)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "duration_minutes",
+          "type": "integer",
+          "required": false,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "full_mock_sessions_duration_valid",
+          "type": "c",
+          "definition": "CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300)))"
+        },
+        {
+          "name": "full_mock_sessions_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))"
+        },
+        {
+          "name": "full_mock_sessions_metadata_valid",
+          "type": "c",
+          "definition": "CHECK (((mock_test_id IS NOT NULL) OR ((exam_type IS NOT NULL) AND (title IS NOT NULL) AND (duration_minutes IS NOT NULL))))"
+        },
+        {
+          "name": "full_mock_sessions_mock_test_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (mock_test_id) REFERENCES full_mock_tests(id) ON DELETE RESTRICT"
+        },
+        {
+          "name": "full_mock_sessions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "full_mock_sessions_section_valid",
+          "type": "c",
+          "definition": "CHECK (((current_section >= 1) AND (current_section <= 5)))"
+        },
+        {
+          "name": "full_mock_sessions_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['IN_PROGRESS'::character varying, 'SUBMITTED'::character varying, 'ABANDONED'::character varying])::text[])))"
+        },
+        {
+          "name": "full_mock_sessions_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "full_mock_sessions_active_user_idx",
+          "definition": "CREATE UNIQUE INDEX full_mock_sessions_active_user_idx ON public.full_mock_sessions USING btree (mock_test_id, user_id) WHERE ((status)::text = 'IN_PROGRESS'::text)"
+        },
+        {
+          "name": "full_mock_sessions_generated_active_user_idx",
+          "definition": "CREATE UNIQUE INDEX full_mock_sessions_generated_active_user_idx ON public.full_mock_sessions USING btree (user_id) WHERE (((status)::text = 'IN_PROGRESS'::text) AND (mock_test_id IS NULL))"
+        },
+        {
+          "name": "full_mock_sessions_pkey",
+          "definition": "CREATE UNIQUE INDEX full_mock_sessions_pkey ON public.full_mock_sessions USING btree (id)"
+        },
+        {
+          "name": "full_mock_sessions_started_at_idx",
+          "definition": "CREATE INDEX full_mock_sessions_started_at_idx ON public.full_mock_sessions USING btree (started_at)"
+        },
+        {
+          "name": "full_mock_sessions_user_idx",
+          "definition": "CREATE INDEX full_mock_sessions_user_idx ON public.full_mock_sessions USING btree (user_id, started_at DESC)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "full_mock_tests",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "slug",
+          "type": "character varying(160)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'DRAFT'::character varying"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "integer",
+          "required": true,
+          "default": "165"
+        },
+        {
+          "name": "listening_material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reading_material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "writing_material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "speaking_material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "full_mock_tests_duration_valid",
+          "type": "c",
+          "definition": "CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300)))"
+        },
+        {
+          "name": "full_mock_tests_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))"
+        },
+        {
+          "name": "full_mock_tests_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "full_mock_tests_revision_valid",
+          "type": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "full_mock_tests_slug_key",
+          "type": "u",
+          "definition": "UNIQUE (slug)"
+        },
+        {
+          "name": "full_mock_tests_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "full_mock_tests_pkey",
+          "definition": "CREATE UNIQUE INDEX full_mock_tests_pkey ON public.full_mock_tests USING btree (id)"
+        },
+        {
+          "name": "full_mock_tests_published_idx",
+          "definition": "CREATE INDEX full_mock_tests_published_idx ON public.full_mock_tests USING btree (status, published_at DESC)"
+        },
+        {
+          "name": "full_mock_tests_slug_key",
+          "definition": "CREATE UNIQUE INDEX full_mock_tests_slug_key ON public.full_mock_tests USING btree (slug)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "guest_mock_materials",
+      "columns": [
+        {
+          "name": "skill",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_version_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "guest_mock_materials_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (skill)"
+        },
+        {
+          "name": "guest_mock_materials_skill_check",
+          "type": "c",
+          "definition": "CHECK ((skill = ANY (ARRAY['listening'::text, 'reading'::text, 'writing'::text, 'speaking'::text])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "guest_mock_materials_pkey",
+          "definition": "CREATE UNIQUE INDEX guest_mock_materials_pkey ON public.guest_mock_materials USING btree (skill)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "guest_trials",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "token_hash",
+          "type": "bytea",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "claimed_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "claimed_session_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "guest_trial_claim_complete",
+          "type": "c",
+          "definition": "CHECK (((claimed_by IS NULL) = (claimed_session_id IS NULL)))"
+        },
+        {
+          "name": "guest_trials_claimed_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (claimed_by) REFERENCES users(id)"
+        },
+        {
+          "name": "guest_trials_claimed_session_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (claimed_session_id) REFERENCES full_mock_sessions(id)"
+        },
+        {
+          "name": "guest_trials_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+          "name": "guest_trials_token_hash_key",
+          "type": "u",
+          "definition": "UNIQUE (token_hash)"
+        },
+        {
+          "name": "guest_trials_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "guest_trials_expiry_idx",
+          "definition": "CREATE INDEX guest_trials_expiry_idx ON public.guest_trials USING btree (expires_at)"
+        },
+        {
+          "name": "guest_trials_pkey",
+          "definition": "CREATE UNIQUE INDEX guest_trials_pkey ON public.guest_trials USING btree (user_id)"
+        },
+        {
+          "name": "guest_trials_token_hash_key",
+          "definition": "CREATE UNIQUE INDEX guest_trials_token_hash_key ON public.guest_trials USING btree (token_hash)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "listening_media",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "kind",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "original_name",
+          "type": "character varying(255)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mime_type",
+          "type": "character varying(100)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "storage_key",
+          "type": "character varying(255)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "byte_size",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "listening_media_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "listening_media_kind_valid",
+          "type": "c",
+          "definition": "CHECK (((kind)::text = ANY ((ARRAY['audio'::character varying, 'image'::character varying])::text[])))"
+        },
+        {
+          "name": "listening_media_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "listening_media_size_valid",
+          "type": "c",
+          "definition": "CHECK ((byte_size > 0))"
+        },
+        {
+          "name": "listening_media_storage_key_key",
+          "type": "u",
+          "definition": "UNIQUE (storage_key)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "listening_media_pkey",
+          "definition": "CREATE UNIQUE INDEX listening_media_pkey ON public.listening_media USING btree (id)"
+        },
+        {
+          "name": "listening_media_storage_key_key",
+          "definition": "CREATE UNIQUE INDEX listening_media_storage_key_key ON public.listening_media USING btree (storage_key)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "listening_parts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "test_version_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "position",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(200)",
+          "required": true,
+          "default": "''::character varying"
+        },
+        {
+          "name": "audio_asset_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "transcript",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "transcript_segments",
+          "type": "jsonb",
+          "required": true,
+          "default": "'[]'::jsonb"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "listening_parts_audio_asset_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (audio_asset_id) REFERENCES listening_media(id)"
+        },
+        {
+          "name": "listening_parts_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "listening_parts_position_valid",
+          "type": "c",
+          "definition": "CHECK ((\"position\" > 0))"
+        },
+        {
+          "name": "listening_parts_test_version_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (test_version_id) REFERENCES listening_test_versions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "listening_parts_version_position_unique",
+          "type": "u",
+          "definition": "UNIQUE (test_version_id, \"position\")"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "listening_parts_pkey",
+          "definition": "CREATE UNIQUE INDEX listening_parts_pkey ON public.listening_parts USING btree (id)"
+        },
+        {
+          "name": "listening_parts_version_idx",
+          "definition": "CREATE INDEX listening_parts_version_idx ON public.listening_parts USING btree (test_version_id, \"position\")"
+        },
+        {
+          "name": "listening_parts_version_position_unique",
+          "definition": "CREATE UNIQUE INDEX listening_parts_version_position_unique ON public.listening_parts USING btree (test_version_id, \"position\")"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "listening_question_groups",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "part_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "position",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "question_type",
+          "type": "character varying(48)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "instructions",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "context",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "config",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "image_asset_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "listening_groups_config_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(config) = 'object'::text))"
+        },
+        {
+          "name": "listening_groups_part_position_unique",
+          "type": "u",
+          "definition": "UNIQUE (part_id, \"position\")"
+        },
+        {
+          "name": "listening_groups_position_valid",
+          "type": "c",
+          "definition": "CHECK ((\"position\" > 0))"
+        },
+        {
+          "name": "listening_groups_type_valid",
+          "type": "c",
+          "definition": "CHECK (((question_type)::text = ANY ((ARRAY['multiple_choice'::character varying, 'matching'::character varying, 'map_labelling'::character varying, 'plan_labelling'::character varying, 'diagram_labelling'::character varying, 'form_completion'::character varying, 'note_completion'::character varying, 'table_completion'::character varying, 'flow_chart_completion'::character varying, 'sentence_completion'::character varying, 'short_answer'::character varying])::text[])))"
+        },
+        {
+          "name": "listening_question_groups_image_asset_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (image_asset_id) REFERENCES listening_media(id)"
+        },
+        {
+          "name": "listening_question_groups_part_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (part_id) REFERENCES listening_parts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "listening_question_groups_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "listening_groups_part_idx",
+          "definition": "CREATE INDEX listening_groups_part_idx ON public.listening_question_groups USING btree (part_id, \"position\")"
+        },
+        {
+          "name": "listening_groups_part_position_unique",
+          "definition": "CREATE UNIQUE INDEX listening_groups_part_position_unique ON public.listening_question_groups USING btree (part_id, \"position\")"
+        },
+        {
+          "name": "listening_question_groups_pkey",
+          "definition": "CREATE UNIQUE INDEX listening_question_groups_pkey ON public.listening_question_groups USING btree (id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "listening_questions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "group_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "position",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "number",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "prompt",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "answer",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "explanation",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "points",
+          "type": "smallint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "listening_questions_answer_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(answer) = 'object'::text))"
+        },
+        {
+          "name": "listening_questions_content_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(content) = 'object'::text))"
+        },
+        {
+          "name": "listening_questions_group_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (group_id) REFERENCES listening_question_groups(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "listening_questions_group_position_unique",
+          "type": "u",
+          "definition": "UNIQUE (group_id, \"position\")"
+        },
+        {
+          "name": "listening_questions_number_valid",
+          "type": "c",
+          "definition": "CHECK ((number > 0))"
+        },
+        {
+          "name": "listening_questions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "listening_questions_points_valid",
+          "type": "c",
+          "definition": "CHECK (((points >= 1) AND (points <= 10)))"
+        },
+        {
+          "name": "listening_questions_position_valid",
+          "type": "c",
+          "definition": "CHECK ((\"position\" > 0))"
+        },
+        {
+          "name": "listening_questions_prompt_valid",
+          "type": "c",
+          "definition": "CHECK ((btrim(prompt) <> ''::text))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "listening_questions_group_idx",
+          "definition": "CREATE INDEX listening_questions_group_idx ON public.listening_questions USING btree (group_id, \"position\")"
+        },
+        {
+          "name": "listening_questions_group_position_unique",
+          "definition": "CREATE UNIQUE INDEX listening_questions_group_position_unique ON public.listening_questions USING btree (group_id, \"position\")"
+        },
+        {
+          "name": "listening_questions_pkey",
+          "definition": "CREATE UNIQUE INDEX listening_questions_pkey ON public.listening_questions USING btree (id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "listening_test_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "test_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "version_number",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "smallint",
+          "required": true,
+          "default": "40"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "listening_test_versions_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "listening_test_versions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "listening_test_versions_test_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (test_id) REFERENCES listening_tests(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "listening_versions_duration_valid",
+          "type": "c",
+          "definition": "CHECK (((duration_minutes >= 1) AND (duration_minutes <= 180)))"
+        },
+        {
+          "name": "listening_versions_number_valid",
+          "type": "c",
+          "definition": "CHECK ((version_number > 0))"
+        },
+        {
+          "name": "listening_versions_test_id_unique",
+          "type": "u",
+          "definition": "UNIQUE (test_id, id)"
+        },
+        {
+          "name": "listening_versions_test_number_unique",
+          "type": "u",
+          "definition": "UNIQUE (test_id, version_number)"
+        },
+        {
+          "name": "listening_versions_title_valid",
+          "type": "c",
+          "definition": "CHECK ((btrim((title)::text) <> ''::text))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "listening_test_versions_pkey",
+          "definition": "CREATE UNIQUE INDEX listening_test_versions_pkey ON public.listening_test_versions USING btree (id)"
+        },
+        {
+          "name": "listening_versions_test_id_unique",
+          "definition": "CREATE UNIQUE INDEX listening_versions_test_id_unique ON public.listening_test_versions USING btree (test_id, id)"
+        },
+        {
+          "name": "listening_versions_test_idx",
+          "definition": "CREATE INDEX listening_versions_test_idx ON public.listening_test_versions USING btree (test_id, version_number DESC)"
+        },
+        {
+          "name": "listening_versions_test_number_unique",
+          "definition": "CREATE UNIQUE INDEX listening_versions_test_number_unique ON public.listening_test_versions USING btree (test_id, version_number)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "listening_tests",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "slug",
+          "type": "character varying(160)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'DRAFT'::character varying"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "current_version_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "published_version_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "listening_tests_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "listening_tests_current_version_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (id, current_version_id) REFERENCES listening_test_versions(test_id, id)"
+        },
+        {
+          "name": "listening_tests_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))"
+        },
+        {
+          "name": "listening_tests_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "listening_tests_published_version_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (id, published_version_id) REFERENCES listening_test_versions(test_id, id)"
+        },
+        {
+          "name": "listening_tests_slug_key",
+          "type": "u",
+          "definition": "UNIQUE (slug)"
+        },
+        {
+          "name": "listening_tests_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))"
+        },
+        {
+          "name": "listening_tests_updated_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "listening_tests_pkey",
+          "definition": "CREATE UNIQUE INDEX listening_tests_pkey ON public.listening_tests USING btree (id)"
+        },
+        {
+          "name": "listening_tests_slug_key",
+          "definition": "CREATE UNIQUE INDEX listening_tests_slug_key ON public.listening_tests USING btree (slug)"
+        },
+        {
+          "name": "listening_tests_status_idx",
+          "definition": "CREATE INDEX listening_tests_status_idx ON public.listening_tests USING btree (status, updated_at DESC)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "phone_verifications",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "phone",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "purpose",
+          "type": "character varying(32)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "code_hash",
+          "type": "bytea",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "attempts",
+          "type": "smallint",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "max_attempts",
+          "type": "smallint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "verified_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "verification_token_hash",
+          "type": "bytea",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "token_expires_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "phone_verifications_attempts_valid",
+          "type": "c",
+          "definition": "CHECK (((attempts >= 0) AND (max_attempts > 0) AND (attempts <= max_attempts)))"
+        },
+        {
+          "name": "phone_verifications_consumed_state_valid",
+          "type": "c",
+          "definition": "CHECK (((consumed_at IS NULL) OR (verified_at IS NOT NULL)))"
+        },
+        {
+          "name": "phone_verifications_expiry_valid",
+          "type": "c",
+          "definition": "CHECK ((expires_at > created_at))"
+        },
+        {
+          "name": "phone_verifications_phone_e164",
+          "type": "c",
+          "definition": "CHECK (((phone)::text ~ '^\\+[1-9][0-9]{7,14}$'::text))"
+        },
+        {
+          "name": "phone_verifications_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "phone_verifications_purpose_valid",
+          "type": "c",
+          "definition": "CHECK (((purpose)::text = ANY ((ARRAY['WAITLIST'::character varying, 'REGISTRATION'::character varying])::text[])))"
+        },
+        {
+          "name": "phone_verifications_verified_state_valid",
+          "type": "c",
+          "definition": "CHECK ((((verified_at IS NULL) AND (verification_token_hash IS NULL) AND (token_expires_at IS NULL)) OR ((verified_at IS NOT NULL) AND (verification_token_hash IS NOT NULL) AND (token_expires_at > verified_at))))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "phone_verifications_phone_purpose_created_idx",
+          "definition": "CREATE INDEX phone_verifications_phone_purpose_created_idx ON public.phone_verifications USING btree (phone, purpose, created_at DESC)"
+        },
+        {
+          "name": "phone_verifications_pkey",
+          "definition": "CREATE UNIQUE INDEX phone_verifications_pkey ON public.phone_verifications USING btree (id)"
+        },
+        {
+          "name": "phone_verifications_token_unique",
+          "definition": "CREATE UNIQUE INDEX phone_verifications_token_unique ON public.phone_verifications USING btree (verification_token_hash) WHERE (verification_token_hash IS NOT NULL)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "phone_verifications_set_updated_at",
+          "definition": "CREATE TRIGGER phone_verifications_set_updated_at BEFORE UPDATE ON public.phone_verifications FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "question_translations",
+      "columns": [
+        {
+          "name": "question_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "skill",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "lang",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "explanation",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "hint",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "question_translations_lang_check",
+          "type": "c",
+          "definition": "CHECK ((lang = ANY (ARRAY['kk'::text, 'en'::text])))"
+        },
+        {
+          "name": "question_translations_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (question_id, lang)"
+        },
+        {
+          "name": "question_translations_skill_check",
+          "type": "c",
+          "definition": "CHECK ((skill = ANY (ARRAY['reading'::text, 'listening'::text])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "question_translations_pkey",
+          "definition": "CREATE UNIQUE INDEX question_translations_pkey ON public.question_translations USING btree (question_id, lang)"
+        },
+        {
+          "name": "question_translations_question_idx",
+          "definition": "CREATE INDEX question_translations_question_idx ON public.question_translations USING btree (question_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "reading_material_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "version_number",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "source_title",
+          "type": "character varying(200)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "source_url",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "smallint",
+          "required": false,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "reading_material_versions_body_not_blank",
+          "type": "c",
+          "definition": "CHECK ((btrim(body) <> ''::text))"
+        },
+        {
+          "name": "reading_material_versions_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "reading_material_versions_duration_valid",
+          "type": "c",
+          "definition": "CHECK (((duration_minutes IS NULL) OR ((duration_minutes >= 1) AND (duration_minutes <= 300))))"
+        },
+        {
+          "name": "reading_material_versions_material_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (material_id) REFERENCES reading_materials(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "reading_material_versions_material_id_unique",
+          "type": "u",
+          "definition": "UNIQUE (material_id, id)"
+        },
+        {
+          "name": "reading_material_versions_material_number_unique",
+          "type": "u",
+          "definition": "UNIQUE (material_id, version_number)"
+        },
+        {
+          "name": "reading_material_versions_number_valid",
+          "type": "c",
+          "definition": "CHECK ((version_number > 0))"
+        },
+        {
+          "name": "reading_material_versions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "reading_material_versions_title_not_blank",
+          "type": "c",
+          "definition": "CHECK ((btrim((title)::text) <> ''::text))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "reading_material_versions_material_id_unique",
+          "definition": "CREATE UNIQUE INDEX reading_material_versions_material_id_unique ON public.reading_material_versions USING btree (material_id, id)"
+        },
+        {
+          "name": "reading_material_versions_material_number_unique",
+          "definition": "CREATE UNIQUE INDEX reading_material_versions_material_number_unique ON public.reading_material_versions USING btree (material_id, version_number)"
+        },
+        {
+          "name": "reading_material_versions_pkey",
+          "definition": "CREATE UNIQUE INDEX reading_material_versions_pkey ON public.reading_material_versions USING btree (id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "reading_materials",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "slug",
+          "type": "character varying(160)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "difficulty",
+          "type": "character varying(24)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'DRAFT'::character varying"
+        },
+        {
+          "name": "current_version_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "published_version_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "published_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "material_kind",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'PASSAGE'::character varying"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "reading_materials_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "reading_materials_current_version_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (id, current_version_id) REFERENCES reading_material_versions(material_id, id)"
+        },
+        {
+          "name": "reading_materials_difficulty_valid",
+          "type": "c",
+          "definition": "CHECK (((difficulty)::text = ANY ((ARRAY['foundation'::character varying, 'intermediate'::character varying, 'advanced'::character varying])::text[])))"
+        },
+        {
+          "name": "reading_materials_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))"
+        },
+        {
+          "name": "reading_materials_kind_valid",
+          "type": "c",
+          "definition": "CHECK (((material_kind)::text = ANY ((ARRAY['PASSAGE'::character varying, 'TEST'::character varying])::text[])))"
+        },
+        {
+          "name": "reading_materials_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "reading_materials_published_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "reading_materials_published_state_valid",
+          "type": "c",
+          "definition": "CHECK ((((published_version_id IS NULL) AND (published_at IS NULL) AND (published_by IS NULL) AND ((status)::text = 'DRAFT'::text)) OR ((published_version_id IS NOT NULL) AND (published_at IS NOT NULL) AND ((status)::text = ANY ((ARRAY['PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))))"
+        },
+        {
+          "name": "reading_materials_published_version_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (id, published_version_id) REFERENCES reading_material_versions(material_id, id)"
+        },
+        {
+          "name": "reading_materials_revision_valid",
+          "type": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "reading_materials_slug_key",
+          "type": "u",
+          "definition": "UNIQUE (slug)"
+        },
+        {
+          "name": "reading_materials_slug_valid",
+          "type": "c",
+          "definition": "CHECK (((slug)::text ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'::text))"
+        },
+        {
+          "name": "reading_materials_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))"
+        },
+        {
+          "name": "reading_materials_updated_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "reading_materials_catalog_idx",
+          "definition": "CREATE INDEX reading_materials_catalog_idx ON public.reading_materials USING btree (status, exam_type, difficulty, updated_at DESC)"
+        },
+        {
+          "name": "reading_materials_pkey",
+          "definition": "CREATE UNIQUE INDEX reading_materials_pkey ON public.reading_materials USING btree (id)"
+        },
+        {
+          "name": "reading_materials_slug_key",
+          "definition": "CREATE UNIQUE INDEX reading_materials_slug_key ON public.reading_materials USING btree (slug)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "reading_materials_set_updated_at",
+          "definition": "CREATE TRIGGER reading_materials_set_updated_at BEFORE UPDATE ON public.reading_materials FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "reading_question_groups",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_version_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "position",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "question_type",
+          "type": "character varying(48)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "instructions",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "reading_question_groups_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "reading_question_groups_material_version_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "reading_question_groups_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "reading_question_groups_position_valid",
+          "type": "c",
+          "definition": "CHECK ((\"position\" > 0))"
+        },
+        {
+          "name": "reading_question_groups_type_valid",
+          "type": "c",
+          "definition": "CHECK (((question_type)::text = ANY ((ARRAY['multiple_choice'::character varying, 'true_false_not_given'::character varying, 'yes_no_not_given'::character varying, 'matching_information'::character varying, 'matching_headings'::character varying, 'matching_features'::character varying, 'matching_sentence_endings'::character varying, 'sentence_completion'::character varying, 'summary_completion'::character varying, 'note_completion'::character varying, 'table_completion'::character varying, 'flow_chart_completion'::character varying, 'diagram_label_completion'::character varying, 'short_answer'::character varying])::text[])))"
+        },
+        {
+          "name": "reading_question_groups_version_position_unique",
+          "type": "u",
+          "definition": "UNIQUE (material_version_id, \"position\")"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "reading_question_groups_pkey",
+          "definition": "CREATE UNIQUE INDEX reading_question_groups_pkey ON public.reading_question_groups USING btree (id)"
+        },
+        {
+          "name": "reading_question_groups_version_idx",
+          "definition": "CREATE INDEX reading_question_groups_version_idx ON public.reading_question_groups USING btree (material_version_id, \"position\")"
+        },
+        {
+          "name": "reading_question_groups_version_position_unique",
+          "definition": "CREATE UNIQUE INDEX reading_question_groups_version_position_unique ON public.reading_question_groups USING btree (material_version_id, \"position\")"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "reading_questions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "group_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "position",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "prompt",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "answer",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "explanation",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "points",
+          "type": "smallint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "reading_questions_answer_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(answer) = 'object'::text))"
+        },
+        {
+          "name": "reading_questions_content_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(content) = 'object'::text))"
+        },
+        {
+          "name": "reading_questions_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "reading_questions_group_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (group_id) REFERENCES reading_question_groups(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "reading_questions_group_position_unique",
+          "type": "u",
+          "definition": "UNIQUE (group_id, \"position\")"
+        },
+        {
+          "name": "reading_questions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "reading_questions_points_valid",
+          "type": "c",
+          "definition": "CHECK (((points >= 1) AND (points <= 10)))"
+        },
+        {
+          "name": "reading_questions_position_valid",
+          "type": "c",
+          "definition": "CHECK ((\"position\" > 0))"
+        },
+        {
+          "name": "reading_questions_prompt_valid",
+          "type": "c",
+          "definition": "CHECK ((btrim(prompt) <> ''::text))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "reading_questions_group_idx",
+          "definition": "CREATE INDEX reading_questions_group_idx ON public.reading_questions USING btree (group_id, \"position\")"
+        },
+        {
+          "name": "reading_questions_group_position_unique",
+          "definition": "CREATE UNIQUE INDEX reading_questions_group_position_unique ON public.reading_questions USING btree (group_id, \"position\")"
+        },
+        {
+          "name": "reading_questions_pkey",
+          "definition": "CREATE UNIQUE INDEX reading_questions_pkey ON public.reading_questions USING btree (id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "reading_test_passages",
+      "columns": [
+        {
+          "name": "test_material_version_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "position",
+          "type": "smallint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "passage_material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "passage_material_version_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "reading_test_passages_distinct_materials",
+          "type": "c",
+          "definition": "CHECK ((test_material_version_id <> passage_material_version_id))"
+        },
+        {
+          "name": "reading_test_passages_passage_material_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (passage_material_id) REFERENCES reading_materials(id)"
+        },
+        {
+          "name": "reading_test_passages_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (test_material_version_id, \"position\")"
+        },
+        {
+          "name": "reading_test_passages_position_valid",
+          "type": "c",
+          "definition": "CHECK (((\"position\" >= 1) AND (\"position\" <= 20)))"
+        },
+        {
+          "name": "reading_test_passages_test_material_version_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (test_material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "reading_test_passages_test_material_version_id_passage_mate_key",
+          "type": "u",
+          "definition": "UNIQUE (test_material_version_id, passage_material_id)"
+        },
+        {
+          "name": "reading_test_passages_version_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (passage_material_id, passage_material_version_id) REFERENCES reading_material_versions(material_id, id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "reading_test_passages_passage_idx",
+          "definition": "CREATE INDEX reading_test_passages_passage_idx ON public.reading_test_passages USING btree (passage_material_id, passage_material_version_id)"
+        },
+        {
+          "name": "reading_test_passages_pkey",
+          "definition": "CREATE UNIQUE INDEX reading_test_passages_pkey ON public.reading_test_passages USING btree (test_material_version_id, \"position\")"
+        },
+        {
+          "name": "reading_test_passages_test_material_version_id_passage_mate_key",
+          "definition": "CREATE UNIQUE INDEX reading_test_passages_test_material_version_id_passage_mate_key ON public.reading_test_passages USING btree (test_material_version_id, passage_material_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "refresh_sessions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "token_hash",
+          "type": "bytea",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "replaced_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "user_agent",
+          "type": "character varying(512)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "ip_address",
+          "type": "character varying(45)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "refresh_sessions_expiry_valid",
+          "type": "c",
+          "definition": "CHECK ((expires_at > created_at))"
+        },
+        {
+          "name": "refresh_sessions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "refresh_sessions_replaced_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (replaced_by) REFERENCES refresh_sessions(id)"
+        },
+        {
+          "name": "refresh_sessions_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "refresh_sessions_pkey",
+          "definition": "CREATE UNIQUE INDEX refresh_sessions_pkey ON public.refresh_sessions USING btree (id)"
+        },
+        {
+          "name": "refresh_sessions_token_hash_unique",
+          "definition": "CREATE UNIQUE INDEX refresh_sessions_token_hash_unique ON public.refresh_sessions USING btree (token_hash)"
+        },
+        {
+          "name": "refresh_sessions_user_active_idx",
+          "definition": "CREATE INDEX refresh_sessions_user_active_idx ON public.refresh_sessions USING btree (user_id, expires_at) WHERE (revoked_at IS NULL)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "refresh_sessions_set_updated_at",
+          "definition": "CREATE TRIGGER refresh_sessions_set_updated_at BEFORE UPDATE ON public.refresh_sessions FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "speaking_assessment_jobs",
+      "columns": [
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'QUEUED'::character varying"
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "next_attempt_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "error_code",
+          "type": "character varying(64)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "speaking_assessment_jobs_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "speaking_assessment_jobs_attempts_valid",
+          "type": "c",
+          "definition": "CHECK (((attempts >= 0) AND (attempts <= 3)))"
+        },
+        {
+          "name": "speaking_assessment_jobs_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (attempt_id)"
+        },
+        {
+          "name": "speaking_assessment_jobs_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'PROCESSING'::character varying, 'READY'::character varying, 'FAILED'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "speaking_assessment_jobs_pkey",
+          "definition": "CREATE UNIQUE INDEX speaking_assessment_jobs_pkey ON public.speaking_assessment_jobs USING btree (attempt_id)"
+        },
+        {
+          "name": "speaking_assessment_jobs_work_idx",
+          "definition": "CREATE INDEX speaking_assessment_jobs_work_idx ON public.speaking_assessment_jobs USING btree (status, next_attempt_at, created_at)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "speaking_evaluations",
+      "columns": [
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "overall_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "fluency_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "lexical_resource_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "grammar_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "pronunciation_band",
+          "type": "numeric(2,1)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "feedback",
+          "type": "jsonb",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "evaluated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "speaking_evaluations_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "speaking_evaluations_band_valid",
+          "type": "c",
+          "definition": "CHECK ((((overall_band >= (0)::numeric) AND (overall_band <= (9)::numeric)) AND ((fluency_band >= (0)::numeric) AND (fluency_band <= (9)::numeric)) AND ((lexical_resource_band >= (0)::numeric) AND (lexical_resource_band <= (9)::numeric)) AND ((grammar_band >= (0)::numeric) AND (grammar_band <= (9)::numeric)) AND ((pronunciation_band IS NULL) OR ((pronunciation_band >= (0)::numeric) AND (pronunciation_band <= (9)::numeric)))))"
+        },
+        {
+          "name": "speaking_evaluations_feedback_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(feedback) = 'object'::text))"
+        },
+        {
+          "name": "speaking_evaluations_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (attempt_id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "speaking_evaluations_pkey",
+          "definition": "CREATE UNIQUE INDEX speaking_evaluations_pkey ON public.speaking_evaluations USING btree (attempt_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "speaking_material_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "version_number",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "difficulty",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "parts",
+          "type": "jsonb",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "speaking_material_versions_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "speaking_material_versions_difficulty_valid",
+          "type": "c",
+          "definition": "CHECK (((difficulty)::text = ANY ((ARRAY['foundation'::character varying, 'intermediate'::character varying, 'advanced'::character varying])::text[])))"
+        },
+        {
+          "name": "speaking_material_versions_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))"
+        },
+        {
+          "name": "speaking_material_versions_material_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (material_id) REFERENCES speaking_materials(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "speaking_material_versions_parts_array",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(parts) = 'array'::text))"
+        },
+        {
+          "name": "speaking_material_versions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "speaking_material_versions_unique",
+          "type": "u",
+          "definition": "UNIQUE (material_id, version_number)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "speaking_material_versions_material_idx",
+          "definition": "CREATE INDEX speaking_material_versions_material_idx ON public.speaking_material_versions USING btree (material_id, version_number DESC)"
+        },
+        {
+          "name": "speaking_material_versions_pkey",
+          "definition": "CREATE UNIQUE INDEX speaking_material_versions_pkey ON public.speaking_material_versions USING btree (id)"
+        },
+        {
+          "name": "speaking_material_versions_unique",
+          "definition": "CREATE UNIQUE INDEX speaking_material_versions_unique ON public.speaking_material_versions USING btree (material_id, version_number)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "speaking_materials",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "slug",
+          "type": "character varying(160)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'DRAFT'::character varying"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "current_version_number",
+          "type": "integer",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "published_version_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "speaking_materials_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "speaking_materials_published_version_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (published_version_id) REFERENCES speaking_material_versions(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "speaking_materials_revision_valid",
+          "type": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "speaking_materials_slug_key",
+          "type": "u",
+          "definition": "UNIQUE (slug)"
+        },
+        {
+          "name": "speaking_materials_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))"
+        },
+        {
+          "name": "speaking_materials_version_valid",
+          "type": "c",
+          "definition": "CHECK ((current_version_number > 0))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "speaking_materials_pkey",
+          "definition": "CREATE UNIQUE INDEX speaking_materials_pkey ON public.speaking_materials USING btree (id)"
+        },
+        {
+          "name": "speaking_materials_published_idx",
+          "definition": "CREATE INDEX speaking_materials_published_idx ON public.speaking_materials USING btree (status, published_at DESC)"
+        },
+        {
+          "name": "speaking_materials_slug_key",
+          "definition": "CREATE UNIQUE INDEX speaking_materials_slug_key ON public.speaking_materials USING btree (slug)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "speaking_recordings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "part_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "original_name",
+          "type": "character varying(255)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mime_type",
+          "type": "character varying(100)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "storage_key",
+          "type": "character varying(255)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "byte_size",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "revision",
+          "type": "integer",
+          "required": true,
+          "default": "1"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "speaking_recordings_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "speaking_recordings_part_unique",
+          "type": "u",
+          "definition": "UNIQUE (attempt_id, part_id)"
+        },
+        {
+          "name": "speaking_recordings_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "speaking_recordings_revision_valid",
+          "type": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "speaking_recordings_size_valid",
+          "type": "c",
+          "definition": "CHECK ((byte_size > 0))"
+        },
+        {
+          "name": "speaking_recordings_storage_key_key",
+          "type": "u",
+          "definition": "UNIQUE (storage_key)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "speaking_recordings_attempt_idx",
+          "definition": "CREATE INDEX speaking_recordings_attempt_idx ON public.speaking_recordings USING btree (attempt_id, created_at)"
+        },
+        {
+          "name": "speaking_recordings_part_unique",
+          "definition": "CREATE UNIQUE INDEX speaking_recordings_part_unique ON public.speaking_recordings USING btree (attempt_id, part_id)"
+        },
+        {
+          "name": "speaking_recordings_pkey",
+          "definition": "CREATE UNIQUE INDEX speaking_recordings_pkey ON public.speaking_recordings USING btree (id)"
+        },
+        {
+          "name": "speaking_recordings_storage_key_key",
+          "definition": "CREATE UNIQUE INDEX speaking_recordings_storage_key_key ON public.speaking_recordings USING btree (storage_key)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "speaking_transcriptions",
+      "columns": [
+        {
+          "name": "recording_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "recording_revision",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'QUEUED'::character varying"
+        },
+        {
+          "name": "provider",
+          "type": "character varying(64)",
+          "required": true,
+          "default": "'faster-whisper'::character varying"
+        },
+        {
+          "name": "model",
+          "type": "character varying(128)",
+          "required": true,
+          "default": "''::character varying"
+        },
+        {
+          "name": "language",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'en'::character varying"
+        },
+        {
+          "name": "language_probability",
+          "type": "double precision",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "transcript",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "audio_duration_ms",
+          "type": "bigint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "speech_duration_ms",
+          "type": "bigint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "processing_time_ms",
+          "type": "bigint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "words",
+          "type": "jsonb",
+          "required": true,
+          "default": "'[]'::jsonb"
+        },
+        {
+          "name": "segments",
+          "type": "jsonb",
+          "required": true,
+          "default": "'[]'::jsonb"
+        },
+        {
+          "name": "metrics",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "next_attempt_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "error_code",
+          "type": "character varying(64)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "speaking_transcriptions_attempts_valid",
+          "type": "c",
+          "definition": "CHECK (((attempts >= 0) AND (attempts <= 3)))"
+        },
+        {
+          "name": "speaking_transcriptions_metrics_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(metrics) = 'object'::text))"
+        },
+        {
+          "name": "speaking_transcriptions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (recording_id)"
+        },
+        {
+          "name": "speaking_transcriptions_recording_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (recording_id) REFERENCES speaking_recordings(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "speaking_transcriptions_revision_valid",
+          "type": "c",
+          "definition": "CHECK ((recording_revision > 0))"
+        },
+        {
+          "name": "speaking_transcriptions_segments_array",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(segments) = 'array'::text))"
+        },
+        {
+          "name": "speaking_transcriptions_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'PROCESSING'::character varying, 'READY'::character varying, 'FAILED'::character varying])::text[])))"
+        },
+        {
+          "name": "speaking_transcriptions_words_array",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(words) = 'array'::text))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "speaking_transcriptions_pkey",
+          "definition": "CREATE UNIQUE INDEX speaking_transcriptions_pkey ON public.speaking_transcriptions USING btree (recording_id)"
+        },
+        {
+          "name": "speaking_transcriptions_work_idx",
+          "definition": "CREATE INDEX speaking_transcriptions_work_idx ON public.speaking_transcriptions USING btree (status, next_attempt_at, created_at)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "study_learning_content_metadata",
+      "columns": [
+        {
+          "name": "kind",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reference_id",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "version",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "section",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "family_id",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "content_hash",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "review_notes",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reviewer_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "checklist",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "study_learning_content_metadata_check",
+          "type": "c",
+          "definition": "CHECK (((status <> 'reviewed'::text) OR (family_id <> ''::text)))"
+        },
+        {
+          "name": "study_learning_content_metadata_kind_check",
+          "type": "c",
+          "definition": "CHECK ((kind = ANY (ARRAY['drill'::text, 'material'::text])))"
+        },
+        {
+          "name": "study_learning_content_metadata_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (kind, reference_id, version)"
+        },
+        {
+          "name": "study_learning_content_metadata_reviewer_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (reviewer_id) REFERENCES users(id)"
+        },
+        {
+          "name": "study_learning_content_metadata_revision_check",
+          "type": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "study_learning_content_metadata_section_check",
+          "type": "c",
+          "definition": "CHECK ((section = ANY (ARRAY['reading'::text, 'listening'::text, 'writing'::text, 'speaking'::text])))"
+        },
+        {
+          "name": "study_learning_content_metadata_status_check",
+          "type": "c",
+          "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'reviewed'::text, 'withdrawn'::text])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "study_learning_content_metadata_pkey",
+          "definition": "CREATE UNIQUE INDEX study_learning_content_metadata_pkey ON public.study_learning_content_metadata USING btree (kind, reference_id, version)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "study_learning_content_reviews",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "required": true,
+          "default": "nextval('study_learning_content_reviews_id_seq'::regclass)"
+        },
+        {
+          "name": "kind",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reference_id",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "version",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "decision",
+          "type": "jsonb",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "reviewer_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "study_learning_content_review_kind_reference_id_version_rev_key",
+          "type": "u",
+          "definition": "UNIQUE (kind, reference_id, version, revision)"
+        },
+        {
+          "name": "study_learning_content_reviews_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "study_learning_content_reviews_reviewer_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (reviewer_id) REFERENCES users(id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "study_learning_content_review_kind_reference_id_version_rev_key",
+          "definition": "CREATE UNIQUE INDEX study_learning_content_review_kind_reference_id_version_rev_key ON public.study_learning_content_reviews USING btree (kind, reference_id, version, revision)"
+        },
+        {
+          "name": "study_learning_content_reviews_pkey",
+          "definition": "CREATE UNIQUE INDEX study_learning_content_reviews_pkey ON public.study_learning_content_reviews USING btree (id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "study_plan_attempts",
+      "columns": [
+        {
+          "name": "assignment_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "plan_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        }
+      ],
+      "constraints": [
+        {
+          "name": "study_plan_attempts_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "study_plan_attempts_attempt_id_key",
+          "type": "u",
+          "definition": "UNIQUE (attempt_id)"
+        },
+        {
+          "name": "study_plan_attempts_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (assignment_id)"
+        },
+        {
+          "name": "study_plan_attempts_plan_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (plan_id) REFERENCES study_plans(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "study_plan_attempts_attempt_id_key",
+          "definition": "CREATE UNIQUE INDEX study_plan_attempts_attempt_id_key ON public.study_plan_attempts USING btree (attempt_id)"
+        },
+        {
+          "name": "study_plan_attempts_pkey",
+          "definition": "CREATE UNIQUE INDEX study_plan_attempts_pkey ON public.study_plan_attempts USING btree (assignment_id)"
+        },
+        {
+          "name": "study_plan_attempts_plan_idx",
+          "definition": "CREATE INDEX study_plan_attempts_plan_idx ON public.study_plan_attempts USING btree (plan_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "study_plans",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "state",
+          "type": "jsonb",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "study_plans_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "study_plans_revision_check",
+          "type": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "study_plans_state_check",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(state) = 'object'::text))"
+        },
+        {
+          "name": "study_plans_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "study_plans_user_id_key",
+          "type": "u",
+          "definition": "UNIQUE (user_id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "study_plans_pkey",
+          "definition": "CREATE UNIQUE INDEX study_plans_pkey ON public.study_plans USING btree (id)"
+        },
+        {
+          "name": "study_plans_user_id_key",
+          "definition": "CREATE UNIQUE INDEX study_plans_user_id_key ON public.study_plans USING btree (user_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "super_admins",
+      "columns": [
+        {
+          "name": "email",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "now()"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "super_admins_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (email)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "super_admins_pkey",
+          "definition": "CREATE UNIQUE INDEX super_admins_pkey ON public.super_admins USING btree (email)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "system_daily_limits",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "assistant_limit",
+          "type": "integer",
+          "required": true,
+          "default": "100"
+        },
+        {
+          "name": "guest_assistant_limit",
+          "type": "integer",
+          "required": true,
+          "default": "15"
+        },
+        {
+          "name": "writing_limit",
+          "type": "integer",
+          "required": true,
+          "default": "25"
+        },
+        {
+          "name": "speaking_limit",
+          "type": "integer",
+          "required": true,
+          "default": "25"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "system_daily_limits_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "system_daily_limits_positive",
+          "type": "c",
+          "definition": "CHECK (((assistant_limit >= 0) AND (guest_assistant_limit >= 0) AND (writing_limit >= 0) AND (speaking_limit >= 0)))"
+        },
+        {
+          "name": "system_daily_limits_single_row",
+          "type": "c",
+          "definition": "CHECK ((id = 1))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "system_daily_limits_pkey",
+          "definition": "CREATE UNIQUE INDEX system_daily_limits_pkey ON public.system_daily_limits USING btree (id)"
+        }
+      ],
+      "seed": [
+        {
+          "id": 1,
+          "assistant_limit": 100,
+          "guest_assistant_limit": 15,
+          "writing_limit": 25,
+          "speaking_limit": 25
+        }
+      ],
+      "triggers": []
+    },
+    {
+      "name": "user_activity_days",
+      "columns": [
+        {
+          "name": "day",
+          "type": "date",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "first_seen_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "user_activity_days_pk",
+          "type": "p",
+          "definition": "PRIMARY KEY (day, user_id)"
+        },
+        {
+          "name": "user_activity_days_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "user_activity_days_pk",
+          "definition": "CREATE UNIQUE INDEX user_activity_days_pk ON public.user_activity_days USING btree (day, user_id)"
+        },
+        {
+          "name": "user_activity_days_user_idx",
+          "definition": "CREATE INDEX user_activity_days_user_idx ON public.user_activity_days USING btree (user_id, day)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "user_profiles",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "display_name",
+          "type": "character varying(100)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "current_band",
+          "type": "numeric(2,1)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "target_band",
+          "type": "numeric(2,1)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "exam_date",
+          "type": "date",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(32)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "timezone",
+          "type": "character varying(64)",
+          "required": true,
+          "default": "'UTC'::character varying"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "user_profiles_current_band_valid",
+          "type": "c",
+          "definition": "CHECK (((current_band IS NULL) OR (((current_band >= (0)::numeric) AND (current_band <= (9)::numeric)) AND ((current_band * (2)::numeric) = trunc((current_band * (2)::numeric))))))"
+        },
+        {
+          "name": "user_profiles_display_name_not_blank",
+          "type": "c",
+          "definition": "CHECK ((btrim((display_name)::text) <> ''::text))"
+        },
+        {
+          "name": "user_profiles_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type IS NULL) OR ((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[]))))"
+        },
+        {
+          "name": "user_profiles_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (user_id)"
+        },
+        {
+          "name": "user_profiles_target_band_valid",
+          "type": "c",
+          "definition": "CHECK (((target_band IS NULL) OR (((target_band >= (0)::numeric) AND (target_band <= (9)::numeric)) AND ((target_band * (2)::numeric) = trunc((target_band * (2)::numeric))))))"
+        },
+        {
+          "name": "user_profiles_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "user_profiles_pkey",
+          "definition": "CREATE UNIQUE INDEX user_profiles_pkey ON public.user_profiles USING btree (user_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "user_profiles_set_updated_at",
+          "definition": "CREATE TRIGGER user_profiles_set_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "user_skill_progress",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "skill",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "estimated_band",
+          "type": "numeric(2,1)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "accuracy_percent",
+          "type": "numeric(5,2)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "completed_tasks",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "user_skill_progress_accuracy_valid",
+          "type": "c",
+          "definition": "CHECK (((accuracy_percent IS NULL) OR ((accuracy_percent >= (0)::numeric) AND (accuracy_percent <= (100)::numeric))))"
+        },
+        {
+          "name": "user_skill_progress_band_valid",
+          "type": "c",
+          "definition": "CHECK (((estimated_band IS NULL) OR (((estimated_band >= (0)::numeric) AND (estimated_band <= (9)::numeric)) AND ((estimated_band * (2)::numeric) = trunc((estimated_band * (2)::numeric))))))"
+        },
+        {
+          "name": "user_skill_progress_completed_tasks_valid",
+          "type": "c",
+          "definition": "CHECK ((completed_tasks >= 0))"
+        },
+        {
+          "name": "user_skill_progress_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "user_skill_progress_skill_valid",
+          "type": "c",
+          "definition": "CHECK (((skill)::text = ANY ((ARRAY['listening'::character varying, 'reading'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))"
+        },
+        {
+          "name": "user_skill_progress_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "user_skill_progress_user_skill_unique",
+          "type": "u",
+          "definition": "UNIQUE (user_id, skill)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "user_skill_progress_pkey",
+          "definition": "CREATE UNIQUE INDEX user_skill_progress_pkey ON public.user_skill_progress USING btree (id)"
+        },
+        {
+          "name": "user_skill_progress_user_idx",
+          "definition": "CREATE INDEX user_skill_progress_user_idx ON public.user_skill_progress USING btree (user_id)"
+        },
+        {
+          "name": "user_skill_progress_user_skill_unique",
+          "definition": "CREATE UNIQUE INDEX user_skill_progress_user_skill_unique ON public.user_skill_progress USING btree (user_id, skill)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "user_skill_progress_set_updated_at",
+          "definition": "CREATE TRIGGER user_skill_progress_set_updated_at BEFORE UPDATE ON public.user_skill_progress FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "email",
+          "type": "character varying(254)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "password_hash",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "role",
+          "type": "character varying(32)",
+          "required": true,
+          "default": "'STUDENT'::character varying"
+        },
+        {
+          "name": "terms_accepted_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "phone",
+          "type": "character varying(16)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "google_sub",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(32)",
+          "required": true,
+          "default": "'REGISTERED'::character varying"
+        },
+        {
+          "name": "first_name",
+          "type": "character varying(100)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "last_name",
+          "type": "character varying(100)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "source",
+          "type": "character varying(50)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "referred_by_code",
+          "type": "character varying(64)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "referral_code",
+          "type": "character varying(16)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "blocked",
+          "type": "boolean",
+          "required": true,
+          "default": "false"
+        },
+        {
+          "name": "token_version",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "admin_permissions",
+          "type": "text[]",
+          "required": true,
+          "default": "'{}'::text[]"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "users_admin_permissions_valid",
+          "type": "c",
+          "definition": "CHECK ((admin_permissions <@ ARRAY['BLOG_MODERATOR'::text, 'CONTENT_EDITOR'::text]))"
+        },
+        {
+          "name": "users_email_normalized",
+          "type": "c",
+          "definition": "CHECK (((email)::text = lower(btrim((email)::text))))"
+        },
+        {
+          "name": "users_first_name_not_blank",
+          "type": "c",
+          "definition": "CHECK (((first_name IS NULL) OR (btrim((first_name)::text) <> ''::text)))"
+        },
+        {
+          "name": "users_guest_status_valid",
+          "type": "c",
+          "definition": "CHECK ((((role)::text = 'GUEST'::text) = ((status)::text = 'GUEST'::text)))"
+        },
+        {
+          "name": "users_last_name_not_blank",
+          "type": "c",
+          "definition": "CHECK (((last_name IS NULL) OR (btrim((last_name)::text) <> ''::text)))"
+        },
+        {
+          "name": "users_phone_e164",
+          "type": "c",
+          "definition": "CHECK (((phone IS NULL) OR ((phone)::text ~ '^\\+[1-9][0-9]{7,14}$'::text)))"
+        },
+        {
+          "name": "users_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "users_referral_code_required_for_leads",
+          "type": "c",
+          "definition": "CHECK ((((status)::text = ANY ((ARRAY['REGISTERED'::character varying, 'GUEST'::character varying])::text[])) OR (referral_code IS NOT NULL)))"
+        },
+        {
+          "name": "users_role_valid",
+          "type": "c",
+          "definition": "CHECK (((role)::text = ANY ((ARRAY['STUDENT'::character varying, 'WRITER'::character varying, 'EDITOR'::character varying, 'ADMIN'::character varying, 'GUEST'::character varying])::text[])))"
+        },
+        {
+          "name": "users_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['WAITING'::character varying, 'INVITED'::character varying, 'REGISTERED'::character varying, 'GUEST'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "users_created_at_idx",
+          "definition": "CREATE INDEX users_created_at_idx ON public.users USING btree (created_at)"
+        },
+        {
+          "name": "users_email_unique",
+          "definition": "CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (lower((email)::text))"
+        },
+        {
+          "name": "users_google_sub_unique",
+          "definition": "CREATE UNIQUE INDEX users_google_sub_unique ON public.users USING btree (google_sub) WHERE (google_sub IS NOT NULL)"
+        },
+        {
+          "name": "users_phone_unique",
+          "definition": "CREATE UNIQUE INDEX users_phone_unique ON public.users USING btree (phone) WHERE (phone IS NOT NULL)"
+        },
+        {
+          "name": "users_pkey",
+          "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+        },
+        {
+          "name": "users_referral_code_unique",
+          "definition": "CREATE UNIQUE INDEX users_referral_code_unique ON public.users USING btree (referral_code) WHERE (referral_code IS NOT NULL)"
+        },
+        {
+          "name": "users_referred_by_code_idx",
+          "definition": "CREATE INDEX users_referred_by_code_idx ON public.users USING btree (referred_by_code) WHERE (referred_by_code IS NOT NULL)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "users_set_updated_at",
+          "definition": "CREATE TRIGGER users_set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "writer_applications",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "overall_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "listening_band",
+          "type": "numeric(2,1)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "reading_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "writing_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "speaking_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "trf_number",
+          "type": "character varying(64)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "test_date",
+          "type": "date",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(32)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "bio",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "certificate_storage_key",
+          "type": "character varying(500)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "certificate_mime_type",
+          "type": "character varying(100)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(20)",
+          "required": true,
+          "default": "'PENDING'::character varying"
+        },
+        {
+          "name": "review_notes",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "reviewed_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "writer_applications_bands_valid",
+          "type": "c",
+          "definition": "CHECK (((((overall_band >= (0)::numeric) AND (overall_band <= (9)::numeric)) AND ((overall_band * (2)::numeric) = trunc((overall_band * (2)::numeric))) AND (overall_band >= 7.5) AND (listening_band IS NULL)) OR (((listening_band >= (0)::numeric) AND (listening_band <= (9)::numeric)) AND ((listening_band * (2)::numeric) = trunc((listening_band * (2)::numeric))) AND ((reading_band >= (0)::numeric) AND (reading_band <= (9)::numeric)) AND ((reading_band * (2)::numeric) = trunc((reading_band * (2)::numeric))) AND ((writing_band >= (0)::numeric) AND (writing_band <= (9)::numeric)) AND ((writing_band * (2)::numeric) = trunc((writing_band * (2)::numeric))) AND ((speaking_band >= (0)::numeric) AND (speaking_band <= (9)::numeric)) AND ((speaking_band * (2)::numeric) = trunc((speaking_band * (2)::numeric))))))"
+        },
+        {
+          "name": "writer_applications_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type IS NULL) OR ((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[]))))"
+        },
+        {
+          "name": "writer_applications_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "writer_applications_reviewed_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "writer_applications_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[])))"
+        },
+        {
+          "name": "writer_applications_trf_not_blank",
+          "type": "c",
+          "definition": "CHECK ((btrim((trf_number)::text) <> ''::text))"
+        },
+        {
+          "name": "writer_applications_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "writer_applications_one_pending_per_user",
+          "definition": "CREATE UNIQUE INDEX writer_applications_one_pending_per_user ON public.writer_applications USING btree (user_id) WHERE ((status)::text = 'PENDING'::text)"
+        },
+        {
+          "name": "writer_applications_pkey",
+          "definition": "CREATE UNIQUE INDEX writer_applications_pkey ON public.writer_applications USING btree (id)"
+        },
+        {
+          "name": "writer_applications_status_idx",
+          "definition": "CREATE INDEX writer_applications_status_idx ON public.writer_applications USING btree (status, created_at DESC)"
+        }
+      ],
+      "seed": [],
+      "triggers": [
+        {
+          "name": "writer_applications_set_updated_at",
+          "definition": "CREATE TRIGGER writer_applications_set_updated_at BEFORE UPDATE ON public.writer_applications FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+        }
+      ]
+    },
+    {
+      "name": "writing_assessment_jobs",
+      "columns": [
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'QUEUED'::character varying"
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "next_attempt_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "error_code",
+          "type": "character varying(64)",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "error_message",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "writing_assessment_jobs_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "writing_assessment_jobs_attempts_valid",
+          "type": "c",
+          "definition": "CHECK (((attempts >= 0) AND (attempts <= 3)))"
+        },
+        {
+          "name": "writing_assessment_jobs_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (attempt_id)"
+        },
+        {
+          "name": "writing_assessment_jobs_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'PROCESSING'::character varying, 'READY'::character varying, 'FAILED'::character varying])::text[])))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "writing_assessment_jobs_pkey",
+          "definition": "CREATE UNIQUE INDEX writing_assessment_jobs_pkey ON public.writing_assessment_jobs USING btree (attempt_id)"
+        },
+        {
+          "name": "writing_assessment_jobs_work_idx",
+          "definition": "CREATE INDEX writing_assessment_jobs_work_idx ON public.writing_assessment_jobs USING btree (status, next_attempt_at, created_at)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "writing_evaluations",
+      "columns": [
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "model",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "overall_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "task_response_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "coherence_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "lexical_resource_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "grammar_band",
+          "type": "numeric(2,1)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "feedback",
+          "type": "jsonb",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "evaluated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "writing_evaluations_attempt_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "writing_evaluations_band_valid",
+          "type": "c",
+          "definition": "CHECK ((((overall_band >= (0)::numeric) AND (overall_band <= (9)::numeric)) AND ((task_response_band >= (0)::numeric) AND (task_response_band <= (9)::numeric)) AND ((coherence_band >= (0)::numeric) AND (coherence_band <= (9)::numeric)) AND ((lexical_resource_band >= (0)::numeric) AND (lexical_resource_band <= (9)::numeric)) AND ((grammar_band >= (0)::numeric) AND (grammar_band <= (9)::numeric))))"
+        },
+        {
+          "name": "writing_evaluations_feedback_object",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(feedback) = 'object'::text))"
+        },
+        {
+          "name": "writing_evaluations_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (attempt_id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "writing_evaluations_pkey",
+          "definition": "CREATE UNIQUE INDEX writing_evaluations_pkey ON public.writing_evaluations USING btree (attempt_id)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "writing_material_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "material_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "version_number",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "exam_type",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "difficulty",
+          "type": "character varying(16)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "character varying(200)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "tasks",
+          "type": "jsonb",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "integer",
+          "required": true,
+          "default": "60"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "writing_material_versions_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "writing_material_versions_difficulty_valid",
+          "type": "c",
+          "definition": "CHECK (((difficulty)::text = ANY ((ARRAY['foundation'::character varying, 'intermediate'::character varying, 'advanced'::character varying])::text[])))"
+        },
+        {
+          "name": "writing_material_versions_duration_minutes_check",
+          "type": "c",
+          "definition": "CHECK (((duration_minutes >= 5) AND (duration_minutes <= 180)))"
+        },
+        {
+          "name": "writing_material_versions_exam_type_valid",
+          "type": "c",
+          "definition": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))"
+        },
+        {
+          "name": "writing_material_versions_material_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (material_id) REFERENCES writing_materials(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "writing_material_versions_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "writing_material_versions_tasks_array",
+          "type": "c",
+          "definition": "CHECK ((jsonb_typeof(tasks) = 'array'::text))"
+        },
+        {
+          "name": "writing_material_versions_unique",
+          "type": "u",
+          "definition": "UNIQUE (material_id, version_number)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "writing_material_versions_material_idx",
+          "definition": "CREATE INDEX writing_material_versions_material_idx ON public.writing_material_versions USING btree (material_id, version_number DESC)"
+        },
+        {
+          "name": "writing_material_versions_pkey",
+          "definition": "CREATE UNIQUE INDEX writing_material_versions_pkey ON public.writing_material_versions USING btree (id)"
+        },
+        {
+          "name": "writing_material_versions_unique",
+          "definition": "CREATE UNIQUE INDEX writing_material_versions_unique ON public.writing_material_versions USING btree (material_id, version_number)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "writing_materials",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "slug",
+          "type": "character varying(160)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'DRAFT'::character varying"
+        },
+        {
+          "name": "revision",
+          "type": "bigint",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "current_version_number",
+          "type": "integer",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "published_version_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "writing_materials_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "writing_materials_published_version_fk",
+          "type": "f",
+          "definition": "FOREIGN KEY (published_version_id) REFERENCES writing_material_versions(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "writing_materials_revision_valid",
+          "type": "c",
+          "definition": "CHECK ((revision > 0))"
+        },
+        {
+          "name": "writing_materials_slug_key",
+          "type": "u",
+          "definition": "UNIQUE (slug)"
+        },
+        {
+          "name": "writing_materials_status_valid",
+          "type": "c",
+          "definition": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))"
+        },
+        {
+          "name": "writing_materials_version_valid",
+          "type": "c",
+          "definition": "CHECK ((current_version_number > 0))"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "writing_materials_pkey",
+          "definition": "CREATE UNIQUE INDEX writing_materials_pkey ON public.writing_materials USING btree (id)"
+        },
+        {
+          "name": "writing_materials_published_idx",
+          "definition": "CREATE INDEX writing_materials_published_idx ON public.writing_materials USING btree (status, published_at DESC)"
+        },
+        {
+          "name": "writing_materials_slug_key",
+          "definition": "CREATE UNIQUE INDEX writing_materials_slug_key ON public.writing_materials USING btree (slug)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "writing_media",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "kind",
+          "type": "character varying(16)",
+          "required": true,
+          "default": "'image'::character varying"
+        },
+        {
+          "name": "original_name",
+          "type": "character varying(255)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "mime_type",
+          "type": "character varying(100)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "storage_key",
+          "type": "character varying(500)",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "byte_size",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "writing_media_created_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+        },
+        {
+          "name": "writing_media_kind_valid",
+          "type": "c",
+          "definition": "CHECK (((kind)::text = 'image'::text))"
+        },
+        {
+          "name": "writing_media_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "writing_media_size_valid",
+          "type": "c",
+          "definition": "CHECK ((byte_size > 0))"
+        },
+        {
+          "name": "writing_media_storage_key_key",
+          "type": "u",
+          "definition": "UNIQUE (storage_key)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "writing_media_created_at_idx",
+          "definition": "CREATE INDEX writing_media_created_at_idx ON public.writing_media USING btree (created_at DESC)"
+        },
+        {
+          "name": "writing_media_pkey",
+          "definition": "CREATE UNIQUE INDEX writing_media_pkey ON public.writing_media USING btree (id)"
+        },
+        {
+          "name": "writing_media_storage_key_key",
+          "definition": "CREATE UNIQUE INDEX writing_media_storage_key_key ON public.writing_media USING btree (storage_key)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    }
+  ]
+}

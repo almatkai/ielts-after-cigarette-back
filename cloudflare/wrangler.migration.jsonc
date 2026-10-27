@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "ab39c7a0ec52f861379630cccb01061f",
+  "name": "ielts-migrate-dev",
+  "main": "tools/migration-worker.mjs",
+  "compatibility_date": "2026-10-19",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "IAC_STATE",
+        "class_name": "IELTSDev",
+        "script_name": "ielts-api-dev",
+      },
+    ],
+  },
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "ielts-media-dev" }],
+  "observability": { "enabled": false },
+}

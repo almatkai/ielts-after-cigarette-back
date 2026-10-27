@@ -1,0 +1,35 @@
+{
+  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "archive_sha256": "6e1ecad6e0211e48d3139dfea347809515c704092001d05f76012f10481f9a36",
+  "image": "iac-backend:guest-dev-adaptive-40ed0dc",
+  "image_id": "sha256:3cc32d093c0898032ab50a8d62972f606f09f91e4e111661950630cee063edba",
+  "image_created": "2026-10-24T18:58:41.886725252Z",
+  "observed_date": "2026-10-27",
+  "source_verified_by": "Reproduced both original Linux/amd64 binaries from git archive using Go 1.26.10, CGO_ENABLED=0, -trimpath, -buildvcs=false, -ldflags=-s -w; hashes exactly match read-only docker exec sha256sum observations.",
+  "binaries": {
+    "api": {
+      "sha256": "2f2f9f3a076369b888a402a2d926afe7827beab33bdab81e506d44d5be314b76",
+      "bytes": 27537570
+    },
+    "worker": {
+      "sha256": "39e9db0064f37800958bc50a69a2c45f0e8ab487f9246c443ffca590f488ae6f",
+      "bytes": 23904418
+    }
+  },
+  "dev_observations": {
+    "postgres_version": "17.11",
+    "database_bytes": 29808307,
+    "application_tables": 50,
+    "postgres_migration_ledger": {
+      "version": 39,
+      "dirty": false
+    },
+    "columns_match_selected_migrations": true,
+    "speech_enabled": false,
+    "writing_worker_external": true,
+    "guest_trial_enabled": true,
+    "media_rows": 52,
+    "referenced_media_bytes": 278008907,
+    "largest_referenced_media_bytes": 20066331
+  }
+}

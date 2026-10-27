@@ -1,0 +1,7 @@
+.artifacts/
+node_modules/
+.wrangler/
+.dev.vars*
+.sensitive/
+dist/
+__pycache__/

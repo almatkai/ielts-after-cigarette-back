@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "ab39c7a0ec52f861379630cccb01061f",
+  "name": "ielts-audio-dev",
+  "main": "runtime/audio-worker.mjs",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [{ "name": "IAC_AUDIO", "class_name": "IACAudio" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["IACAudio"] }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "ielts-media-dev" }],
+  "rules": [
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true },
+  ],
+  "observability": { "enabled": false },
+}

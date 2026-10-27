@@ -1,0 +1,665 @@
+{
+  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/access"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-limits"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/ai-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-providers"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/ai-providers/{providerID}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/ai-providers/{providerID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers/{providerID}/test"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers/order"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-providers/routing"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/ai-providers/routing"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-providers/stats"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers/test"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/export/{dataset}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/realtime"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/blog/posts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/blog/posts/{postID}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/blog/posts/{postID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/blog/posts/{postID}/archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/blog/posts/{postID}/publish"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/full-mocks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/full-mocks/{mockID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/full-mocks/{mockID}/archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/import"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/import/parse"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/media"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/listening/tests"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/listening/tests/{testID}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/listening/tests/{testID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests/{testID}/archive"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/listening/tests/{testID}/preview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests/{testID}/publish"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests/{testID}/transcribe"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/import"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/import/parse"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reading/materials"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/materials"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reading/materials/{materialID}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/reading/materials/{materialID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/materials/{materialID}/archive"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reading/materials/{materialID}/preview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/materials/{materialID}/publish"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/import"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/import/parse"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/speaking/materials"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/materials"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/speaking/materials/{materialID}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/speaking/materials/{materialID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/materials/{materialID}/archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/materials/{materialID}/publish"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/study-learning/content"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/study-learning/content/{kind}/{id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/study-learning/content/{kind}/{id}/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/super-admins"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/super-admins"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/super-admins/{email}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/users/{userID}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/users/{userID}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}/attempts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}/attempts/{attemptID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userID}/password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userID}/revoke-sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/waitlist"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writers/applications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writers/applications/{applicationID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writers/applications/{applicationID}/approve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writers/applications/{applicationID}/reject"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/import"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/import/parse"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writing/materials"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/materials"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writing/materials/{materialID}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/writing/materials/{materialID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/materials/{materialID}/archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/materials/{materialID}/publish"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/media"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/ping"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/assistant/chat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/assistant/chat/stream"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/answers"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/attempts/{attemptID}/answers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/material"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/mistakes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/recordings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/recordings/{partID}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/submit"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/mistakes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/mistakes/attempts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/google"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/google/complete"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/google/pending"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/refresh"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/blog/media"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/blog/media/{mediaID}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/blog/posts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/blog/posts/{slug}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/full-mock-sessions/{sessionID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/advance"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/finish"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/pause"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/sections/{sectionPosition}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/full-mocks/overview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mocks/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/guest/claim"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/guest/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/guest/session"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/guest/start"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/listening/media/{mediaID}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/listening/tests"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/listening/tests/{testID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/listening/tests/{testID}/attempts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/phone-verifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/phone-verifications/{verificationID}/confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/profile"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/profile/goal"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reading/materials"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reading/materials/{materialID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/reading/materials/{materialID}/attempts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/speaking/materials"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/speaking/materials/{materialID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/speaking/materials/{materialID}/attempts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/assignments/{id}/review"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/assignments/{id}/skip"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/assignments/{id}/start"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning/cycles/{id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/cycles/{id}/correction"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/cycles/{id}/skip"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/cycles/{id}/view"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/drills/{id}/start"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning/inventory"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning/sessions/{id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/sessions/{id}/submit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/replan"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/study-plan/settings"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/weeks/{week}/mock"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users/me"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/waitlist"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/waitlist/check"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writer/posts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writer/posts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/writer/posts/{postID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writer/posts/{postID}/archive"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writer/posts/{postID}/publish"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writers/applications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writers/applications/{applicationID}/certificate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writers/applications/mine"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writing/materials"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writing/materials/{materialID}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writing/materials/{materialID}/attempts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writing/media/{mediaID}"
+    },
+    {
+      "method": "GET",
+      "path": "/health/live"
+    },
+    {
+      "method": "GET",
+      "path": "/health/ready"
+    }
+  ]
+}

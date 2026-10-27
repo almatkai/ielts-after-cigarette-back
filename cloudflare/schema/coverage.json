@@ -1,0 +1,1522 @@
+{
+  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "runtime": "real workerd + SQLite Durable Object + R2; synthetic identities/providers only",
+  "registered": 165,
+  "exercised": 165,
+  "successful": 165,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/access",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-limits",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/ai-limits",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-providers",
+      "contractRequests": 3,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/ai-providers/{providerID}",
+      "contractRequests": 1,
+      "statuses": [
+        204
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/ai-providers/{providerID}",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers/{providerID}/test",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers/order",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-providers/routing",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/ai-providers/routing",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/ai-providers/stats",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/ai-providers/test",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/export/{dataset}",
+      "contractRequests": 4,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/overview",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/realtime",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/blog/posts",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/blog/posts/{postID}",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/blog/posts/{postID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/blog/posts/{postID}/archive",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/blog/posts/{postID}/publish",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/full-mocks",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/full-mocks/{mockID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/full-mocks/{mockID}/archive",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/import",
+      "contractRequests": 3,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/import/parse",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/media",
+      "contractRequests": 3,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/listening/tests",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/listening/tests/{testID}",
+      "contractRequests": 4,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/listening/tests/{testID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests/{testID}/archive",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/listening/tests/{testID}/preview",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests/{testID}/publish",
+      "contractRequests": 3,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/listening/tests/{testID}/transcribe",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/import",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/import/parse",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reading/materials",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/materials",
+      "contractRequests": 3,
+      "statuses": [
+        201,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reading/materials/{materialID}",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/reading/materials/{materialID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/materials/{materialID}/archive",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/reading/materials/{materialID}/preview",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/reading/materials/{materialID}/publish",
+      "contractRequests": 3,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/import",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/import/parse",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/speaking/materials",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/materials",
+      "contractRequests": 2,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/speaking/materials/{materialID}",
+      "contractRequests": 3,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/speaking/materials/{materialID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/materials/{materialID}/archive",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/speaking/materials/{materialID}/publish",
+      "contractRequests": 3,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/study-learning/content",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/study-learning/content/{kind}/{id}",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/study-learning/content/{kind}/{id}/history",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/super-admins",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/super-admins",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/super-admins/{email}",
+      "contractRequests": 1,
+      "statuses": [
+        204
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/admin/users/{userID}",
+      "contractRequests": 2,
+      "statuses": [
+        204
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/users/{userID}",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}/attempts",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}/attempts/{attemptID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userID}/password",
+      "contractRequests": 1,
+      "statuses": [
+        204
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userID}/revoke-sessions",
+      "contractRequests": 1,
+      "statuses": [
+        204
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/waitlist",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writers/applications",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writers/applications/{applicationID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writers/applications/{applicationID}/approve",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writers/applications/{applicationID}/reject",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/import",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/import/parse",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writing/materials",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/materials",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/writing/materials/{materialID}",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/writing/materials/{materialID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/materials/{materialID}/archive",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/materials/{materialID}/publish",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/writing/media",
+      "contractRequests": 2,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/ping",
+      "contractRequests": 1,
+      "statuses": [
+        204
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/assistant/chat",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/assistant/chat/stream",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/answers",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/attempts/{attemptID}/answers",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/material",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/mistakes",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/recordings",
+      "contractRequests": 4,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/recordings/{partID}",
+      "contractRequests": 1,
+      "statuses": [
+        206
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/{attemptID}/status",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/submit",
+      "contractRequests": 8,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/mistakes",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/attempts/mistakes/attempts",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/google",
+      "contractRequests": 4,
+      "statuses": [
+        200,
+        401
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/google/complete",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/google/pending",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "contractRequests": 1,
+      "statuses": [
+        204
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/refresh",
+      "contractRequests": 3,
+      "statuses": [
+        200,
+        401
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/blog/media",
+      "contractRequests": 4,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/blog/media/{mediaID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/blog/posts",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/blog/posts/{slug}",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/dashboard",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/full-mock-sessions/{sessionID}",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/advance",
+      "contractRequests": 6,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/finish",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/pause",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/full-mock-sessions/{sessionID}/sections/{sectionPosition}",
+      "contractRequests": 6,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/full-mocks/overview",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/full-mocks/start",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/guest/claim",
+      "contractRequests": 3,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/guest/config",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/guest/session",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/guest/start",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/listening/media/{mediaID}",
+      "contractRequests": 3,
+      "statuses": [
+        200,
+        206
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/listening/tests",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/listening/tests/{testID}",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/listening/tests/{testID}/attempts",
+      "contractRequests": 3,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/phone-verifications",
+      "contractRequests": 2,
+      "statuses": [
+        202,
+        429
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/phone-verifications/{verificationID}/confirm",
+      "contractRequests": 3,
+      "statuses": [
+        200,
+        422
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/profile",
+      "contractRequests": 8,
+      "statuses": [
+        200,
+        401
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/profile",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/profile/goal",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reading/materials",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/reading/materials/{materialID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/reading/materials/{materialID}/attempts",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/speaking/materials",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/speaking/materials/{materialID}",
+      "contractRequests": 3,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/speaking/materials/{materialID}/attempts",
+      "contractRequests": 3,
+      "statuses": [
+        200,
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan",
+      "contractRequests": 7,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/assignments/{id}/review",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/assignments/{id}/skip",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/assignments/{id}/start",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning",
+      "contractRequests": 3,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning/cycles/{id}",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/cycles/{id}/correction",
+      "contractRequests": 4,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/cycles/{id}/skip",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/cycles/{id}/view",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/drills/{id}/start",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning/inventory",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/study-plan/learning/sessions/{id}",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/learning/sessions/{id}/submit",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/replan",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/study-plan/settings",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        409
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/study-plan/weeks/{week}/mock",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users/me",
+      "contractRequests": 3,
+      "statuses": [
+        200,
+        401
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/waitlist",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/waitlist/check",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writer/posts",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writer/posts",
+      "contractRequests": 2,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/writer/posts/{postID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writer/posts/{postID}/archive",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writer/posts/{postID}/publish",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writers/applications",
+      "contractRequests": 2,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writers/applications/{applicationID}/certificate",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writers/applications/mine",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writing/materials",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writing/materials/{materialID}",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/writing/materials/{materialID}/attempts",
+      "contractRequests": 3,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/writing/media/{mediaID}",
+      "contractRequests": 3,
+      "statuses": [
+        200,
+        206,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/health/live",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/health/ready",
+      "contractRequests": 1,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    }
+  ]
+}
