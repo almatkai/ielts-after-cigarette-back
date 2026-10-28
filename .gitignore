@@ -15,3 +15,6 @@ coverage.out
 *.exe
 *.test
 
+
+# Local Wrangler state (no deployment credentials in Git).
+.wrangler/

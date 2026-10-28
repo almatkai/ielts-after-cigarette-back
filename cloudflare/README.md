@@ -79,7 +79,7 @@ The importer durably stages bounded records, verifies completeness/checksums, th
 
 ## Root-coordinated migration sequence — not executed
 
-1. Review the full branch diff/commit list against main and the test results. Confirm Free-plan capacity in the shared account. The current conservative database estimate is **56,979 published row/index writes + 31,080 staging writes**, plus metadata and coordination. Reserve a fresh daily budget, accounting for Drone and other applications; schedule migrations on separate UTC days if needed. No paid-plan upgrade is required or configured.
+1. Review the full branch diff/commit list against main and the test results. Confirm Free-plan capacity in the shared account. The current conservative database estimate is **approximately 57,000 published row/index writes**, plus bounded 128 KiB staging chunks, cleanup, metadata, coordination and private blobs; the sealed pack computes the complete bound. Reserve a fresh daily budget, accounting for Drone and other applications; schedule migrations on separate UTC days if needed. No paid-plan upgrade is required or configured.
 2. Deploy `wrangler.blob.jsonc` first, then the new audio and API Worker/SQLite DO resources from the supplied configs, in account `ab39c7a0ec52f861379630cccb01061f`. Deploy the private audio Worker before the API binding. The public API must remain import-gated. Do not change the existing proxy, DNS or production deployment.
 3. Supply the **existing selected DEV** application secrets/configuration securely: JWT and phone-verification secrets, Google client ID, Turnstile site/secret/hostnames, current AI/STT URLs/keys/models, existing provider encryption keys (including previous key when configured), current limits, admin allowlist and any configured Infobip values. Reuse secrets to preserve refresh sessions, guest proofs and encrypted provider credentials. Do not create an AI provider/key. `APP_ENV` is forced to development and native DB/storage settings are internal. Keep `SPEECH_ENABLED=false`, `WRITING_WORKER_EXTERNAL=true`, `GUEST_TRIAL_ENABLED=true`, and the selected telemetry-optional policy. Do not copy VPS database/Redis/MinIO credentials or VPS telemetry endpoints into this deployment.
 4. Match CORS, frontend URL, secure cookie/domain settings, Google allowed origins and Turnstile hostnames to the separately prepared `ielts-web-dev` frontend. `IAC_ADAPTER_TEST` and `CF_TEST_MODE` must be absent for real data. Default logs are disabled.
@@ -94,22 +94,28 @@ The importer durably stages bounded records, verifies completeness/checksums, th
 
    Review all 50 table counts, coordination dispositions, object key/checksum totals and the exact quota estimate. The actual object/key/Redis inventory remains unverified until this approved export; unknown state blocks transfer rather than disappearing.
 
-8. Separately provision the temporary migration helper and a private random `MIGRATION_TOKEN`. Store the matching local token in a 0600 file under `.sensitive/`. Transfer without activating:
+8. Deploy the binding-only helper (`wrangler.migration.jsonc`) and start the
+   [local OAuth bridge](tools/migration-local/README.md). Public HTTP always returns
+   404; no migration token is created. Only Wrangler's authenticated remote service
+   binding grants access. Keep the bridge on `127.0.0.1:8794`.
 
    ```sh
-   node tools/transfer.mjs --directory .sensitive/approved-cutover --execute --endpoint https://ielts-migrate-dev.ACCOUNT.workers.dev --token-file .sensitive/migration-token
+   node node_modules/wrangler/bin/wrangler.js dev --config tools/migration-local/wrangler.jsonc
+   node tools/transfer.mjs --directory .sensitive/approved-cutover --execute --binding-local --endpoint http://127.0.0.1:8794
    ```
 
-   Object preflight avoids reuploading matching bytes; differing objects are never overwritten. Retrying the same pack is supported. Inspect the private import receipt and helper `/report` with its bearer token.
+   Object preflight avoids reuploading matching bytes; differing objects are never
+   overwritten. Retrying the same pack is supported. Inspect the private import
+   receipt and local bridge `/report` before activation.
 
 9. Activate separately only after receipt/count/checksum review:
 
    ```sh
-   node tools/transfer.mjs --directory .sensitive/approved-cutover --execute --activate-only --endpoint https://ielts-migrate-dev.ACCOUNT.workers.dev --token-file .sensitive/migration-token
+   node tools/transfer.mjs --directory .sensitive/approved-cutover --execute --activate-only --binding-local --endpoint http://127.0.0.1:8794
    ```
 
 10. Verify actual Cloudflare startup, total memory, billed CPU, quotas and real provider interoperability before directing the DEV frontend to the native API. Exercise existing login/refresh, guest claim, audio STT, async Writing retry, media ranges, adaptive learning and admin operations with approved accounts. Root then deploys/connects the prepared frontend. This is the point at which a full migration can be declared; successful local bundles alone are not that claim.
-11. Remove/disable the migration helper and its token after cutover. Keep private backups/receipts according to the owner's retention policy. Do not drop old DEV data or stop services as part of these local tools. Switching back to the intact old deployment is straightforward before native writes; after native writes, a reverse data reconciliation is required to avoid losing those new writes.
+11. Stop the local OAuth bridge and remove the migration helper after cutover. Keep private backups/receipts according to the owner's retention policy. Do not drop old DEV data or stop services as part of these local tools. Switching back to the intact old deployment is straightforward before native writes; after native writes, a reverse data reconciliation is required to avoid losing those new writes.
 
 ## Measured bounds and remaining release gates
 
