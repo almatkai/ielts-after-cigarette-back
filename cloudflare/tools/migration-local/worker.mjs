@@ -12,6 +12,6 @@ export default {
       (site !== null && !["same-origin", "none"].includes(site))
     )
       return new Response("Forbidden", { status: 403 });
-    return env.MIGRATION.transfer(request);
+    return env.MIGRATION.fetch(request);
   },
 };

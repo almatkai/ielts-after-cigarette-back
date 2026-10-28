@@ -216,7 +216,8 @@ test("real DO import verifies hashes, rolls back corruption, preserves data and 
   const namedHTTP = await (
     await mf.getWorker("named-http-probe")
   ).fetch("https://transfer.test/report");
-  assert.equal(namedHTTP.status, 404);
+  assert.equal(namedHTTP.status, 200);
+  assert.equal(await namedHTTP.json(), null);
   for (const [path, method] of [
     ["/report", "GET"],
     ["/database", "POST"],

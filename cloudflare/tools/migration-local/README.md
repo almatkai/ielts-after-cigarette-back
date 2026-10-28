@@ -1,9 +1,9 @@
 # Private DEV transfer connection
 
-Deploy `cloudflare/wrangler.migration.jsonc` first. Its default HTTP handler and
-named entrypoint's `fetch` both return 404; `workers.dev` and preview URLs are
-disabled. Only the `MigrationBridge.transfer` service-binding RPC exposes the
-validated migration operations. No migration token is used or created.
+Deploy `cloudflare/wrangler.migration.jsonc` first. Its default public HTTP handler returns 404; `workers.dev` and preview URLs are
+disabled. Only a service binding targeting the named `MigrationBridge.fetch`
+entrypoint exposes the validated migration operations. Native HTTP streaming
+avoids serializing large Request bodies through the remote RPC development proxy. No migration token is used or created.
 
 From `cloudflare/`, start the **local-only** bridge using the existing Wrangler
 Cloudflare OAuth login:

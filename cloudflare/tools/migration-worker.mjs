@@ -1,17 +1,16 @@
 import { mediaEnvironment } from "../runtime/blob-store.mjs";
 import { WorkerEntrypoint } from "cloudflare:workers";
 // No public migration HTTP endpoint. Authority is the account-owned service
-// binding to this named RPC entrypoint (locally reached via Wrangler OAuth).
+// binding to this named HTTP entrypoint (locally reached via Wrangler OAuth).
 export default {
   fetch() {
     return new Response("Not found", { status: 404 });
   },
 };
 export class MigrationBridge extends WorkerEntrypoint {
-  fetch() {
-    return new Response("Not found", { status: 404 });
-  }
-  transfer(request) {
+  fetch(request) {
+    // Named fetch is reachable only through an explicit account service binding.
+    // Use native HTTP streaming, avoiding remote RPC Request body translation.
     return transfer(request, this.env);
   }
 }
