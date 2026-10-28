@@ -1,0 +1,82 @@
+{
+  "format": "ielts-native-cutover/v1",
+  "checkedAt": "2026-10-28T05:51:00.004454+00:00",
+  "publicOrigin": "https://ielts.woolet.cc",
+  "backendSourceRevision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "frontendSourceRevision": "b05d0622b7bfcc44dcddad3544c6e6d565041019",
+  "importId": "b3ad7c1d96f0e2d14aa89638228a5a3681ca59f09caea1aabf5e0952e2ae9d33",
+  "nativeStatus": "active",
+  "receiptUnchanged": true,
+  "tables": 50,
+  "rows": 15540,
+  "objects": 52,
+  "objectBytes": 278008907,
+  "coordinationKeys": 68,
+  "databaseImportWriteBound": 57496,
+  "privateMigrationHelperRemoved": true,
+  "localMigrationBridgeStopped": true,
+  "sourceDevContainersStopped": [
+    "ielts-guest-dev-gateway-1",
+    "ielts-guest-dev-web-1",
+    "ielts-guest-dev-worker-1",
+    "ielts-guest-dev-backend-1",
+    "ielts-guest-dev-tunnel-1",
+    "ielts-guest-dev-postgres-1",
+    "ielts-guest-dev-redis-1",
+    "ielts-guest-dev-minio-1",
+    "ielts-api-development-postgres-1",
+    "ielts-api-development-redis-1"
+  ],
+  "sourceVolumesRetained": true,
+  "versions": {
+    "ielts-api-dev": {
+      "deployment": "81668e40-7688-4130-85c0-0ae520d1ca5e",
+      "versions": [
+        {
+          "id": "3ea90aaf-9453-4685-8e6f-d8b443c721d0",
+          "percentage": 100
+        }
+      ]
+    },
+    "ielts-audio-dev": {
+      "deployment": "8e14769b-a11a-4fe8-b746-9c37928b193e",
+      "versions": [
+        {
+          "id": "1498a6aa-b13c-4f6b-8387-826828d53011",
+          "percentage": 100
+        }
+      ]
+    },
+    "ielts-blob-dev": {
+      "deployment": "2de2fc13-8af8-47b4-aef7-3eaa31e91873",
+      "versions": [
+        {
+          "id": "4d47b01e-9573-44af-a942-8218b3c7b0f1",
+          "percentage": 100
+        }
+      ]
+    },
+    "ielts-web-dev": {
+      "deployment": "ff51e103-9020-4318-aff7-7eab3778fd90",
+      "versions": [
+        {
+          "id": "65493ca0-2be8-4051-8e37-b4029f29ffef",
+          "percentage": 100
+        }
+      ]
+    },
+    "ielts-dev": {
+      "deployment": "bbae3db1-d1a3-4465-b239-3188e8535914",
+      "versions": [
+        {
+          "id": "f2603b5f-17ff-4c8b-834f-95ebb469d2a4",
+          "percentage": 100
+        }
+      ]
+    }
+  },
+  "productionChanged": false,
+  "externalProviderTestCalls": false,
+  "billingChangePerformed": false,
+  "billingSubscriptionIndependentlyVerified": false
+}

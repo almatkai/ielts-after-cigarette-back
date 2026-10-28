@@ -1,6 +1,6 @@
 # Free private object storage
 
-The default deployment uses **SQLite Durable Objects, without R2, a subscription checkout, paid Workers, Containers, external object storage or a VPS origin**. It remains subject to the account's shared Free allowances; reaching a Free quota fails an operation rather than enabling billing. Low traffic does not remove CPU, memory or quota limits.
+The default deployment uses **SQLite Durable Objects, without R2, a subscription checkout, a required paid Workers upgrade, Containers, external object storage or a VPS origin**. It remains subject to the account's shared Free allowances; reaching a Free quota fails an operation rather than enabling billing. Low traffic does not remove CPU, memory or quota limits.
 
 `runtime/blob-store.mjs` exposes the application's `MEDIA` object interface. `runtime/blob-worker.mjs` owns private `IACBlobIndex` and `IACBlobChunks` classes. The deployment entrypoint always returns HTTP 404, and `workers_dev` is disabled. All reads/writes require explicit DO namespace bindings. Test fixture HTTP routes are separate files and are never deployment entrypoints.
 
@@ -26,9 +26,9 @@ npx wrangler deploy --config wrangler.audio.jsonc
 npx wrangler deploy --config wrangler.jsonc
 ```
 
-Both API and audio configs bind `IAC_BLOB_INDEX` / `IAC_BLOB_CHUNKS` to `ielts-blob-dev`; the private blob Worker binds both classes locally. The separately authenticated migration helper uses the same cross-script bindings. No API traffic should be connected until import/activation and actual platform limits pass. These commands have **not** been run by this implementation task.
+Both API and audio configs bind `IAC_BLOB_INDEX` / `IAC_BLOB_CHUNKS` to `ielts-blob-dev`; the private blob Worker binds both classes locally. The separately authenticated migration helper uses the same cross-script bindings. No API traffic should be connected until import/activation and actual platform limits pass. The root coordinator deployed these resources during the verified 2026-10-28 cutover; see [NATIVE-CUTOVER.md](NATIVE-CUTOVER.md).
 
-A private API binding, rather than a public blob upload endpoint, carries application object traffic. The migration helper remains authenticated using the existing migration procedure, is removed after cutover, and validates checksums before activation. No real data has been copied by this task.
+A private API binding, rather than a public blob upload endpoint, carries application object traffic. The migration helper remains authenticated using the existing migration procedure, is removed after cutover, and validates checksums before activation. The real 52-object inventory was copied, checksum-verified and activated; the helper was then removed.
 
 ## Free allowance accounting
 
@@ -40,6 +40,6 @@ A blob chunk upload writes its blob row, a byte-account row, and (once per uploa
 
 ## Validation
 
-`npm test` exercises the entire actual Go/Wasm API, private audio codec and transfer/activation suite with these native blob DOs and **zero R2 buckets**. This includes all 165 source routes, a 50 MiB multipart upload/range/download, full 800-second audio decoding to a 25.6 MB waveform, import checksum/metadata mismatch rejection and activation. Dedicated workerd tests cover chunk boundaries, SHA mismatch rollback, failed conditional replacement, immutable reads across replacement, multipart ordering/retries/abort-after-completion, GC idempotence, orphan recovery and Unicode pagination. Synthetic fixtures only; real data and deployed CPU/memory remain root-owned cutover gates.
+`npm test` exercises the entire actual Go/Wasm API, private audio codec and transfer/activation suite with these native blob DOs and **zero R2 buckets**. This includes all 165 source routes, a 50 MiB multipart upload/range/download, full 800-second audio decoding to a 25.6 MB waveform, import checksum/metadata mismatch rejection and activation. Dedicated workerd tests cover chunk boundaries, SHA mismatch rollback, failed conditional replacement, immutable reads across replacement, multipart ordering/retries/abort-after-completion, GC idempotence, orphan recovery and Unicode pagination. These local checks use synthetic fixtures. Real-data import and native platform observations are separately recorded in [NATIVE-CUTOVER.md](NATIVE-CUTOVER.md) and [AUDIO-PLATFORM-ACCEPTANCE.md](AUDIO-PLATFORM-ACCEPTANCE.md).
 
 Primary API/limit references: [SQLite storage API](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/), [DO limits](https://developers.cloudflare.com/durable-objects/platform/limits/), [Free pricing/quotas](https://developers.cloudflare.com/durable-objects/platform/pricing/), [native DigestStream](https://developers.cloudflare.com/workers/runtime-apis/web-crypto/).
