@@ -253,13 +253,30 @@ export async function* body(directory, sealed) {
     yield chunk;
   for (const line of sealed.records) yield line + "\n";
 }
+// Accept the literal loopback authority only: URL parsing alone would normalize
+// alternate IPv4 forms such as 127.1, integer hosts and percent-encoded names.
+export function bindingLocalOrigin(args) {
+  if (!args.includes("--binding-local") || args.includes("--token-file"))
+    throw Error(
+      "Use --binding-local; migration authority comes from Wrangler OAuth, never a transfer token",
+    );
+  const index = args.indexOf("--endpoint"),
+    endpoint = index < 0 ? undefined : args[index + 1],
+    match =
+      typeof endpoint === "string" &&
+      /^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})\/?$/.exec(endpoint);
+  if (!match || match[0] !== endpoint || Number(match[1]) > 65535)
+    throw Error("Only literal http://127.0.0.1:<port> is accepted");
+  return new URL(endpoint);
+}
 async function main() {
   const args = process.argv.slice(2),
     get = (flag) => {
       const i = args.indexOf(flag);
       return i < 0 ? undefined : args[i + 1];
     },
-    directory = resolve(get("--directory") ?? ".");
+    directory = resolve(get("--directory") ?? "."),
+    origin = args.includes("--execute") ? bindingLocalOrigin(args) : null;
   const root = resolve(
     dirname(fileURLToPath(import.meta.url)),
     "..",
@@ -297,23 +314,10 @@ async function main() {
     }),
   );
   if (!args.includes("--execute")) return;
-  const endpoint = get("--endpoint"),
-    tokenFile = get("--token-file");
-  if (!endpoint || !tokenFile)
-    throw Error("--execute requires an endpoint and a private token file");
-  const origin = new URL(endpoint);
-  if (
-    origin.protocol !== "https:" ||
-    !origin.hostname.startsWith("ielts-migrate-dev.")
-  )
-    throw Error("Only the isolated DEV migration helper is accepted");
-  const token = (await privateFile(resolve(tokenFile))).trim();
-  if (token.length < 32) throw Error("Invalid migration token file");
-  const authorization = "Bearer " + token;
   async function send(path, init) {
     const response = await fetch(new URL(path, origin), {
       ...init,
-      headers: { authorization, ...init?.headers },
+      redirect: "error",
     });
     if (!response.ok)
       throw Error("DEV transfer rejected; source data unchanged");

@@ -1,0 +1,20 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // LOCAL-ONLY bridge: run wrangler dev, never deploy this worker.
+  "account_id": "ab39c7a0ec52f861379630cccb01061f",
+  "name": "ielts-migrate-local",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": false,
+  "preview_urls": false,
+  "services": [
+    {
+      "binding": "MIGRATION",
+      "service": "ielts-migrate-dev",
+      "entrypoint": "MigrationBridge",
+      "remote": true,
+    },
+  ],
+  "dev": { "ip": "127.0.0.1", "port": 8794, "local_protocol": "http" },
+  "observability": { "enabled": false },
+}

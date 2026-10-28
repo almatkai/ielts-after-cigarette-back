@@ -38,8 +38,7 @@ const modules = async (dir, entry) => [
     .filter((n) => n.endsWith(".wasm"))
     .map((n) => ({ type: "CompiledWasm", path: dir + "/" + n })),
 ];
-const namespace = { className: "IELTSDev", useSQLite: true },
-  secret = "synthetic-migration-contract-secret-32bytes";
+const namespace = { className: "IELTSDev", useSQLite: true };
 const mf = new Miniflare(
   convertV4MiniflareOptions({
     workers: [
@@ -69,7 +68,38 @@ const mf = new Miniflare(
           IAC_STATE: { ...namespace, scriptName: "ielts-api-dev" },
         },
 
-        bindings: { MIGRATION_TOKEN: secret, CF_TEST_MODE: "true" },
+        bindings: { CF_TEST_MODE: "true" },
+      },
+      {
+        name: "ielts-migrate-local",
+        modules: [
+          { type: "ESModule", path: "tools/migration-local/worker.mjs" },
+        ],
+        compatibilityDate: "2026-10-19",
+        serviceBindings: {
+          MIGRATION: {
+            name: "ielts-migrate-dev",
+            entrypoint: "MigrationBridge",
+          },
+        },
+      },
+      {
+        name: "named-http-probe",
+        modules: [
+          {
+            type: "ESModule",
+            path: "named-http-probe.mjs",
+            contents:
+              "export default {fetch(request,env){return env.MIGRATION.fetch(request);}}",
+          },
+        ],
+        compatibilityDate: "2026-10-19",
+        serviceBindings: {
+          MIGRATION: {
+            name: "ielts-migrate-dev",
+            entrypoint: "MigrationBridge",
+          },
+        },
       },
       blobWorker(".artifacts/transfer-blob"),
     ],
@@ -167,12 +197,9 @@ const records = payload.trimEnd().split("\n").slice(1);
 assert.equal((await seal(directory)).id, sealed.id);
 
 async function helper(path, init = {}) {
-  return (await mf.getWorker("ielts-migrate-dev")).fetch(
-    "https://transfer.test" + path,
-    {
-      ...init,
-      headers: { authorization: "Bearer " + secret, ...init.headers },
-    },
+  return (await mf.getWorker("ielts-migrate-local")).fetch(
+    "http://127.0.0.1:8794" + path,
+    init,
   );
 }
 async function api() {
@@ -185,7 +212,39 @@ test("real DO import verifies hashes, rolls back corruption, preserves data and 
   const denied = await (
     await mf.getWorker("ielts-migrate-dev")
   ).fetch("https://transfer.test/report");
-  assert.equal(denied.status, 401);
+  assert.equal(denied.status, 404);
+  const namedHTTP = await (
+    await mf.getWorker("named-http-probe")
+  ).fetch("https://transfer.test/report");
+  assert.equal(namedHTTP.status, 404);
+  for (const [path, method] of [
+    ["/report", "GET"],
+    ["/database", "POST"],
+    ["/activate", "POST"],
+    ["/object", "PUT"],
+    ["/object-status", "POST"],
+  ]) {
+    const response = await (
+      await mf.getWorker("ielts-migrate-dev")
+    ).fetch("https://transfer.test" + path, {
+      method,
+      body: method === "GET" ? undefined : "{}",
+      headers: { authorization: "Bearer ignored-public-header" },
+    });
+    assert.equal(response.status, 404);
+  }
+  for (const headers of [
+    { origin: "https://untrusted.invalid" },
+    { origin: "null" },
+    { "sec-fetch-site": "cross-site" },
+  ]) {
+    const response = await helper("/database", {
+      method: "POST",
+      body: payload,
+      headers,
+    });
+    assert.equal(response.status, 403);
+  }
   const reserved = await helper("/object", {
     method: "PUT",
     headers: {
