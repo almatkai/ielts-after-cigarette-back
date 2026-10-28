@@ -1,6 +1,6 @@
 // Private, bounded object storage on SQLite Durable Objects. No R2 subscription.
 // This implements the application-used object contract, not the entire R2 API.
-const CHUNK = 256 * 1024,
+const CHUNK = 1024 * 1024,
   MAX = 512 * 1024 * 1024;
 export const BLOB_SHARDS = 64;
 const hex = (bytes) =>
@@ -147,7 +147,7 @@ export class SQLiteBucket {
             : null;
       if (expected && sha256 !== expected)
         throw Error("Object SHA-256 mismatch");
-      const part = { id, size, count, sha256 };
+      const part = { id, size, count, chunkSize: CHUNK, sha256 };
       await this.index.staged(id, part);
       return {
         ...fields,
@@ -276,14 +276,15 @@ export class SQLiteBucket {
         }
         const part = meta.parts[partIndex],
           relative = position - partStart,
-          index = Math.floor(relative / CHUNK);
+          chunkSize = part.chunkSize ?? 256 * 1024,
+          index = Math.floor(relative / chunkSize);
         const bytes = new Uint8Array(
           await stub(chunks, String(shard(part.id, index))).read(
             part.id,
             index,
           ),
         );
-        const at = relative % CHUNK,
+        const at = relative % chunkSize,
           count = Math.min(remaining, bytes.length - at);
         if (count <= 0) throw Error("Stored chunk length mismatch");
         controller.enqueue(bytes.slice(at, at + count));

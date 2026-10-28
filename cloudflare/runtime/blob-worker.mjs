@@ -26,7 +26,7 @@ export class IACBlobChunks extends DurableObject {
       !/^[0-9a-f]{32}$/.test(id) ||
       !Number.isInteger(position) ||
       position < 0 ||
-      position >= MAX / CHUNK ||
+      position >= MAX / (256 * 1024) ||
       !(bytes instanceof Uint8Array) ||
       !bytes.length ||
       bytes.length > CHUNK

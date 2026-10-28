@@ -58,10 +58,10 @@ test("SQLite blob streams bounded chunks, verifies checksum, ranges and immutabl
   out = await call("/get?key=large");
   assert.deepEqual(Buffer.from(await out.arrayBuffer()), bytes);
   assert.equal(out.headers.get("x-checksum"), hash(bytes));
-  out = await call("/get?key=large&offset=262140&length=29");
+  out = await call("/get?key=large&offset=1048572&length=29");
   assert.deepEqual(
     Buffer.from(await out.arrayBuffer()),
-    bytes.subarray(262140, 262169),
+    bytes.subarray(1048572, 1048601),
   );
   assert.equal(
     (await call("/put?key=large&sha256=" + "0".repeat(64), "corrupt")).status,
@@ -212,5 +212,21 @@ test("interrupted input streams never publish partial bytes", async () => {
   assert.equal(
     await call("/get?key=interrupted").then((r) => r.text()),
     "original",
+  );
+});
+
+test("older 256 KiB chunk metadata remains readable after the 1 MiB upgrade", async () => {
+  const response = await call("/legacy");
+  assert.equal(response.status, 200, await response.clone().text());
+  const meta = await response.json();
+  const bytes = Buffer.from(
+    await call("/get?key=" + meta.key).then((r) => r.arrayBuffer()),
+  );
+  assert.equal(bytes.length, meta.size);
+  assert.equal(hash(bytes), meta.sha256);
+  const range = await call("/get?key=" + meta.key + "&offset=262140&length=29");
+  assert.deepEqual(
+    Buffer.from(await range.arrayBuffer()),
+    bytes.subarray(262140, 262169),
   );
 });

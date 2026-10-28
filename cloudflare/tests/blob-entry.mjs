@@ -4,6 +4,45 @@ import {
   IACBlobChunks as Chunks,
 } from "../runtime/blob-worker.mjs";
 export class IACBlobIndex extends Index {
+  async legacyProbe() {
+    const id = crypto.randomUUID().replaceAll("-", ""),
+      key = "legacy-layout",
+      bytes = new Uint8Array(2 * 256 * 1024 + 17);
+    for (let n = 0; n < bytes.length; n++) bytes[n] = n % 251;
+    const fields = {
+      httpMetadata: { contentType: "application/octet-stream" },
+      customMetadata: {},
+    };
+    this.begin({ id, key, parent: null, fields });
+    let count = 0;
+    for (let at = 0; at < bytes.length; at += 256 * 1024) {
+      const index = count++;
+      const n = (parseInt(id.slice(0, 8), 16) + index) % 64;
+      await this.env.IAC_BLOB_CHUNKS.get(
+        this.env.IAC_BLOB_CHUNKS.idFromName(String(n)),
+      ).write(id, index, bytes.slice(at, at + 256 * 1024));
+    }
+    const sha256 = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      (x) => x.toString(16).padStart(2, "0"),
+    ).join("");
+    const part = { id, size: bytes.length, count, sha256 };
+    this.staged(id, part);
+    this.publish(
+      key,
+      {
+        ...fields,
+        parts: [part],
+        size: bytes.length,
+        sha256,
+        etag: sha256,
+        uploaded: Date.now(),
+        version: id,
+      },
+      null,
+    );
+    return { key, size: bytes.length, sha256 };
+  }
   async sweep() {
     this.sql.exec("UPDATE uploads SET expires=0 WHERE expires IS NOT NULL");
     this.sql.exec("UPDATE multipart SET expires=0");
@@ -39,6 +78,12 @@ export default {
       url = new URL(request.url),
       key = url.searchParams.get("key");
     try {
+      if (url.pathname === "/legacy")
+        return Response.json(
+          await env.IAC_BLOB_INDEX.get(
+            env.IAC_BLOB_INDEX.idFromName("ielts-media-v1"),
+          ).legacyProbe(),
+        );
       if (url.pathname === "/orphan")
         return Response.json(
           await env.IAC_BLOB_CHUNKS.get(
