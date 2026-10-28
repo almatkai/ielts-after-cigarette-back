@@ -109,6 +109,24 @@ def export_database(output):
     script_path.unlink()
 
 
+def read_schema_header(raw):
+    # PostgreSQL json_agg may insert real line breaks between catalog rows.
+    # psql -At does not turn that JSON value into a single physical line.
+    header = bytearray()
+    for line in raw:
+        header.extend(line)
+        if len(header) > 1 << 20:
+            raise RuntimeError("PostgreSQL schema header exceeds the bounded limit")
+        try:
+            value = json.loads(header)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(value, dict) or value.get("kind") != "schema":
+            raise RuntimeError("PostgreSQL schema header is invalid")
+        return value
+    raise RuntimeError("PostgreSQL schema header is incomplete")
+
+
 def finish_database(raw_path, output, schema):
     tables = {
         t["name"]: {
@@ -127,7 +145,7 @@ def finish_database(raw_path, output, schema):
             os.open(str(rows_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "wb"
         ) as target,
     ):
-        actual = json.loads(next(raw))
+        actual = read_schema_header(raw)
         expected = {
             t["name"]: [{"name": c["name"], "type": c["type"]} for c in t["columns"]]
             for t in schema["tables"]
