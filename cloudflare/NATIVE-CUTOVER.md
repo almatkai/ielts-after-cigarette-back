@@ -1,6 +1,15 @@
 # IELTS DEV native cutover — 2026-10-28
 
-**IELTS DEV cutover is complete.** https://ielts.woolet.cc/app/ serves the selected DEV application entirely through Cloudflare. The existing public hostname, Google/Turnstile origin authority and host-only secure cookie policy are retained.
+**IELTS DEV runtime migration and source retirement are complete; current API availability is quota limited.** https://ielts.woolet.cc/app/ serves the selected DEV application entirely through Cloudflare. The existing public hostname, Google/Turnstile origin authority and host-only secure cookie policy are retained.
+
+As checked at 2026-10-28 09:46 UTC, the guest API returns **503** because the
+shared Cloudflare Free SQLite read allowance is exhausted. The frontdoor sends
+`Cache-Control: no-store`, `Retry-After` and a Russian message pointing to the
+reset at **2026-10-29 00:00 UTC (05:00 Almaty)**. The earlier HTML request returned
+200; healthy paths are not forcibly disabled. Recovery after reset remains
+unverified. No paid upgrade or VPS fallback was introduced. The
+[quota boundary receipt](../../ielts-after-cigarette/iac-web/cloudflare/quota-boundary-acceptance.json)
+records the narrow adapter update, current versions and preserved bindings/vars/secrets.
 
 The chain is `ielts-dev` service-binding frontdoor → `ielts-web-dev` frontend/SSR DO → private `ielts-api-dev` service → application SQLite DO, private SQLite blob DOs and private audio DO. There is no VPC/VPS/database/Redis/MinIO fallback in this chain. Production application/deployment paths were unchanged.
 
@@ -11,9 +20,15 @@ The chain is `ielts-dev` service-binding frontdoor → `ielts-web-dev` frontend/
 - Verified import `b3ad7c1d96f0e2d14aa89638228a5a3681ca59f09caea1aabf5e0952e2ae9d33`: **50 tables, 15,540 rows, 52 objects / 278,008,907 bytes, 68 coordination keys**.
 - Every table count/hash chain and complete object checksum inventory matched before activation. The final active import report exactly matches the retained original receipt. The conservative database publication/staging/coordination bound is 57,496 writes, excluding private blob writes and other account use.
 - Existing selected DEV secrets were reused through private files. VPS connection/storage credentials and telemetry endpoints were not copied into the runtime. No provider key or migration token was created.
-- Source PostgreSQL, Redis and MinIO plus two legacy DEV databases are now stopped: **ten stopped IELTS DEV containers total**, with Docker restart policy **`no` on all ten**. This includes eight `ielts-guest-dev` containers and the legacy `ielts-api-development` PostgreSQL/Redis containers. Their volumes, private export/receipts and original restart policies are retained. Existing CI deploys production only; its DEV branch runs tests.
+- Source PostgreSQL, Redis and MinIO plus two legacy DEV databases are now stopped: **thirteen stopped IELTS DEV/legacy containers total**, with Docker restart policy **`no` on all thirteen**. This includes eight `ielts-guest-dev` containers, legacy `ielts-api-development` PostgreSQL/Redis/backend containers, `ielts-landing-dev-landing-1` and `ielts-web-dev-web-1`. The three additional inactive legacy backend/web/landing artifacts were retired in place; they were not separately migrated as applications. Their volumes, private export/receipts and original restart policies are retained. Existing CI deploys production only; its DEV branch runs tests.
 
-The root agent verified the final stopped/restart-policy state on the server. The local private original-policy receipt contains exactly the same ten container names; its SHA-256 is `ede65d31fdfe4569708009509ea518e083781b81b4d6a39c6cd4658bb1914101`. The receipt preserves the original rollback configuration.
+The final read-only server inventory at **2026-10-28 09:51:06 UTC** verified all
+thirteen IELTS containers stopped with restart disabled. The original private
+ten-container policy receipt remains unchanged (SHA-256
+`ede65d31fdfe4569708009509ea518e083781b81b4d6a39c6cd4658bb1914101`);
+separate private receipts retain the three additional legacy policies. Their
+checksums are in the machine-readable retirement record. Source volumes remain
+retained for a reconciled rollback.
 
 The temporary private migration Worker has been deleted and the loopback OAuth bridge stopped. The public API has no migration endpoint. Private exports live under ignored mode-700 `.sensitive/` directories with mode-600 files; they are never committed.
 
