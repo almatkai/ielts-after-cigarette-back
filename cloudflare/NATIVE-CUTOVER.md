@@ -1,6 +1,6 @@
 # IELTS DEV native cutover — 2026-10-28
 
-**https://ielts.woolet.cc/app/** serves the selected DEV application entirely through Cloudflare. The existing public hostname, Google/Turnstile origin authority and host-only secure cookie policy are retained.
+**IELTS DEV cutover is complete.** https://ielts.woolet.cc/app/ serves the selected DEV application entirely through Cloudflare. The existing public hostname, Google/Turnstile origin authority and host-only secure cookie policy are retained.
 
 The chain is `ielts-dev` service-binding frontdoor → `ielts-web-dev` frontend/SSR DO → private `ielts-api-dev` service → application SQLite DO, private SQLite blob DOs and private audio DO. There is no VPC/VPS/database/Redis/MinIO fallback in this chain. Production application/deployment paths were unchanged.
 
@@ -11,7 +11,9 @@ The chain is `ielts-dev` service-binding frontdoor → `ielts-web-dev` frontend/
 - Verified import `b3ad7c1d96f0e2d14aa89638228a5a3681ca59f09caea1aabf5e0952e2ae9d33`: **50 tables, 15,540 rows, 52 objects / 278,008,907 bytes, 68 coordination keys**.
 - Every table count/hash chain and complete object checksum inventory matched before activation. The final active import report exactly matches the retained original receipt. The conservative database publication/staging/coordination bound is 57,496 writes, excluding private blob writes and other account use.
 - Existing selected DEV secrets were reused through private files. VPS connection/storage credentials and telemetry endpoints were not copied into the runtime. No provider key or migration token was created.
-- Source PostgreSQL, Redis and MinIO plus two legacy DEV databases are now stopped: **ten stopped IELTS DEV containers total**. Their volumes and private export/receipts are retained. Existing CI deploys production only; its DEV branch runs tests.
+- Source PostgreSQL, Redis and MinIO plus two legacy DEV databases are now stopped: **ten stopped IELTS DEV containers total**, with Docker restart policy **`no` on all ten**. This includes eight `ielts-guest-dev` containers and the legacy `ielts-api-development` PostgreSQL/Redis containers. Their volumes, private export/receipts and original restart policies are retained. Existing CI deploys production only; its DEV branch runs tests.
+
+The root agent verified the final stopped/restart-policy state on the server. The local private original-policy receipt contains exactly the same ten container names; its SHA-256 is `ede65d31fdfe4569708009509ea518e083781b81b4d6a39c6cd4658bb1914101`. The receipt preserves the original rollback configuration.
 
 The temporary private migration Worker has been deleted and the loopback OAuth bridge stopped. The public API has no migration endpoint. Private exports live under ignored mode-700 `.sensitive/` directories with mode-600 files; they are never committed.
 
@@ -31,4 +33,4 @@ Machine-readable deployment/source/import metadata: [schema/native-cutover.json]
 
 The old frontdoor Worker version is `6a79b7bd-8c0a-4964-872c-3857337ef784`; its source/settings and the source container boundary are retained privately. The frontdoor contains no DO migration, so its code can be restored independently of application storage.
 
-**The native dataset is active and may contain new writes.** Before rollback, fence target writers and reconcile/export those changes back into the retained source. Merely restarting old containers and routing traffic to their stale data would discard new activity. Preserve both datasets and receipts until reconciliation is complete. Do not delete source volumes or activate another old snapshot over the live object.
+**The native dataset is active and may contain new writes.** Before rollback, fence target writers and reconcile/export those changes back into the retained source. Restore the retained original restart policies only as part of that reconciled rollback. Merely restarting old containers and routing traffic to their stale data would discard new activity. Preserve both datasets and receipts until reconciliation is complete. Do not delete source volumes or activate another old snapshot over the live object.

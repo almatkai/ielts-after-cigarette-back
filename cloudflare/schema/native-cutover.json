@@ -78,5 +78,18 @@
   "productionChanged": false,
   "externalProviderTestCalls": false,
   "billingChangePerformed": false,
-  "billingSubscriptionIndependentlyVerified": false
+  "billingSubscriptionIndependentlyVerified": false,
+  "devCutoverStatus": "complete",
+  "sourceDevAutoRestartDisabled": true,
+  "sourceDevRestartPolicy": "no",
+  "sourceDevRetirement": {
+    "recordedAt": "2026-10-28T06:52:27.165710Z",
+    "verification": "Root agent final server inspection; local original-policy receipt inventory and checksum verified",
+    "stoppedContainers": 10,
+    "autoRestartDisabledContainers": 10,
+    "originalRestartPoliciesRetainedPrivately": true,
+    "originalPolicyReceipt": "cloudflare/.sensitive/ielts-cutover-boundary-20261028/source-restart-policies.json",
+    "originalPolicyReceiptSha256": "ede65d31fdfe4569708009509ea518e083781b81b4d6a39c6cd4658bb1914101",
+    "sourceVolumesRetained": true
+  }
 }
