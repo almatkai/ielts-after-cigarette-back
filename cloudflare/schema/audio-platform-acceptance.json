@@ -1,0 +1,81 @@
+{
+  "checkedAt": "2026-10-28T05:47:37.160Z",
+  "audioWorkerVersion": "1498a6aa-b13c-4f6b-8387-826828d53011",
+  "runtimeSha256": "e8647fd258565958b235b91699a0c146f0a4e9349cb4de5c84c57e518a46a93b",
+  "wasmSha256": "9f57947a5bd530d8f00c5b3f2cb2a3492faa7e5d823315342d6a8656d0a6b7b7",
+  "temporaryProbeHelperVersion": "042d8174-da9d-49fd-92eb-3f9fc15f6734",
+  "restoredMigrationHelperVersion": "4e041de7-58db-45a2-8cd1-cddc682fa795",
+  "cases": {
+    "educational": {
+      "nativeCloudflare": true,
+      "inputBytes": 3464,
+      "outputBytes": 32078,
+      "pcmBytes": 32000,
+      "durationSeconds": 1,
+      "format": {
+        "encoding": 1,
+        "channels": 1,
+        "sampleRate": 16000,
+        "bits": 16,
+        "dataOffset": 78
+      },
+      "nonzeroPCM": false,
+      "wasmMemoryBytes": 33554432,
+      "checksumVerified": true,
+      "sourcePreserved": true,
+      "temporaryObjectsRemoved": true,
+      "totalMemoryPeakMeasured": false,
+      "elapsedMs": 1051,
+      "nativeTail": {
+        "cpuTimeMs": 40,
+        "wallTimeMs": 330,
+        "outcome": "ok",
+        "exceptions": 0
+      }
+    },
+    "browser180": {
+      "nativeCloudflare": true,
+      "inputBytes": 1411737,
+      "outputBytes": 5760078,
+      "pcmBytes": 5760000,
+      "durationSeconds": 180,
+      "format": {
+        "encoding": 1,
+        "channels": 1,
+        "sampleRate": 16000,
+        "bits": 16,
+        "dataOffset": 78
+      },
+      "nonzeroPCM": true,
+      "wasmMemoryBytes": 33554432,
+      "checksumVerified": true,
+      "sourcePreserved": true,
+      "temporaryObjectsRemoved": true,
+      "totalMemoryPeakMeasured": false,
+      "elapsedMs": 5665,
+      "nativeTail": {
+        "cpuTimeMs": 1149,
+        "wallTimeMs": 3307,
+        "outcome": "ok",
+        "exceptions": 0
+      }
+    }
+  },
+  "helperStreamingTail": {
+    "cpuTimeMs": 14,
+    "wallTimeMs": 5426,
+    "outcome": "ok",
+    "exceptions": 0
+  },
+  "temporaryProbeRoutesRemoved": true,
+  "originalImportRemainsActive": true,
+  "originalImportReceiptMatches": true,
+  "audioRuntimeModified": false,
+  "totalIsolatePeakMemoryMeasured": false,
+  "limitations": [
+    "These two cases passed actual platform enforcement; no precise total isolate peak was exposed.",
+    "The 12 MiB compressed-input maximum and all possible codecs/durations have not been tested remotely.",
+    "The helper streaming request reported 14ms CPU with outcome ok; this does not prove a strict sub-10ms ingress ceiling.",
+    "No speech/AI provider request was made."
+  ]
+}
