@@ -1,0 +1,149 @@
+{
+  "checkedAt": "2026-10-28T05:59:10.132Z",
+  "windowUTC": {
+    "start": "2026-10-28T00:00:00Z",
+    "requestedEnd": "2026-10-28T05:59:10.132Z",
+    "latestReportedMinute": "2026-10-28T05:53:00Z"
+  },
+  "source": {
+    "endpoint": "https://api.cloudflare.com/client/v4/graphql",
+    "periodicDataset": "durableObjectsPeriodicGroups",
+    "requestDataset": "durableObjectsInvocationsAdaptiveGroups",
+    "readOnly": true
+  },
+  "accountDOUsage": {
+    "activeTime": 509493077,
+    "cpuTime": 39906004,
+    "duration": 65.215113856,
+    "exceededCpuErrors": 0,
+    "exceededMemoryErrors": 0,
+    "fatalInternalErrors": 0,
+    "rowsRead": 776346,
+    "rowsWritten": 66712,
+    "requestsEstimate": 1461,
+    "requestErrorsEstimate": 295,
+    "confidence95": {
+      "periodic": {
+        "duration": {
+          "estimate": 65.215113856,
+          "isValid": true,
+          "lower": 65.215113856,
+          "sampleSize": 390,
+          "upper": 65.215113856
+        },
+        "rowsRead": {
+          "estimate": 776346,
+          "isValid": true,
+          "lower": 776346,
+          "sampleSize": 390,
+          "upper": 776346
+        },
+        "rowsWritten": {
+          "estimate": 66712,
+          "isValid": true,
+          "lower": 66712,
+          "sampleSize": 390,
+          "upper": 66712
+        }
+      },
+      "requests": {
+        "estimate": 1461,
+        "isValid": true,
+        "lower": 1389.1465334516636,
+        "sampleSize": 1136,
+        "upper": 1532.8534665483364
+      }
+    }
+  },
+  "freeTierReferenceLimits": {
+    "rowsReadDaily": 5000000,
+    "rowsWrittenDaily": 100000,
+    "requestsDaily": 100000,
+    "durationGBSecondsDaily": 13000,
+    "storedBytesTotal": 5000000000,
+    "reset": "00:00 UTC"
+  },
+  "visibleRowsWrittenHeadroom": 33288,
+  "headroomIsNotReservation": true,
+  "storage": {
+    "accountTotalVerified": false,
+    "sqliteNamespacesListed": 12,
+    "allListedNamespacesSQLite": true,
+    "SQLAnalytics": {
+      "observedNamespaceCount": 1,
+      "latestObservedAt": "2026-10-28T05:14:57Z",
+      "observedStoredBytes": 12288
+    },
+    "reason": "Only one namespace appeared in SQL storage analytics; this does not cover all 12 listed namespaces and is not an account storage total."
+  },
+  "subscription": {
+    "workersFreePlanVerified": false,
+    "workersPaidPlanVerified": false,
+    "billingState": "unverified",
+    "workerSettings": [
+      {
+        "script": "ielts-api-dev",
+        "usageModel": "standard",
+        "explicitLimits": null
+      },
+      {
+        "script": "ielts-audio-dev",
+        "usageModel": "standard",
+        "explicitLimits": null
+      },
+      {
+        "script": "ielts-web-dev",
+        "usageModel": "standard",
+        "explicitLimits": null
+      }
+    ],
+    "priorBillingReadsForbiddenReportedByRoot": true,
+    "priorForbiddenBillingEndpointsRetried": false,
+    "noBillingMutations": true,
+    "interpretation": "usage_model=standard is a pricing hint, not definitive subscription evidence; neither zero base cost nor Free enforcement is certified."
+  },
+  "droneIdleBaselineBeforeOptimization": {
+    "sourceCommit": "66e45b1d4f3fec35fb584f3d225413ff8c5ed44f",
+    "nominalRunsPerDay": {
+      "registration": 2880,
+      "movements": 1440,
+      "claims": 1440,
+      "total": 5760
+    },
+    "perSuccessfulIdleRun": {
+      "businessJobUpdates": 2,
+      "alarmScheduleUpdates": 2,
+      "setAlarmWrites": 3,
+      "total": 7
+    },
+    "nominalRowsWrittenPerDay": 40320,
+    "extraCostsExcluded": [
+      "actual domain effects",
+      "notification delivery if enabled",
+      "GC and coordination cleanup",
+      "application traffic",
+      "failures/retries",
+      "other account applications"
+    ],
+    "liveMeasurement": false,
+    "notes": "Calculated from existing polling implementation, before the newly authorized event-driven scheduler optimization; not a future steady-state acceptance result."
+  },
+  "durationBoundary": {
+    "oneContinuouslyBillableObjectFullDayGBSeconds": 11059.2,
+    "twoSuchObjectsGBSeconds": 22118.4,
+    "notes": "Future alarms alone do not prove continuous billable activity. Actual eligible-hibernation behavior and all account objects determine duration; no idle duration extrapolation is accepted."
+  },
+  "limitations": [
+    "Analytics has reporting lag and requests are adaptively sampled.",
+    "The visible headroom is not an admission guarantee for pending imports.",
+    "No account billing/subscription proof is available under existing permissions.",
+    "Storage coverage and steady-state free eligibility remain unverified."
+  ],
+  "sources": [
+    "https://developers.cloudflare.com/durable-objects/platform/pricing/",
+    "https://developers.cloudflare.com/durable-objects/observability/metrics-and-analytics/",
+    "https://developers.cloudflare.com/durable-objects/concepts/durable-object-lifecycle/",
+    "https://developers.cloudflare.com/analytics/graphql-api/features/discovery/introspection/",
+    "https://developers.cloudflare.com/workers/platform/pricing/"
+  ]
+}
