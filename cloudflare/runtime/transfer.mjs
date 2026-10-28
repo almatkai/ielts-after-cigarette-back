@@ -15,6 +15,80 @@ export const digest = async (bytes) =>
       typeof bytes === "string" ? encoder.encode(bytes) : bytes,
     ),
   );
+// One durable staging row per bounded byte chunk, never per application row.
+// SQLite's INTEGER PRIMARY KEY aliases rowid, avoiding a second index write.
+export const STAGING_CHUNK_BYTES = 128 * 1024;
+export const MAX_TRANSFER_RECORD_BYTES = 4 * 1024 * 1024;
+// SHA-256's fixed compression function is used only to recheck verified chunks
+// inside transactionSync, where WebCrypto's asynchronous digest cannot be awaited.
+// Input-chain verification continues to use native WebCrypto.
+const SHA256_K = Uint32Array.from([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
+  0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+  0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+  0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+  0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+  0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+const rotate = (n, bits) => (n >>> bits) | (n << (32 - bits));
+export function stagingDigest(input) {
+  const bytes =
+      typeof input === "string" ? encoder.encode(input) : new Uint8Array(input),
+    data = new Uint8Array(Math.ceil((bytes.length + 9) / 64) * 64),
+    view = new DataView(data.buffer),
+    words = new Uint32Array(64),
+    state = Uint32Array.from([
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
+      0x1f83d9ab, 0x5be0cd19,
+    ]);
+  data.set(bytes);
+  data[bytes.length] = 0x80;
+  view.setUint32(data.length - 8, Math.floor(bytes.length / 0x20000000));
+  view.setUint32(data.length - 4, bytes.length * 8);
+  for (let offset = 0; offset < data.length; offset += 64) {
+    for (let i = 0; i < 16; i++) words[i] = view.getUint32(offset + i * 4);
+    for (let i = 16; i < 64; i++) {
+      const a = words[i - 15],
+        b = words[i - 2];
+      words[i] =
+        words[i - 16] +
+        (rotate(a, 7) ^ rotate(a, 18) ^ (a >>> 3)) +
+        words[i - 7] +
+        (rotate(b, 17) ^ rotate(b, 19) ^ (b >>> 10));
+    }
+    let [a, b, c, d, e, f, g, h] = state;
+    for (let i = 0; i < 64; i++) {
+      const t1 =
+          (h +
+            (rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25)) +
+            ((e & f) ^ (~e & g)) +
+            SHA256_K[i] +
+            words[i]) |
+          0,
+        t2 =
+          ((rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22)) +
+            ((a & b) ^ (a & c) ^ (b & c))) |
+          0;
+      h = g;
+      g = f;
+      f = e;
+      e = (d + t1) | 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (t1 + t2) | 0;
+    }
+    [a, b, c, d, e, f, g, h].forEach((n, i) => {
+      state[i] += n;
+    });
+  }
+  return Array.from(state, (n) => n.toString(16).padStart(8, "0")).join("");
+}
 const unhex = (s) =>
   Uint8Array.from(s.match(/../g) ?? [], (x) => parseInt(x, 16));
 async function chain(previous, line) {
@@ -99,6 +173,9 @@ function redisValue(record) {
     throw Error("Unmapped coordination key; explicit coverage required");
   return { disposition: "restored", value: record.value };
 }
+export function coordinationRecord(record) {
+  return { key: record.key, expires: record.expires, ...redisValue(record) };
+}
 function setup(storage) {
   storage.sql.exec(
     "CREATE TABLE IF NOT EXISTS cf_imports(id TEXT PRIMARY KEY,status TEXT NOT NULL,manifest TEXT NOT NULL,report TEXT NOT NULL)",
@@ -120,7 +197,7 @@ export function migrationStatus(storage) {
 export async function importDatabase(storage, body) {
   setup(storage);
   storage.sql.exec(
-    "CREATE TABLE IF NOT EXISTS cf_import_staging(id TEXT NOT NULL,kind TEXT NOT NULL,table_name TEXT NOT NULL,position INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(id,kind,table_name,position))",
+    "CREATE TABLE IF NOT EXISTS cf_import_chunks(position INTEGER PRIMARY KEY,kind TEXT NOT NULL,table_name TEXT NOT NULL,payload BLOB NOT NULL)",
   );
   const iterator = lines(body)[Symbol.asyncIterator](),
     first = await iterator.next();
@@ -142,30 +219,49 @@ export async function importDatabase(storage, body) {
   )
     throw Error("Wrong selected DEV snapshot");
   if (
+    !manifest.tables ||
     JSON.stringify(Object.keys(manifest.tables).sort()) !==
-    JSON.stringify(schema.tables.map((t) => t.name).sort())
+      JSON.stringify(schema.tables.map((t) => t.name).sort())
   )
     throw Error("Incomplete table manifest");
+  if (
+    !manifest.coordination ||
+    !Number.isSafeInteger(manifest.coordination.count) ||
+    manifest.coordination.count < 0 ||
+    !/^[0-9a-f]{64}$/.test(manifest.coordination.chain)
+  )
+    throw Error("Invalid coordination manifest");
   const map = new Map(schema.tables.map((t) => [t.name, t]));
   function pristine() {
     for (const table of schema.tables) {
       const seed = sqlite.seeds.find((s) => s.table === table.name),
-        rows = storage.sql.exec(`SELECT * FROM "${table.name}"`).toArray();
+        count = storage.sql
+          .exec(`SELECT count(*) AS n FROM "${table.name}"`)
+          .one().n;
+      if (count !== (seed?.rows.length ?? 0))
+        throw Error("Target is not a pristine migration target");
       if (
-        rows.length !== (seed?.rows.length ?? 0) ||
-        rows.some(
-          (row) =>
-            !seed.rows.some((expected) =>
-              Object.entries(expected).every(([k, v]) => row[k] === v),
-            ),
-        )
+        count &&
+        storage.sql
+          .exec(`SELECT * FROM "${table.name}"`)
+          .toArray()
+          .some(
+            (row) =>
+              !seed.rows.some((expected) =>
+                Object.entries(expected).every(([k, v]) => row[k] === v),
+              ),
+          )
       )
         throw Error("Target is not a pristine migration target");
     }
+    for (const name of ["cf_coordination", "cf_source_ledger"])
+      if (storage.sql.exec(`SELECT count(*) AS n FROM ${name}`).one().n)
+        throw Error("Target is not a pristine migration target");
   }
   for (const table of schema.tables) {
     const meta = manifest.tables[table.name];
     if (
+      !meta ||
       JSON.stringify(meta.columns) !==
         JSON.stringify(table.columns.map((c) => c.name)) ||
       !Number.isSafeInteger(meta.count) ||
@@ -188,6 +284,8 @@ export async function importDatabase(storage, body) {
   };
   for (const table of schema.tables)
     report.tables[table.name] = { count: 0, chain: zero };
+  // Retried failed streams start afresh; no unverified previous bytes participate.
+  storage.sql.exec("DELETE FROM cf_import_chunks");
   storage.sql.exec(
     "INSERT INTO cf_imports VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status",
     id,
@@ -196,36 +294,96 @@ export async function importDatabase(storage, body) {
     JSON.stringify(report),
   );
   let redisCount = 0,
-    redisChain = zero;
+    redisChain = zero,
+    buffer = new Uint8Array(STAGING_CHUNK_BYTES),
+    used = 0,
+    group = null;
+  // Only chunk metadata/hashes are retained; application data remains bounded.
+  const chunks = [];
+  async function flush() {
+    if (!used) return;
+    const payload = buffer.slice(0, used),
+      position = chunks.length,
+      checksum = await digest(payload);
+    storage.sql.exec(
+      "INSERT INTO cf_import_chunks VALUES(?,?,?,?)",
+      position,
+      group.kind,
+      group.table,
+      payload,
+    );
+    chunks.push({ position, ...group, checksum });
+    used = 0;
+  }
+  async function stage(kind, table, text) {
+    if (group && (group.kind !== kind || group.table !== table)) await flush();
+    group = { kind, table };
+    const bytes = encoder.encode(text + "\n");
+    if (bytes.length > MAX_TRANSFER_RECORD_BYTES)
+      throw Error("Transfer record exceeds limit");
+    for (let offset = 0; offset < bytes.length;) {
+      const count = Math.min(buffer.length - used, bytes.length - offset);
+      buffer.set(bytes.subarray(offset, offset + count), used);
+      used += count;
+      offset += count;
+      if (used === buffer.length) await flush();
+    }
+  }
+  function* staged(kind, table) {
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    let pending = "",
+      count = 0;
+    const expected = chunks.filter((c) => c.kind === kind && c.table === table);
+    for (const row of storage.sql.exec(
+      "SELECT position,kind,table_name,payload FROM cf_import_chunks WHERE kind=? AND table_name=? ORDER BY position",
+      kind,
+      table,
+    )) {
+      const chunk = expected[count++];
+      if (
+        !chunk ||
+        row.payload.byteLength > STAGING_CHUNK_BYTES ||
+        row.position !== chunk.position ||
+        row.kind !== chunk.kind ||
+        row.table_name !== chunk.table ||
+        stagingDigest(row.payload) !== chunk.checksum
+      )
+        throw Error("Staged chunk checksum mismatch");
+      pending += decoder.decode(row.payload, { stream: true });
+      let end;
+      while ((end = pending.indexOf("\n")) >= 0) {
+        const line = pending.slice(0, end);
+        pending = pending.slice(end + 1);
+        if (!line) throw Error("Invalid empty staged record");
+        yield JSON.parse(line);
+      }
+      if (pending.length > MAX_TRANSFER_RECORD_BYTES)
+        throw Error("Staged record exceeds limit");
+    }
+    pending += decoder.decode();
+    if (count !== expected.length || pending)
+      throw Error("Incomplete staged chunks");
+  }
   try {
-    // Never await streamed RPC input inside a SQLite transaction: input gates would
-    // block delivery of that same stream. Stage bounded records durably, then
-    // atomically publish the complete, verified dataset without any awaits.
+    // Never await input inside transactionSync: the input gate would deadlock.
+    // Validate the manifest chains while receiving, stage raw bounded chunks,
+    // then recheck every chunk against its native digest while publishing.
     for (;;) {
       const item = await iterator.next();
       if (item.done) break;
       const record = JSON.parse(item.value);
       if (record.kind === "redis") {
         redisChain = await chain(redisChain, item.value);
-        const native = redisValue(record);
+        const native = coordinationRecord(record);
         report.coordination[native.disposition]++;
-        const payload = JSON.stringify({
-          key: record.key,
-          expires: record.expires,
-          ...native,
-        });
-        storage.sql.exec(
-          "INSERT INTO cf_import_staging VALUES(?,?,?,?,?) ON CONFLICT(id,kind,table_name,position) DO UPDATE SET payload=excluded.payload WHERE payload<>excluded.payload",
-          id,
-          "redis",
-          "",
-          redisCount++,
-          payload,
-        );
+        if (++redisCount > manifest.coordination.count)
+          throw Error("Coordination count mismatch");
+        await stage("redis", "", JSON.stringify(native));
         continue;
       }
       const table = map.get(record.table);
       if (
+        (record.kind !== undefined && record.kind !== "row") ||
         !table ||
         !Array.isArray(record.values) ||
         record.values.length !== table.columns.length
@@ -234,15 +392,12 @@ export async function importDatabase(storage, body) {
       record.values.forEach((v, i) => importValue(table.columns[i], v));
       const state = report.tables[table.name];
       state.chain = await chain(state.chain, item.value);
-      storage.sql.exec(
-        "INSERT INTO cf_import_staging VALUES(?,?,?,?,?) ON CONFLICT(id,kind,table_name,position) DO UPDATE SET payload=excluded.payload WHERE payload<>excluded.payload",
-        id,
-        "row",
-        table.name,
-        state.count++,
-        item.value,
-      );
+      if (++state.count > manifest.tables[table.name].count)
+        throw Error("Table count mismatch");
+      await stage("row", table.name, item.value);
     }
+    await flush();
+    buffer = null;
     for (const [table, actual] of Object.entries(report.tables)) {
       const expected = manifest.tables[table];
       if (actual.count !== expected.count || actual.chain !== expected.chain)
@@ -255,21 +410,27 @@ export async function importDatabase(storage, body) {
       throw Error("Coordination count or checksum mismatch");
     storage.transactionSync(() => {
       pristine();
+      if (
+        storage.sql.exec("SELECT count(*) AS n FROM cf_import_chunks").one()
+          .n !== chunks.length
+      )
+        throw Error("Staged chunk count mismatch");
       storage.sql.exec("PRAGMA defer_foreign_keys=ON");
       for (const table of schema.tables)
         storage.sql.exec(`DELETE FROM "${table.name}"`);
       for (const table of schema.tables) {
         let count = 0;
-        for (const { payload } of storage.sql.exec(
-          "SELECT payload FROM cf_import_staging WHERE id=? AND kind='row' AND table_name=? AND position<? ORDER BY position",
-          id,
-          table.name,
-          report.tables[table.name].count,
-        )) {
-          const record = JSON.parse(payload),
-            values = record.values.map((v, i) =>
-              importValue(table.columns[i], v),
-            );
+        for (const record of staged("row", table.name)) {
+          if (
+            (record.kind !== undefined && record.kind !== "row") ||
+            record.table !== table.name ||
+            !Array.isArray(record.values) ||
+            record.values.length !== table.columns.length
+          )
+            throw Error("Invalid staged row");
+          const values = record.values.map((v, i) =>
+            importValue(table.columns[i], v),
+          );
           storage.sql.exec(
             `INSERT INTO "${table.name}"(${table.columns.map((c) => '"' + c.name + '"').join(",")}) VALUES(${values.map(() => "?").join(",")})`,
             ...values,
@@ -279,12 +440,9 @@ export async function importDatabase(storage, body) {
         if (count !== report.tables[table.name].count)
           throw Error("Staged row count mismatch");
       }
-      for (const { payload } of storage.sql.exec(
-        "SELECT payload FROM cf_import_staging WHERE id=? AND kind='redis' AND position<? ORDER BY position",
-        id,
-        redisCount,
-      )) {
-        const record = JSON.parse(payload);
+      let coordinationCount = 0;
+      for (const record of staged("redis", "")) {
+        coordinationCount++;
         if (
           record.disposition === "restored" &&
           (record.expires === null || record.expires > Date.now())
@@ -296,6 +454,8 @@ export async function importDatabase(storage, body) {
             record.expires,
           );
       }
+      if (coordinationCount !== redisCount)
+        throw Error("Staged coordination count mismatch");
       if (storage.sql.exec("PRAGMA foreign_key_check").toArray().length)
         throw Error("Foreign-key verification failed");
       for (const row of manifest.ledger ?? [])
@@ -327,6 +487,7 @@ export async function importDatabase(storage, body) {
           );
         }
       }
+      storage.sql.exec("DELETE FROM cf_import_chunks");
       storage.sql.exec(
         "UPDATE cf_imports SET status=?,report=? WHERE id=?",
         "complete",
@@ -335,6 +496,8 @@ export async function importDatabase(storage, body) {
       );
     });
   } catch (e) {
+    // Do not retain private duplicate data or charge future reads for failed chunks.
+    storage.sql.exec("DELETE FROM cf_import_chunks");
     storage.sql.exec("UPDATE cf_imports SET status='failed' WHERE id=?", id);
     throw e;
   }

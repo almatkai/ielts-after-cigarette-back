@@ -7,7 +7,12 @@ import { createInterface } from "node:readline";
 import { Readable } from "node:stream";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { importValue } from "../runtime/transfer.mjs";
+import {
+  importValue,
+  coordinationRecord,
+  STAGING_CHUNK_BYTES,
+  MAX_TRANSFER_RECORD_BYTES,
+} from "../runtime/transfer.mjs";
 import pgSchema from "../schema/postgres.json" with { type: "json" };
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex"),
   zero = "0".repeat(64);
@@ -45,13 +50,29 @@ export async function seal(directory) {
   const observed = Object.fromEntries(
     [...expected].map((name) => [name, { count: 0, chain: zero }]),
   );
-  let maxNativeRowBytes = 0;
+  let maxNativeRowBytes = 0,
+    stagingChunks = 0,
+    stagedBytes = 0,
+    stageUsed = 0,
+    stageGroup;
+  function stageBudget(group, bytes) {
+    if (stageGroup !== group && stageUsed) {
+      stagingChunks++;
+      stageUsed = 0;
+    }
+    stageGroup = group;
+    stagedBytes += bytes;
+    stagingChunks += Math.floor((stageUsed + bytes) / STAGING_CHUNK_BYTES);
+    stageUsed = (stageUsed + bytes) % STAGING_CHUNK_BYTES;
+  }
   const references = [];
   const tables = new Map(pgSchema.tables.map((t) => [t.name, t]));
   for await (const line of createInterface({
     input: createReadStream(resolve(directory, "rows.jsonl")),
     crlfDelay: Infinity,
   })) {
+    if (Buffer.byteLength(line) + 1 > MAX_TRANSFER_RECORD_BYTES)
+      throw Error("Transfer record exceeds limit");
     const record = JSON.parse(line),
       state = observed[record.table];
     if (!state) throw Error("Unknown table");
@@ -101,6 +122,7 @@ export async function seal(directory) {
           size: sizeColumn >= 0 ? Number(record.values[sizeColumn]) : null,
         });
     }
+    stageBudget("row:" + record.table, Buffer.byteLength(line) + 1);
     state.count++;
     state.chain = next(state.chain, line);
   }
@@ -168,19 +190,60 @@ export async function seal(directory) {
   manifest.coordination = { count: redis.length, chain: zero };
   // Preserve exact raw Redis dump bytes in the private export. Runtime restoration uses typed values.
   const records = redis.map((record) => JSON.stringify(record));
-  for (const line of records)
+  for (const line of records) {
+    if (Buffer.byteLength(line) + 1 > MAX_TRANSFER_RECORD_BYTES)
+      throw Error("Coordination record exceeds limit");
     manifest.coordination.chain = next(manifest.coordination.chain, line);
+    stageBudget(
+      "redis",
+      Buffer.byteLength(JSON.stringify(coordinationRecord(JSON.parse(line)))) +
+        1,
+    );
+  }
+  if (stageUsed) stagingChunks++;
   const header = JSON.stringify(manifest);
   if (Buffer.byteLength(header) > 2 << 20)
     throw Error("Transfer manifest exceeds native record limit");
-  const rows = Object.values(manifest.tables).reduce((n, t) => n + t.count, 0),
+  const publicationRowsWrittenUpperBound = pgSchema.tables.reduce(
+      (n, t) => n + manifest.tables[t.name].count * (1 + t.indexes.length),
+      0,
+    ),
+    // Every restored key has one table row plus its TEXT PRIMARY KEY index.
+    coordinationRowsWrittenUpperBound = redis.length * 2,
+    // Publication deletes pristine seed rows, preserves ledger/sequence metadata,
+    // advances sqlite_sequence (at most two writes), and records import/activation.
+    seedRowsWrittenUpperBound = pgSchema.tables.reduce(
+      (n, t) => n + t.seed.length * (1 + t.indexes.length),
+      0,
+    ),
+    metadataRowsWrittenUpperBound =
+      (manifest.ledger?.length ?? 0) +
+      (manifest.sequences?.length ?? 0) +
+      2 * (manifest.sequences?.length ?? 0) +
+      4,
     budget = {
       maxNativeRowBytes,
-      publicationRowsWrittenUpperBound: pgSchema.tables.reduce(
-        (n, t) => n + manifest.tables[t.name].count * (1 + t.indexes.length),
-        0,
-      ),
-      stagingRowsWrittenUpperBound: rows * 2,
+      stagingChunkBytes: STAGING_CHUNK_BYTES,
+      stagingBytes: stagedBytes,
+      importSchemaRowsWrittenUpperBound: 7,
+      stagingChunks,
+      publicationRowsWrittenUpperBound,
+      coordinationRowsWrittenUpperBound,
+      stagingRowsWrittenUpperBound: stagingChunks * 2,
+      seedRowsWrittenUpperBound,
+      metadataRowsWrittenUpperBound,
+      // Successful first import plus activation, including staging cleanup and
+      // all declared indexes. Schema provisioning, blobs, jobs and any failed
+      // attempts/retries consume additional account quota and are separate gates.
+      totalRowsWrittenUpperBound:
+        publicationRowsWrittenUpperBound +
+        coordinationRowsWrittenUpperBound +
+        stagingChunks * 2 +
+        seedRowsWrittenUpperBound +
+        metadataRowsWrittenUpperBound +
+        7,
+      scope:
+        "first-successful-database-import-and-activation; excludes provisioning, blobs, application writes and retries",
     };
   return { manifest, objects, records, header, id: sha(header), budget };
 }
