@@ -1,3 +1,4 @@
+import { blobBindings, blobWorker, testBucket } from "./blob-options.mjs";
 import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 import { test, after } from "node:test";
@@ -29,20 +30,28 @@ execFileSync(
 );
 const mf = new Miniflare(
   convertV4MiniflareOptions({
-    modules: [
-      { type: "ESModule", path: dir + "/audio-entry.js" },
-      ...(await readdir(dir))
-        .filter((f) => f.endsWith(".wasm"))
-        .map((f) => ({ type: "CompiledWasm", path: dir + "/" + f })),
+    workers: [
+      {
+        name: "ielts-audio-dev",
+        modules: [
+          { type: "ESModule", path: dir + "/audio-entry.js" },
+          ...(await readdir(dir))
+            .filter((f) => f.endsWith(".wasm"))
+            .map((f) => ({ type: "CompiledWasm", path: dir + "/" + f })),
+        ],
+        modulesRoot: dir,
+        compatibilityDate: "2026-10-19",
+        durableObjects: {
+          ...blobBindings,
+          IAC_AUDIO: { className: "IACAudio", useSQLite: true },
+        },
+      },
+      blobWorker(".artifacts/audio-blob"),
     ],
-    modulesRoot: dir,
-    compatibilityDate: "2026-10-19",
-    durableObjects: { IAC_AUDIO: { className: "IACAudio", useSQLite: true } },
-    r2Buckets: ["MEDIA"],
   }),
 );
 after(() => mf.dispose());
-const bucket = await mf.getR2Bucket("MEDIA");
+const bucket = await testBucket(mf);
 for (const [ext, codec, duration] of [
   ["webm", "libopus", 800],
   ["ogg", "libopus", 2],

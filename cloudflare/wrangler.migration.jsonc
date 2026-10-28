@@ -7,12 +7,22 @@
   "durable_objects": {
     "bindings": [
       {
+        "name": "IAC_BLOB_INDEX",
+        "class_name": "IACBlobIndex",
+        "script_name": "ielts-blob-dev",
+      },
+      {
+        "name": "IAC_BLOB_CHUNKS",
+        "class_name": "IACBlobChunks",
+        "script_name": "ielts-blob-dev",
+      },
+      {
         "name": "IAC_STATE",
         "class_name": "IELTSDev",
         "script_name": "ielts-api-dev",
       },
     ],
   },
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "ielts-media-dev" }],
+
   "observability": { "enabled": false },
 }

@@ -1,6 +1,6 @@
 {
   "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
-  "runtime": "real workerd + SQLite Durable Object + R2; synthetic identities/providers only",
+  "runtime": "real workerd + SQLite Durable Object + private SQLite blobs; synthetic identities/providers only",
   "registered": 165,
   "exercised": 165,
   "successful": 165,

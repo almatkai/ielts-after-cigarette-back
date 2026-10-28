@@ -1,3 +1,4 @@
+import { blobBindings, blobWorker } from "./blob-options.mjs";
 import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 import { test, after } from "node:test";
@@ -201,7 +202,7 @@ const apiOptions = {
       useSQLite: true,
     },
   },
-  r2Buckets: ["MEDIA"],
+
   bindings: {
     JWT_SECRET: "synthetic-contract-test-secret-32-bytes",
     PHONE_VERIFICATION_SECRET: "synthetic-phone-test-secret-32-bytes",
@@ -232,11 +233,13 @@ const audioOptions = {
   modulesRoot: ".artifacts/smoke-audio",
   compatibilityDate: "2026-10-19",
   durableObjects: { IAC_AUDIO: { className: "IACAudio", useSQLite: true } },
-  r2Buckets: { MEDIA: "shared-media" },
 };
-apiOptions.r2Buckets = { MEDIA: "shared-media" };
+Object.assign(apiOptions.durableObjects, blobBindings);
+Object.assign(audioOptions.durableObjects, blobBindings);
 const mf = new Miniflare(
-  convertV4MiniflareOptions({ workers: [apiOptions, audioOptions] }),
+  convertV4MiniflareOptions({
+    workers: [apiOptions, audioOptions, blobWorker(".artifacts/smoke-blob")],
+  }),
 );
 after(() => mf.dispose());
 const observations = [];
@@ -251,7 +254,7 @@ const call = async (path, init) => {
     });
   return response;
 };
-test("full pinned Go router starts inside real workerd with native SQLite/R2", async () => {
+test("full pinned Go router starts inside real workerd with native SQLite blob storage", async () => {
   let r = await call("/health/live");
   assert.equal(r.status, 200, await r.text());
   r = await call("/health/ready");
@@ -662,7 +665,7 @@ const question = (number) => ({
   explanation: "Contract fixture.",
   points: 1,
 });
-test("private R2 uploads preserve bytes, seek/range and authorization; Listening and Speaking versioned materials", async () => {
+test("private SQLite blob uploads preserve bytes, seek/range and authorization; Listening and Speaking versioned materials", async () => {
   const image = await upload("/admin/writing/media");
   const stored = (
     await sql("SELECT storage_key FROM writing_media WHERE id=?", [image.id])
@@ -1116,7 +1119,7 @@ test("admin users without profiles retain their account update timestamp", async
     await sql("DELETE FROM users WHERE id=?", [id]);
   }
 });
-test("large multipart media uses bounded native buffers and streamed R2 parts", async () => {
+test("large multipart media uses bounded native buffers and streamed SQLite blob parts", async () => {
   const data = Buffer.alloc(50 * 1024 * 1024, 1);
   Buffer.from("ID3").copy(data);
   const started = performance.now();
@@ -1349,7 +1352,7 @@ after(async () => {
       {
         revision: "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
         runtime:
-          "real workerd + SQLite Durable Object + R2; synthetic identities/providers only",
+          "real workerd + SQLite Durable Object + private SQLite blobs; synthetic identities/providers only",
         registered: routes.length,
         exercised: routes.filter((r) => r.contractRequests).length,
         successful: routes.filter((r) =>

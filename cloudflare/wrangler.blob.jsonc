@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "account_id": "ab39c7a0ec52f861379630cccb01061f",
+  "name": "ielts-blob-dev",
+  "main": "runtime/blob-worker.mjs",
+  "compatibility_date": "2026-10-19",
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "IAC_BLOB_INDEX",
+        "class_name": "IACBlobIndex",
+      },
+      {
+        "name": "IAC_BLOB_CHUNKS",
+        "class_name": "IACBlobChunks",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["IACBlobIndex", "IACBlobChunks"],
+    },
+  ],
+  "observability": {
+    "enabled": false,
+  },
+}

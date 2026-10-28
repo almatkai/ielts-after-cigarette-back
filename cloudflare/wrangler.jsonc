@@ -8,6 +8,16 @@
   "vars": { "IAC_REQUIRE_IMPORT": "true" },
   "durable_objects": {
     "bindings": [
+      {
+        "name": "IAC_BLOB_INDEX",
+        "class_name": "IACBlobIndex",
+        "script_name": "ielts-blob-dev",
+      },
+      {
+        "name": "IAC_BLOB_CHUNKS",
+        "class_name": "IACBlobChunks",
+        "script_name": "ielts-blob-dev",
+      },
       { "name": "IAC_STATE", "class_name": "IELTSDev" },
       {
         "name": "IAC_AUDIO",
@@ -17,7 +27,7 @@
     ],
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["IELTSDev"] }],
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "ielts-media-dev" }],
+
   "rules": [
     { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true },
   ],

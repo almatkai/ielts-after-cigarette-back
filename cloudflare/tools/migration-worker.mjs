@@ -1,7 +1,9 @@
+import { mediaEnvironment } from "../runtime/blob-store.mjs";
 // Temporary, separately authorized DEV transfer helper. Never the API entrypoint.
 import { digest } from "../runtime/transfer.mjs";
 export default {
   async fetch(request, env) {
+    env = mediaEnvironment(env);
     if (!env.MIGRATION_TOKEN || env.MIGRATION_TOKEN.length < 32)
       return new Response("Unconfigured", { status: 503 });
     if (

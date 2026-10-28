@@ -1,3 +1,4 @@
+import { mediaEnvironment } from "./blob-store.mjs";
 import { DurableObject } from "cloudflare:workers";
 import createCore from "../dist/audio/ffmpeg-core.mjs";
 import wasm from "../dist/audio/ffmpeg-core.wasm";
@@ -10,6 +11,7 @@ export default {
 export class IACAudio extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
+    this.env = mediaEnvironment(env);
     this.tail = Promise.resolve();
     ctx.storage.sql.exec(
       "CREATE TABLE IF NOT EXISTS audio_chunks(position INTEGER PRIMARY KEY, bytes BLOB NOT NULL)",
@@ -124,7 +126,7 @@ export class IACAudio extends DurableObject {
         if (!row) break;
         nextChunk = row.position + 1;
         const bytes = new Uint8Array(row.bytes);
-        for (let offset = 0; offset < bytes.length; ) {
+        for (let offset = 0; offset < bytes.length;) {
           const count = Math.min(buffer.length - used, bytes.length - offset);
           buffer.set(bytes.subarray(offset, offset + count), used);
           offset += count;

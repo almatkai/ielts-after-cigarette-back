@@ -6,7 +6,7 @@
     "build": "python3 tools/build.py && node tools/audio-build.mjs",
     "schema": "node tools/schema.mjs && node tools/sqlite-schema.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "WRANGLER_SEND_METRICS=false CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --config wrangler.jsonc && WRANGLER_SEND_METRICS=false CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --config wrangler.audio.jsonc"
+    "check": "WRANGLER_SEND_METRICS=false CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --config wrangler.jsonc && WRANGLER_SEND_METRICS=false CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --config wrangler.audio.jsonc && WRANGLER_SEND_METRICS=false CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler deploy --dry-run --config wrangler.blob.jsonc"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",

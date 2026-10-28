@@ -6,10 +6,22 @@
   "compatibility_date": "2026-10-19",
   "workers_dev": false,
   "durable_objects": {
-    "bindings": [{ "name": "IAC_AUDIO", "class_name": "IACAudio" }],
+    "bindings": [
+      {
+        "name": "IAC_BLOB_INDEX",
+        "class_name": "IACBlobIndex",
+        "script_name": "ielts-blob-dev",
+      },
+      {
+        "name": "IAC_BLOB_CHUNKS",
+        "class_name": "IACBlobChunks",
+        "script_name": "ielts-blob-dev",
+      },
+      { "name": "IAC_AUDIO", "class_name": "IACAudio" },
+    ],
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["IACAudio"] }],
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "ielts-media-dev" }],
+
   "rules": [
     { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": true },
   ],

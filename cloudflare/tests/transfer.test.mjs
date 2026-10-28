@@ -1,3 +1,4 @@
+import { blobBindings, blobWorker, testBucket } from "./blob-options.mjs";
 import { fileURLToPath } from "node:url";
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 import { test, after } from "node:test";
@@ -47,8 +48,8 @@ const mf = new Miniflare(
         modules: await modules(".artifacts/transfer-api", "worker.js"),
         modulesRoot: ".artifacts/transfer-api",
         compatibilityDate: "2026-10-19",
-        durableObjects: { IAC_STATE: namespace },
-        r2Buckets: { MEDIA: "media" },
+        durableObjects: { ...blobBindings, IAC_STATE: namespace },
+
         bindings: {
           JWT_SECRET: "synthetic-contract-test-secret-32-bytes",
           PHONE_VERIFICATION_SECRET: "synthetic-phone-test-secret-32-bytes",
@@ -64,11 +65,13 @@ const mf = new Miniflare(
         modulesRoot: ".artifacts/transfer-helper",
         compatibilityDate: "2026-10-19",
         durableObjects: {
+          ...blobBindings,
           IAC_STATE: { ...namespace, scriptName: "ielts-api-dev" },
         },
-        r2Buckets: { MEDIA: "media" },
+
         bindings: { MIGRATION_TOKEN: secret, CF_TEST_MODE: "true" },
       },
+      blobWorker(".artifacts/transfer-blob"),
     ],
   }),
 );
@@ -177,7 +180,7 @@ async function api() {
     "https://api.test/health/ready",
   );
 }
-test("real DO import verifies hashes, rolls back corruption, preserves data and activates only after R2 checks", async () => {
+test("real DO import verifies hashes, rolls back corruption, preserves data and activates only after private SQLite blob checks", async () => {
   assert.equal((await api()).status, 503);
   const denied = await (
     await mf.getWorker("ielts-migrate-dev")
@@ -249,7 +252,7 @@ test("real DO import verifies hashes, rolls back corruption, preserves data and 
     }),
   });
   assert.equal((await present.json()).exists, true);
-  const targetBucket = await mf.getR2Bucket("MEDIA", "ielts-api-dev");
+  const targetBucket = await testBucket(mf);
   const sourceKey = "_migration/existing-source/fixture.txt";
   await targetBucket.put(sourceKey, "fixture", {
     sha256: hash("fixture"),
@@ -328,7 +331,7 @@ test("real DO import verifies hashes, rolls back corruption, preserves data and 
   );
   assert.equal(refreshed.status, 200);
   await refreshed.text();
-  const bucket = await mf.getR2Bucket("MEDIA", "ielts-api-dev");
+  const bucket = await testBucket(mf);
   const object = await bucket.get("_migration/existing-source/fixture.txt");
   assert.equal(await object.text(), "fixture");
 

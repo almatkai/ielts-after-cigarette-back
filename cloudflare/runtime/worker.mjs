@@ -1,3 +1,4 @@
+import { mediaEnvironment } from "./blob-store.mjs";
 import { NativeFetch } from "./fetch.mjs";
 import { storageError } from "./errors.mjs";
 import { migrationStatus, importDatabase, activate } from "./transfer.mjs";
@@ -29,6 +30,8 @@ export default {
 export class IELTSDev extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
+    this.env = mediaEnvironment(env);
+    env = this.env;
     this.tail = Promise.resolve();
     this.transports = new Map();
     this.transaction = null;
