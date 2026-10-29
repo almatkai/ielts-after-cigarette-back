@@ -602,7 +602,8 @@ func TestSessionDistinguishesRecognizedExpiredTrial(t *testing.T) {
 			if tc.expired {
 				wantReason = "session_expired"
 			}
-			if body.Details["reason"] != wantReason {
+			gotReason, _ := body.Details["reason"].(string)
+			if gotReason != wantReason {
 				t.Fatalf("expiry signal=%v want=%s: %s", body.Details, wantReason, w.Body.String())
 			}
 			if tc.status == 401 && (body.Code != "GUEST_EXPIRED" || body.Message != "Гостевая сессия отсутствует или истекла") {
