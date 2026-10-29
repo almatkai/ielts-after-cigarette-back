@@ -155,7 +155,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.PaymentReturnURL == "" && len(cfg.CORSAllowedOrigins) > 0 {
-		cfg.PaymentReturnURL = strings.TrimRight(cfg.CORSAllowedOrigins[0], "/") + "/billing/return"
+		cfg.PaymentReturnURL = strings.TrimRight(cfg.CORSAllowedOrigins[0], "/") + "/app/billing/return"
 	}
 	if cfg.GuestTrialEnabled, err = boolEnv("GUEST_TRIAL_ENABLED", false); err != nil {
 		return Config{}, err
