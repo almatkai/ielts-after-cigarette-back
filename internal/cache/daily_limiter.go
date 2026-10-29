@@ -123,3 +123,7 @@ func (d *DailyLimiter) Check(ctx context.Context, scope, identifier string, limi
 		ResetAt:   resetAt,
 	}, nil
 }
+
+// Available lets callers that require an enforced quota reject a missing
+// Redis connection. Existing AI limits retain their fail-open nil behavior.
+func (d *DailyLimiter) Available() bool { return d != nil && d.client != nil }

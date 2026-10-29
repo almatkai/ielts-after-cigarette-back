@@ -17,10 +17,10 @@ import (
 const ClientClosedRequest = 499
 
 type ErrorResponse struct {
-	Code      string            `json:"code"`
-	Message   string            `json:"message"`
-	Details   map[string]string `json:"details,omitempty"`
-	RequestID string            `json:"requestId,omitempty"`
+	Code      string         `json:"code"`
+	Message   string         `json:"message"`
+	Details   map[string]any `json:"details,omitempty"`
+	RequestID string         `json:"requestId,omitempty"`
 }
 
 // Canceled reports whether the error means the client went away before the
@@ -50,11 +50,23 @@ func WriteJSON(w http.ResponseWriter, status int, value any) {
 	}
 }
 
-func WriteError(w http.ResponseWriter, r *http.Request, status int, code, message string, details map[string]string) {
+func WriteError(w http.ResponseWriter, r *http.Request, status int, code, message string, details any) {
+	var fields map[string]any
+	switch value := details.(type) {
+	case map[string]any:
+		fields = value
+	case map[string]string:
+		if len(value) > 0 {
+			fields = make(map[string]any, len(value))
+			for key, item := range value {
+				fields[key] = item
+			}
+		}
+	}
 	WriteJSON(w, status, ErrorResponse{
 		Code:      code,
 		Message:   message,
-		Details:   details,
+		Details:   fields,
 		RequestID: RequestID(r.Context()),
 	})
 }

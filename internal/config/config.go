@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -11,6 +12,9 @@ import (
 )
 
 type Config struct {
+	PaywallEnabled           bool
+	PaymentProvider          string
+	PaymentReturnURL         string
 	Environment              string
 	HTTPAddr                 string
 	MetricsAddr              string
@@ -94,6 +98,8 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
+		PaymentProvider:         strings.ToLower(strings.TrimSpace(env("PAYMENT_PROVIDER", "none"))),
+		PaymentReturnURL:        os.Getenv("PAYMENT_RETURN_URL"),
 		Environment:             env("APP_ENV", "development"),
 		HTTPAddr:                env("HTTP_ADDR", ":8080"),
 		MetricsAddr:             os.Getenv("METRICS_ADDR"),
@@ -145,6 +151,12 @@ func Load() (Config, error) {
 	}
 
 	var err error
+	if cfg.PaywallEnabled, err = boolEnv("PAYWALL_ENABLED", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.PaymentReturnURL == "" && len(cfg.CORSAllowedOrigins) > 0 {
+		cfg.PaymentReturnURL = strings.TrimRight(cfg.CORSAllowedOrigins[0], "/") + "/billing/return"
+	}
 	if cfg.GuestTrialEnabled, err = boolEnv("GUEST_TRIAL_ENABLED", false); err != nil {
 		return Config{}, err
 	}
@@ -250,6 +262,21 @@ func Load() (Config, error) {
 
 func (c Config) Validate() error {
 	var problems []string
+	switch c.PaymentProvider {
+	case "", "none":
+	case "fake":
+		if strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
+			problems = append(problems, "PAYMENT_PROVIDER=fake is forbidden in production")
+		}
+	default:
+		problems = append(problems, "PAYMENT_PROVIDER must be none or fake")
+	}
+	if c.PaymentReturnURL != "" {
+		u, err := url.Parse(c.PaymentReturnURL)
+		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.Fragment != "" {
+			problems = append(problems, "PAYMENT_RETURN_URL must be an absolute HTTP(S) URL without credentials or fragment")
+		}
+	}
 	if c.GuestTrialEnabled {
 		for _, examType := range c.GuestTrialExamTypes {
 			if examType != "academic" && examType != "general" {
