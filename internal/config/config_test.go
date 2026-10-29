@@ -124,3 +124,45 @@ func TestValidateRejectsInsecureProductionAIEndpoint(t *testing.T) {
 		t.Fatalf("expected insecure AI endpoint error, got %v", err)
 	}
 }
+
+func TestBillingConfigurationDefaultsAndProductionFakeGuard(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://test")
+	t.Setenv("REDIS_URL", "redis://test")
+	t.Setenv("JWT_SECRET", "test-secret-at-least-32-characters-long")
+	t.Setenv("PHONE_VERIFICATION_SECRET", "test-phone-secret-at-least-32-characters-long")
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("GUEST_TRIAL_ENABLED", "false")
+	t.Setenv("PAYWALL_ENABLED", "false")
+	t.Setenv("PAYMENT_PROVIDER", "none")
+	t.Setenv("PAYMENT_RETURN_URL", "")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://academy.test,https://other.test")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PaywallEnabled || cfg.PaymentProvider != "none" || cfg.PaymentReturnURL != "https://academy.test/billing/return" {
+		t.Fatalf("billing defaults: %+v", cfg)
+	}
+	cfg.PaymentProvider = "fake"
+	if err = cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	cfg.Environment = "production"
+	if err = cfg.Validate(); err == nil || !strings.Contains(err.Error(), "PAYMENT_PROVIDER=fake") {
+		t.Fatalf("production fake accepted: %v", err)
+	}
+	cfg.Environment = "development"
+	cfg.PaymentProvider = "bcc"
+	if err = cfg.Validate(); err == nil || !strings.Contains(err.Error(), "PAYMENT_PROVIDER must") {
+		t.Fatalf("undocumented bank provider: %v", err)
+	}
+	cfg.PaymentProvider = "none"
+	cfg.PaymentReturnURL = "javascript:alert(1)"
+	if err = cfg.Validate(); err == nil || !strings.Contains(err.Error(), "PAYMENT_RETURN_URL") {
+		t.Fatalf("unsafe return URL: %v", err)
+	}
+	t.Setenv("PAYWALL_ENABLED", "invalid")
+	if _, err = Load(); err == nil {
+		t.Fatal("invalid paywall flag accepted")
+	}
+}
