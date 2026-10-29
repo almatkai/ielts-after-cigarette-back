@@ -21,8 +21,11 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cf/redis"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/jobs"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/observability"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/speakingpipeline"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/writingpipeline"
 	"github.com/go-chi/chi/v5"
@@ -33,6 +36,19 @@ import (
 var handler http.Handler
 var metricsHandler http.Handler
 var writingWorker *writingpipeline.Worker
+var speakingWorker *speakingpipeline.Worker
+
+type speakingSTTAdapter struct {
+	stt *listening.STTService
+}
+
+func (a *speakingSTTAdapter) Transcribe(ctx context.Context, filename string, audioStream io.Reader) (string, error) {
+	res, err := a.stt.Transcribe(ctx, filename, audioStream)
+	if err != nil {
+		return "", err
+	}
+	return res.Text, nil
+}
 
 func promise(fn func() (any, error)) any {
 	executor := js.FuncOf(func(_ js.Value, a []js.Value) any {
@@ -95,6 +111,21 @@ func main() {
 			metricsHandler = metrics.Handler()
 			evaluator := attempts.NewChatCompletionsEvaluator(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).WithSpeakingModel(cfg.AISpeakingModel).WithSpeakingAudio(cfg.AISpeakingAudioEnabled).WithProviders(aiproviders.NewConfigured(pool, cfg, logger))
 			writingWorker = writingpipeline.NewWorker(attempts.NewPostgresRepository(pool), attempts.NewWritingProvider(writing.NewService(writing.NewPostgresRepository(pool), r2Store{})), evaluator, jobs.NewWritingQueue(client), logger)
+			speakingWorker = speakingpipeline.NewWorker(
+				attempts.NewPostgresRepository(pool),
+				attempts.NewSpeakingProvider(speaking.NewService(speaking.NewPostgresRepository(pool))),
+				r2Store{},
+				nil,
+				evaluator,
+				jobs.NewSpeakingQueue(client),
+				logger,
+			).WithLegacyTranscriber(&speakingSTTAdapter{stt: listening.NewSTTService(
+				cfg.STTAPIURL,
+				cfg.STTAPIKey,
+				cfg.AIChatCompletionsURL,
+				cfg.AIAPIKey,
+				cfg.AIModel,
+			)})
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
 			logOutput := io.Discard
@@ -152,9 +183,25 @@ func main() {
 	js.Global().Set("iacJob", js.FuncOf(func(_ js.Value, a []js.Value) any {
 		id := a[0].String()
 		jobID := a[1].String()
+		kind := "writing"
+		if len(a) > 2 && a[2].String() != "" {
+			kind = a[2].String()
+		}
 		return promise(func() (any, error) {
 			ctx, cancel := context.WithTimeout(bridge.WithID(context.Background(), jobID), 10*time.Minute)
 			defer cancel()
+			if kind == "speaking" {
+				if id == "" {
+					speakingWorker.CloudflareRecover(ctx)
+				} else {
+					uid, e := uuid.Parse(id)
+					if e != nil {
+						return nil, e
+					}
+					speakingWorker.CloudflareProcess(ctx, uid)
+				}
+				return true, nil
+			}
 			if id == "" {
 				writingWorker.CloudflareRecover(ctx)
 			} else {

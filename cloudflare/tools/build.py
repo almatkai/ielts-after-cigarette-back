@@ -5,7 +5,7 @@ import subprocess, pathlib, json, hashlib, shutil, os, tarfile, io
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CF = ROOT / "cloudflare"
-SHA = "40ed0dc5fca0b9df989a29d421a81476e7df0f50"
+SHA = "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206"
 artifact = CF / ".artifacts" / SHA
 source = artifact / "source"
 overlaydir = artifact / "overlay"
@@ -115,6 +115,11 @@ for f in source.rglob("*.go"):
             'import (\n cfhttp "github.com/almatkai/ielts-after-cigarette-back/internal/cf/http"',
             1,
         )
+    if f.name == "handler.go" and f.parent.name == "billing":
+        a = a.replace(
+            'httpx.WriteJSON(w, 200, map[string]any{"id": o.ID, "status": o.Status, "planCode": o.PlanCode, "amount": o.Amount, "listPrice": o.ListPrice, "createdAt": o.CreatedAt, "paidAt": o.PaidAt})',
+            'httpx.WriteJSON(w, 200, map[string]any{"id": o.ID, "status": o.Status, "planCode": o.PlanCode, "amount": o.Amount, "listPrice": o.ListPrice, "provider": o.Provider, "providerOrderId": o.ProviderOrderID, "createdAt": o.CreatedAt, "paidAt": o.PaidAt})',
+        )
     if b != a:
         dest = overlaydir / f.relative_to(source)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -126,6 +131,8 @@ for f in (CF / "go").rglob("*.go"):
         if f.name == "main.go"
         else "internal/writingpipeline/cloudflare.go"
         if f.parent.name == "hooks" and f.name == "writing.go"
+        else "internal/speakingpipeline/cloudflare.go"
+        if f.parent.name == "hooks" and f.name == "speaking.go"
         else "internal/blog/cloudflare.go"
         if f.parent.name == "hooks" and f.name == "blog.go"
         else str(pathlib.Path("internal/cf") / f.relative_to(CF / "go"))

@@ -72,6 +72,41 @@
     "started_at": "timestamp with time zone",
     "submitted_at": "timestamp with time zone"
   },
+  "billing_orders": {
+    "id": "uuid",
+    "user_id": "uuid",
+    "plan_code": "text",
+    "list_price_kzt": "bigint",
+    "amount_kzt": "bigint",
+    "currency": "text",
+    "status": "text",
+    "provider": "text",
+    "provider_order_id": "text",
+    "created_at": "timestamp with time zone",
+    "paid_at": "timestamp with time zone",
+    "payload": "jsonb"
+  },
+  "billing_plans": {
+    "code": "text",
+    "title": "text",
+    "list_price_kzt": "bigint",
+    "sale_price_kzt": "bigint",
+    "access_days": "integer",
+    "meetings_count": "integer",
+    "meetings_kind": "text",
+    "sort_order": "integer",
+    "active": "boolean",
+    "updated_at": "timestamp with time zone"
+  },
+  "billing_settings": {
+    "id": "integer",
+    "free_listening": "integer",
+    "free_reading": "integer",
+    "free_writing": "integer",
+    "free_speaking": "integer",
+    "free_assistant_daily_limit": "integer",
+    "updated_at": "timestamp with time zone"
+  },
   "blog_media": {
     "id": "uuid",
     "original_name": "character varying(255)",
@@ -96,6 +131,13 @@
     "content_updated_at": "timestamp with time zone",
     "created_at": "timestamp with time zone",
     "updated_at": "timestamp with time zone"
+  },
+  "free_usage": {
+    "user_id": "uuid",
+    "skill": "text",
+    "source_kind": "text",
+    "source_id": "uuid",
+    "created_at": "timestamp with time zone"
   },
   "full_mock_session_sections": {
     "session_id": "uuid",
@@ -442,6 +484,21 @@
     "day": "date",
     "user_id": "uuid",
     "first_seen_at": "timestamp with time zone"
+  },
+  "user_entitlements": {
+    "id": "uuid",
+    "user_id": "uuid",
+    "plan_code": "text",
+    "order_id": "uuid",
+    "source": "text",
+    "starts_at": "timestamp with time zone",
+    "ends_at": "timestamp with time zone",
+    "revoked_at": "timestamp with time zone",
+    "meetings_total": "integer",
+    "meetings_used": "integer",
+    "granted_by": "uuid",
+    "note": "text",
+    "created_at": "timestamp with time zone"
   },
   "user_profiles": {
     "user_id": "uuid",

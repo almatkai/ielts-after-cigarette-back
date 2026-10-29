@@ -4,7 +4,7 @@
 import hashlib, json, os, pathlib, subprocess
 
 CF = pathlib.Path(__file__).resolve().parents[1]
-SHA = "40ed0dc5fca0b9df989a29d421a81476e7df0f50"
+SHA = "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206"
 EXPECTED = {
     "api": "2f2f9f3a076369b888a402a2d926afe7827beab33bdab81e506d44d5be314b76",
     "worker": "39e9db0064f37800958bc50a69a2c45f0e8ab487f9246c443ffca590f488ae6f",

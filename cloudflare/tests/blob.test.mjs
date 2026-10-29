@@ -51,8 +51,9 @@ test("SQLite blob streams bounded chunks, verifies checksum, ranges and immutabl
   const bytes = Buffer.alloc(2 * 1024 * 1024 + 13);
   for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251;
   let out = await call("/put?key=large&sha256=" + hash(bytes), bytes);
-  assert.equal(out.status, 200, await out.clone().text());
-  const uploaded = await out.json();
+  const text = await out.text();
+  assert.equal(out.status, 200, text);
+  const uploaded = JSON.parse(text);
   assert.equal(uploaded.size, bytes.length);
   assert.equal(uploaded.key, "large");
   out = await call("/get?key=large");

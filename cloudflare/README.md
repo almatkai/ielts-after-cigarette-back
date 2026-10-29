@@ -61,7 +61,7 @@ Normal production validation remains `go test ./...` from the repository root. T
 
 ## Data accounting and private transfer
 
-[schema/postgres.json](schema/postgres.json) is derived by applying all 46 actual selected-source migrations offline. It contains 50 application tables, 294 explicit constraints, indexes and triggers. `sqlite.json` additionally enforces native type/length/JSON constraints. `schema_migrations` is preserved as source metadata, not used to infer the live application's schema.
+[schema/postgres.json](schema/postgres.json) is derived by applying all 47 actual selected-source migrations offline. It contains 55 application tables, 330 explicit constraints, indexes and triggers. `sqlite.json` adds exactly those objects to an already imported DEV store on startup (see [Schema upgrade](#schema-upgrade)) and additionally enforces native type/length/JSON constraints. `schema_migrations` is preserved as source metadata, not used to infer the live application's schema.
 
 The read-only observation in [dev-observation.json](schema/dev-observation.json) records PostgreSQL 17.11, 29,808,307 database bytes, 15,540 application rows and ledger version 39/clean. All application column definitions matched the selected source. PostgreSQL and PGlite deparse some equivalent check-constraint casts differently; this observation does not assert textual equality of those expressions. The final quiesced export/import preserved 50 tables, 15,540 rows, 52 objects (278,008,907 bytes) and 68 coordination keys; see [NATIVE-CUTOVER.md](NATIVE-CUTOVER.md).
 

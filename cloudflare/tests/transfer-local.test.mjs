@@ -120,7 +120,10 @@ test("CLI sends sealed database to local capability connection without authoriza
     const [header, ...rows] = payload.trimEnd().split("\n");
     assert.deepEqual(rows, []);
     const manifest = JSON.parse(header);
-    assert.equal(Object.keys(manifest.tables).length, 50);
+    assert.equal(
+      Object.keys(manifest.tables).length,
+      Object.keys(source.tables).length,
+    );
     response.setHeader("content-type", "application/json");
     response.end(
       JSON.stringify({ id: createHash("sha256").update(header).digest("hex") }),

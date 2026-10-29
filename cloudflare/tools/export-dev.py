@@ -8,7 +8,7 @@ The remote container names and image ID are pinned; production is not selectable
 import argparse, base64, hashlib, json, os, pathlib, subprocess, tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SHA = "40ed0dc5fca0b9df989a29d421a81476e7df0f50"
+SHA = "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206"
 IMAGE = "sha256:3cc32d093c0898032ab50a8d62972f606f09f91e4e111661950630cee063edba"
 SSH = ["ssh", "-p", "9865", "-o", "BatchMode=yes", "almat@78.40.109.172", "sh", "-s"]
 

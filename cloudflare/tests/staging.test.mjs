@@ -188,7 +188,7 @@ test("native SQLite chunks reduce actual index+cleanup rowsWritten, retain all t
   const f = fixture(),
     out = await send("budget", f.payload);
   assert.equal(out.error, undefined);
-  assert.equal(Object.keys(out.report.tables).length, 50);
+  assert.equal(Object.keys(out.report.tables).length, Object.keys(source.tables).length);
   assert.equal(out.count, f.rows.length);
   assert.equal(out.coordination, f.redis.length);
   assert.equal(out.chunks, 0);

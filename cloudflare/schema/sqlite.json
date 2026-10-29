@@ -1,5 +1,5 @@
 {
-  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "revision": "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206",
   "statements": [
     "CREATE TABLE \"account_object_deletions\" (\"store\" TEXT NOT NULL CHECK(\"store\" IS NULL OR (length(\"store\")<=16)),\n\"storage_key\" TEXT NOT NULL,\nCONSTRAINT \"account_object_deletions_pkey\" PRIMARY KEY (store, storage_key),\nCONSTRAINT \"account_object_deletions_store_check\" CHECK (((store) IN ('blog', 'speaking'))))",
     "CREATE TABLE \"ai_provider_calls\" (\"id\" TEXT NOT NULL,\n\"run_id\" TEXT NOT NULL,\n\"provider_id\" TEXT NOT NULL,\n\"provider_name\" TEXT NOT NULL CHECK(\"provider_name\" IS NULL OR (length(\"provider_name\")<=120)),\n\"model\" TEXT NOT NULL CHECK(\"model\" IS NULL OR (length(\"model\")<=200)),\n\"purpose\" TEXT NOT NULL CHECK(\"purpose\" IS NULL OR (length(\"purpose\")<=16)),\n\"from_env\" INTEGER NOT NULL CHECK(\"from_env\" IS NULL OR (\"from_env\" IN(0,1))),\n\"started_at\" TEXT NOT NULL,\n\"duration_ms\" INTEGER NOT NULL CHECK(\"duration_ms\" IS NULL OR (typeof(\"duration_ms\")='integer')),\n\"first_response_ms\" INTEGER CHECK(\"first_response_ms\" IS NULL OR (typeof(\"first_response_ms\")='integer')),\n\"first_token_ms\" INTEGER CHECK(\"first_token_ms\" IS NULL OR (typeof(\"first_token_ms\")='integer')),\n\"outcome\" TEXT NOT NULL CHECK(\"outcome\" IS NULL OR (length(\"outcome\")<=16)),\n\"won\" INTEGER NOT NULL CHECK(\"won\" IS NULL OR (\"won\" IN(0,1))),\n\"trigger\" TEXT NOT NULL CHECK(\"trigger\" IS NULL OR (length(\"trigger\")<=24)),\n\"mode\" TEXT NOT NULL CHECK(\"mode\" IS NULL OR (length(\"mode\")<=16)),\n\"code\" TEXT NOT NULL DEFAULT ('') CHECK(\"code\" IS NULL OR (length(\"code\")<=64)),\n\"http_status\" INTEGER NOT NULL DEFAULT (0) CHECK(\"http_status\" IS NULL OR (typeof(\"http_status\")='integer')) CHECK(\"http_status\" IS NULL OR (\"http_status\" BETWEEN -2147483648 AND 2147483647)),\n\"request_id\" TEXT NOT NULL DEFAULT ('') CHECK(\"request_id\" IS NULL OR (length(\"request_id\")<=128)),\nCONSTRAINT \"ai_provider_calls_duration_ms_check\" CHECK ((duration_ms >= 0)),\nCONSTRAINT \"ai_provider_calls_first_response_ms_check\" CHECK ((first_response_ms >= 0)),\nCONSTRAINT \"ai_provider_calls_first_token_ms_check\" CHECK ((first_token_ms >= 0)),\nCONSTRAINT \"ai_provider_calls_outcome_check\" CHECK (((outcome) IN ('success', 'failure', 'timeout', 'cancelled'))),\nCONSTRAINT \"ai_provider_calls_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"ai_provider_calls_purpose_check\" CHECK (((purpose) IN ('assistant', 'writing', 'speaking', 'test'))))",
@@ -8,8 +8,12 @@
     "CREATE TABLE \"ai_providers\" (\"id\" TEXT NOT NULL,\n\"name\" TEXT NOT NULL CHECK(\"name\" IS NULL OR (length(\"name\")<=120)),\n\"endpoint\" TEXT NOT NULL CHECK(\"endpoint\" IS NULL OR (length(\"endpoint\")<=1000)),\n\"model\" TEXT NOT NULL CHECK(\"model\" IS NULL OR (length(\"model\")<=200)),\n\"speaking_model\" TEXT NOT NULL DEFAULT ('') CHECK(\"speaking_model\" IS NULL OR (length(\"speaking_model\")<=200)),\n\"scopes\" TEXT NOT NULL DEFAULT ('[\"assistant\",\"writing\",\"speaking\"]') CHECK(\"scopes\" IS NULL OR (json_valid(\"scopes\"))) CHECK(\"scopes\" IS NULL OR (json_type(\"scopes\")='array')),\n\"enabled\" INTEGER NOT NULL DEFAULT (false) CHECK(\"enabled\" IS NULL OR (\"enabled\" IN(0,1))),\n\"priority\" INTEGER NOT NULL DEFAULT (100) CHECK(\"priority\" IS NULL OR (typeof(\"priority\")='integer')) CHECK(\"priority\" IS NULL OR (\"priority\" BETWEEN -2147483648 AND 2147483647)),\n\"timeout_seconds\" INTEGER NOT NULL DEFAULT (20) CHECK(\"timeout_seconds\" IS NULL OR (typeof(\"timeout_seconds\")='integer')) CHECK(\"timeout_seconds\" IS NULL OR (\"timeout_seconds\" BETWEEN -2147483648 AND 2147483647)),\n\"key_ciphertext\" BLOB NOT NULL,\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"created_by\" TEXT,\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"ai_provider_key\" CHECK (((length(key_ciphertext) >= 38) AND (length(key_ciphertext) <= 16384))),\nCONSTRAINT \"ai_provider_priority\" CHECK (((priority >= 0) AND (priority <= 10000))),\nCONSTRAINT \"ai_provider_scopes\" CHECK (((json_array_length(scopes) > 0) AND (1))),\nCONSTRAINT \"ai_provider_timeout\" CHECK (((timeout_seconds >= 5) AND (timeout_seconds <= 60))),\nCONSTRAINT \"ai_providers_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"ai_providers_pkey\" PRIMARY KEY (id))",
     "CREATE TABLE \"attempt_answers\" (\"attempt_id\" TEXT NOT NULL,\n\"question_id\" TEXT NOT NULL,\n\"answer\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"answer\" IS NULL OR (json_valid(\"answer\"))),\n\"is_correct\" INTEGER CHECK(\"is_correct\" IS NULL OR (\"is_correct\" IN(0,1))),\n\"points_awarded\" INTEGER CHECK(\"points_awarded\" IS NULL OR (typeof(\"points_awarded\")='integer')) CHECK(\"points_awarded\" IS NULL OR (\"points_awarded\" BETWEEN -32768 AND 32767)),\nCONSTRAINT \"attempt_answers_answer_object\" CHECK ((json_type(answer) = 'object')),\nCONSTRAINT \"attempt_answers_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"attempt_answers_pk\" PRIMARY KEY (attempt_id, question_id),\nCONSTRAINT \"attempt_answers_points_valid\" CHECK (((points_awarded IS NULL) OR (points_awarded >= 0))))",
     "CREATE TABLE \"attempts\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"material_type\" TEXT NOT NULL CHECK(\"material_type\" IS NULL OR (length(\"material_type\")<=16)),\n\"material_id\" TEXT NOT NULL,\n\"material_version_id\" TEXT NOT NULL,\n\"status\" TEXT NOT NULL DEFAULT ('IN_PROGRESS') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"score\" INTEGER CHECK(\"score\" IS NULL OR (typeof(\"score\")='integer')) CHECK(\"score\" IS NULL OR (\"score\" BETWEEN -32768 AND 32767)),\n\"max_score\" INTEGER CHECK(\"max_score\" IS NULL OR (typeof(\"max_score\")='integer')) CHECK(\"max_score\" IS NULL OR (\"max_score\" BETWEEN -32768 AND 32767)),\n\"band\" REAL,\n\"started_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"submitted_at\" TEXT,\nCONSTRAINT \"attempts_band_valid\" CHECK (((band IS NULL) OR (((band >= (0)) AND (band <= (9))) AND ((band * (2)) = trunc((band * (2))))))),\nCONSTRAINT \"attempts_material_type_valid\" CHECK (((material_type) IN ('listening', 'reading', 'writing', 'speaking'))),\nCONSTRAINT \"attempts_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"attempts_score_valid\" CHECK (((score IS NULL) OR ((max_score IS NOT NULL) AND ((score >= 0) AND (score <= max_score))))),\nCONSTRAINT \"attempts_status_valid\" CHECK (((status) IN ('IN_PROGRESS', 'PROCESSING', 'SUBMITTED', 'ABANDONED'))),\nCONSTRAINT \"attempts_submitted_fields\" CHECK ((((status) IN ('IN_PROGRESS', 'PROCESSING', 'ABANDONED')) OR ((score IS NOT NULL) AND (max_score IS NOT NULL) AND (submitted_at IS NOT NULL)))),\nCONSTRAINT \"attempts_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"billing_orders\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"plan_code\" TEXT NOT NULL,\n\"list_price_kzt\" INTEGER NOT NULL CHECK(\"list_price_kzt\" IS NULL OR (typeof(\"list_price_kzt\")='integer')),\n\"amount_kzt\" INTEGER NOT NULL CHECK(\"amount_kzt\" IS NULL OR (typeof(\"amount_kzt\")='integer')),\n\"currency\" TEXT NOT NULL DEFAULT ('KZT'),\n\"status\" TEXT NOT NULL DEFAULT ('PENDING'),\n\"provider\" TEXT NOT NULL,\n\"provider_order_id\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"paid_at\" TEXT,\n\"payload\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"payload\" IS NULL OR (json_valid(\"payload\"))),\nCONSTRAINT \"billing_orders_amount_kzt_check\" CHECK ((amount_kzt >= 0)),\nCONSTRAINT \"billing_orders_currency_check\" CHECK ((currency = 'KZT')),\nCONSTRAINT \"billing_orders_list_price_kzt_check\" CHECK ((list_price_kzt >= 0)),\nCONSTRAINT \"billing_orders_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"billing_orders_plan_code_fkey\" FOREIGN KEY (plan_code) REFERENCES billing_plans(code),\nCONSTRAINT \"billing_orders_provider_provider_order_id_key\" UNIQUE (provider, provider_order_id),\nCONSTRAINT \"billing_orders_status_check\" CHECK ((status IN ('PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED'))),\nCONSTRAINT \"billing_orders_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"billing_plans\" (\"code\" TEXT NOT NULL,\n\"title\" TEXT NOT NULL,\n\"list_price_kzt\" INTEGER NOT NULL CHECK(\"list_price_kzt\" IS NULL OR (typeof(\"list_price_kzt\")='integer')),\n\"sale_price_kzt\" INTEGER CHECK(\"sale_price_kzt\" IS NULL OR (typeof(\"sale_price_kzt\")='integer')),\n\"access_days\" INTEGER NOT NULL CHECK(\"access_days\" IS NULL OR (typeof(\"access_days\")='integer')) CHECK(\"access_days\" IS NULL OR (\"access_days\" BETWEEN -2147483648 AND 2147483647)),\n\"meetings_count\" INTEGER NOT NULL DEFAULT (0) CHECK(\"meetings_count\" IS NULL OR (typeof(\"meetings_count\")='integer')) CHECK(\"meetings_count\" IS NULL OR (\"meetings_count\" BETWEEN -2147483648 AND 2147483647)),\n\"meetings_kind\" TEXT,\n\"sort_order\" INTEGER NOT NULL DEFAULT (0) CHECK(\"sort_order\" IS NULL OR (typeof(\"sort_order\")='integer')) CHECK(\"sort_order\" IS NULL OR (\"sort_order\" BETWEEN -2147483648 AND 2147483647)),\n\"active\" INTEGER NOT NULL DEFAULT (true) CHECK(\"active\" IS NULL OR (\"active\" IN(0,1))),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"billing_plans_access_days_check\" CHECK ((access_days > 0)),\nCONSTRAINT \"billing_plans_check\" CHECK (((sale_price_kzt >= 0) AND (sale_price_kzt <= list_price_kzt))),\nCONSTRAINT \"billing_plans_list_price_kzt_check\" CHECK ((list_price_kzt >= 0)),\nCONSTRAINT \"billing_plans_meetings_count_check\" CHECK ((meetings_count >= 0)),\nCONSTRAINT \"billing_plans_meetings_kind_check\" CHECK ((meetings_kind IN ('GROUP', 'PERSONAL'))),\nCONSTRAINT \"billing_plans_pkey\" PRIMARY KEY (code))",
+    "CREATE TABLE \"billing_settings\" (\"id\" INTEGER NOT NULL CHECK(\"id\" IS NULL OR (typeof(\"id\")='integer')) CHECK(\"id\" IS NULL OR (\"id\" BETWEEN -2147483648 AND 2147483647)),\n\"free_listening\" INTEGER NOT NULL DEFAULT (3) CHECK(\"free_listening\" IS NULL OR (typeof(\"free_listening\")='integer')) CHECK(\"free_listening\" IS NULL OR (\"free_listening\" BETWEEN -2147483648 AND 2147483647)),\n\"free_reading\" INTEGER NOT NULL DEFAULT (3) CHECK(\"free_reading\" IS NULL OR (typeof(\"free_reading\")='integer')) CHECK(\"free_reading\" IS NULL OR (\"free_reading\" BETWEEN -2147483648 AND 2147483647)),\n\"free_writing\" INTEGER NOT NULL DEFAULT (3) CHECK(\"free_writing\" IS NULL OR (typeof(\"free_writing\")='integer')) CHECK(\"free_writing\" IS NULL OR (\"free_writing\" BETWEEN -2147483648 AND 2147483647)),\n\"free_speaking\" INTEGER NOT NULL DEFAULT (3) CHECK(\"free_speaking\" IS NULL OR (typeof(\"free_speaking\")='integer')) CHECK(\"free_speaking\" IS NULL OR (\"free_speaking\" BETWEEN -2147483648 AND 2147483647)),\n\"free_assistant_daily_limit\" INTEGER NOT NULL DEFAULT (5) CHECK(\"free_assistant_daily_limit\" IS NULL OR (typeof(\"free_assistant_daily_limit\")='integer')) CHECK(\"free_assistant_daily_limit\" IS NULL OR (\"free_assistant_daily_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"billing_settings_free_assistant_daily_limit_check\" CHECK ((free_assistant_daily_limit >= 0)),\nCONSTRAINT \"billing_settings_free_listening_check\" CHECK ((free_listening >= 0)),\nCONSTRAINT \"billing_settings_free_reading_check\" CHECK ((free_reading >= 0)),\nCONSTRAINT \"billing_settings_free_speaking_check\" CHECK ((free_speaking >= 0)),\nCONSTRAINT \"billing_settings_free_writing_check\" CHECK ((free_writing >= 0)),\nCONSTRAINT \"billing_settings_id_check\" CHECK ((id = 1)),\nCONSTRAINT \"billing_settings_pkey\" PRIMARY KEY (id))",
     "CREATE TABLE \"blog_media\" (\"id\" TEXT NOT NULL,\n\"original_name\" TEXT NOT NULL CHECK(\"original_name\" IS NULL OR (length(\"original_name\")<=255)),\n\"mime_type\" TEXT NOT NULL CHECK(\"mime_type\" IS NULL OR (length(\"mime_type\")<=100)),\n\"storage_key\" TEXT NOT NULL CHECK(\"storage_key\" IS NULL OR (length(\"storage_key\")<=500)),\n\"byte_size\" INTEGER NOT NULL CHECK(\"byte_size\" IS NULL OR (typeof(\"byte_size\")='integer')),\n\"uploaded_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"blog_media_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"blog_media_size_valid\" CHECK ((byte_size > 0)),\nCONSTRAINT \"blog_media_storage_key_key\" UNIQUE (storage_key),\nCONSTRAINT \"blog_media_uploaded_by_fkey\" FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL)",
     "CREATE TABLE \"blog_posts\" (\"id\" TEXT NOT NULL,\n\"author_id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=255)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=300)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"cover_media_id\" TEXT,\n\"body_html\" TEXT NOT NULL,\n\"body_json\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"body_json\" IS NULL OR (json_valid(\"body_json\"))),\n\"reading_time_minutes\" INTEGER NOT NULL DEFAULT (1) CHECK(\"reading_time_minutes\" IS NULL OR (typeof(\"reading_time_minutes\")='integer')) CHECK(\"reading_time_minutes\" IS NULL OR (\"reading_time_minutes\" BETWEEN -2147483648 AND 2147483647)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=20)),\n\"published_at\" TEXT,\n\"content_updated_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"blog_posts_author_id_fkey\" FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE RESTRICT,\nCONSTRAINT \"blog_posts_body_json_object\" CHECK ((json_type(body_json) = 'object')),\nCONSTRAINT \"blog_posts_cover_media_fk\" FOREIGN KEY (cover_media_id) REFERENCES blog_media(id) ON DELETE SET NULL,\nCONSTRAINT \"blog_posts_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"blog_posts_reading_time_valid\" CHECK (((reading_time_minutes >= 1) AND (reading_time_minutes <= 120))),\nCONSTRAINT \"blog_posts_slug_key\" UNIQUE (slug),\nCONSTRAINT \"blog_posts_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))),\nCONSTRAINT \"blog_posts_title_not_blank\" CHECK ((trim((title)) <> '')))",
+    "CREATE TABLE \"free_usage\" (\"user_id\" TEXT NOT NULL,\n\"skill\" TEXT NOT NULL,\n\"source_kind\" TEXT NOT NULL,\n\"source_id\" TEXT NOT NULL,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"free_usage_pkey\" PRIMARY KEY (source_kind, source_id, skill),\nCONSTRAINT \"free_usage_skill_check\" CHECK ((skill IN ('listening', 'reading', 'writing', 'speaking'))),\nCONSTRAINT \"free_usage_source_kind_check\" CHECK ((source_kind IN ('ATTEMPT', 'FULL_MOCK_SESSION'))),\nCONSTRAINT \"free_usage_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
     "CREATE TABLE \"full_mock_session_sections\" (\"session_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -32768 AND 32767)),\n\"skill\" TEXT NOT NULL CHECK(\"skill\" IS NULL OR (length(\"skill\")<=16)),\n\"attempt_id\" TEXT NOT NULL,\n\"started_at\" TEXT,\n\"deadline_at\" TEXT,\n\"remaining_milliseconds\" INTEGER CHECK(\"remaining_milliseconds\" IS NULL OR (typeof(\"remaining_milliseconds\")='integer')),\nCONSTRAINT \"full_mock_section_clock\" CHECK ((((started_at IS NULL) AND (deadline_at IS NULL) AND (remaining_milliseconds IS NULL)) OR ((started_at IS NOT NULL) AND (((deadline_at IS NOT NULL) AND (deadline_at > started_at) AND (remaining_milliseconds IS NULL)) OR ((deadline_at IS NULL) AND (remaining_milliseconds IS NOT NULL)))))),\nCONSTRAINT \"full_mock_section_pause_valid\" CHECK (((remaining_milliseconds IS NULL) OR ((remaining_milliseconds > 0) AND (started_at IS NOT NULL) AND (deadline_at IS NULL)))),\nCONSTRAINT \"full_mock_session_sections_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE RESTRICT,\nCONSTRAINT \"full_mock_session_sections_attempt_id_key\" UNIQUE (attempt_id),\nCONSTRAINT \"full_mock_session_sections_pk\" PRIMARY KEY (session_id, \"position\"),\nCONSTRAINT \"full_mock_session_sections_position_skill_valid\" CHECK ((((\"position\" = 1) AND ((skill) = 'listening')) OR ((\"position\" = 2) AND ((skill) = 'reading')) OR ((\"position\" = 3) AND ((skill) = 'writing')) OR ((\"position\" = 4) AND ((skill) = 'speaking')))),\nCONSTRAINT \"full_mock_session_sections_position_valid\" CHECK (((\"position\" >= 1) AND (\"position\" <= 4))),\nCONSTRAINT \"full_mock_session_sections_session_id_fkey\" FOREIGN KEY (session_id) REFERENCES full_mock_sessions(id) ON DELETE CASCADE,\nCONSTRAINT \"full_mock_session_sections_skill_valid\" CHECK (((skill) IN ('listening', 'reading', 'writing', 'speaking'))))",
     "CREATE TABLE \"full_mock_sessions\" (\"id\" TEXT NOT NULL,\n\"mock_test_id\" TEXT,\n\"user_id\" TEXT NOT NULL,\n\"status\" TEXT NOT NULL DEFAULT ('IN_PROGRESS') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"current_section\" INTEGER NOT NULL DEFAULT (1) CHECK(\"current_section\" IS NULL OR (typeof(\"current_section\")='integer')) CHECK(\"current_section\" IS NULL OR (\"current_section\" BETWEEN -32768 AND 32767)),\n\"started_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"submitted_at\" TEXT,\n\"exam_type\" TEXT CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"title\" TEXT CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"duration_minutes\" INTEGER CHECK(\"duration_minutes\" IS NULL OR (typeof(\"duration_minutes\")='integer')) CHECK(\"duration_minutes\" IS NULL OR (\"duration_minutes\" BETWEEN -2147483648 AND 2147483647)),\nCONSTRAINT \"full_mock_sessions_duration_valid\" CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300))),\nCONSTRAINT \"full_mock_sessions_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"full_mock_sessions_metadata_valid\" CHECK (((mock_test_id IS NOT NULL) OR ((exam_type IS NOT NULL) AND (title IS NOT NULL) AND (duration_minutes IS NOT NULL)))),\nCONSTRAINT \"full_mock_sessions_mock_test_id_fkey\" FOREIGN KEY (mock_test_id) REFERENCES full_mock_tests(id) ON DELETE RESTRICT,\nCONSTRAINT \"full_mock_sessions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"full_mock_sessions_section_valid\" CHECK (((current_section >= 1) AND (current_section <= 5))),\nCONSTRAINT \"full_mock_sessions_status_valid\" CHECK (((status) IN ('IN_PROGRESS', 'SUBMITTED', 'ABANDONED'))),\nCONSTRAINT \"full_mock_sessions_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
     "CREATE TABLE \"full_mock_tests\" (\"id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=160)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"exam_type\" TEXT NOT NULL CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"duration_minutes\" INTEGER NOT NULL DEFAULT (165) CHECK(\"duration_minutes\" IS NULL OR (typeof(\"duration_minutes\")='integer')) CHECK(\"duration_minutes\" IS NULL OR (\"duration_minutes\" BETWEEN -2147483648 AND 2147483647)),\n\"listening_material_id\" TEXT NOT NULL,\n\"reading_material_id\" TEXT NOT NULL,\n\"writing_material_id\" TEXT NOT NULL,\n\"speaking_material_id\" TEXT NOT NULL,\n\"published_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"full_mock_tests_duration_valid\" CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300))),\nCONSTRAINT \"full_mock_tests_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"full_mock_tests_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"full_mock_tests_revision_valid\" CHECK ((revision > 0)),\nCONSTRAINT \"full_mock_tests_slug_key\" UNIQUE (slug),\nCONSTRAINT \"full_mock_tests_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))))",
@@ -42,6 +46,7 @@
     "CREATE TABLE \"super_admins\" (\"email\" TEXT NOT NULL,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"super_admins_pkey\" PRIMARY KEY (email))",
     "CREATE TABLE \"system_daily_limits\" (\"id\" INTEGER NOT NULL DEFAULT (1) CHECK(\"id\" IS NULL OR (typeof(\"id\")='integer')) CHECK(\"id\" IS NULL OR (\"id\" BETWEEN -2147483648 AND 2147483647)),\n\"assistant_limit\" INTEGER NOT NULL DEFAULT (100) CHECK(\"assistant_limit\" IS NULL OR (typeof(\"assistant_limit\")='integer')) CHECK(\"assistant_limit\" IS NULL OR (\"assistant_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"guest_assistant_limit\" INTEGER NOT NULL DEFAULT (15) CHECK(\"guest_assistant_limit\" IS NULL OR (typeof(\"guest_assistant_limit\")='integer')) CHECK(\"guest_assistant_limit\" IS NULL OR (\"guest_assistant_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"writing_limit\" INTEGER NOT NULL DEFAULT (25) CHECK(\"writing_limit\" IS NULL OR (typeof(\"writing_limit\")='integer')) CHECK(\"writing_limit\" IS NULL OR (\"writing_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"speaking_limit\" INTEGER NOT NULL DEFAULT (25) CHECK(\"speaking_limit\" IS NULL OR (typeof(\"speaking_limit\")='integer')) CHECK(\"speaking_limit\" IS NULL OR (\"speaking_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"system_daily_limits_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"system_daily_limits_positive\" CHECK (((assistant_limit >= 0) AND (guest_assistant_limit >= 0) AND (writing_limit >= 0) AND (speaking_limit >= 0))),\nCONSTRAINT \"system_daily_limits_single_row\" CHECK ((id = 1)))",
     "CREATE TABLE \"user_activity_days\" (\"day\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"first_seen_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"user_activity_days_pk\" PRIMARY KEY (day, user_id),\nCONSTRAINT \"user_activity_days_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"user_entitlements\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"plan_code\" TEXT NOT NULL,\n\"order_id\" TEXT,\n\"source\" TEXT NOT NULL,\n\"starts_at\" TEXT NOT NULL,\n\"ends_at\" TEXT NOT NULL,\n\"revoked_at\" TEXT,\n\"meetings_total\" INTEGER NOT NULL DEFAULT (0) CHECK(\"meetings_total\" IS NULL OR (typeof(\"meetings_total\")='integer')) CHECK(\"meetings_total\" IS NULL OR (\"meetings_total\" BETWEEN -2147483648 AND 2147483647)),\n\"meetings_used\" INTEGER NOT NULL DEFAULT (0) CHECK(\"meetings_used\" IS NULL OR (typeof(\"meetings_used\")='integer')) CHECK(\"meetings_used\" IS NULL OR (\"meetings_used\" BETWEEN -2147483648 AND 2147483647)),\n\"granted_by\" TEXT,\n\"note\" TEXT NOT NULL DEFAULT (''),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"user_entitlements_check\" CHECK ((ends_at > starts_at)),\nCONSTRAINT \"user_entitlements_check1\" CHECK (((meetings_used >= 0) AND (meetings_used <= meetings_total))),\nCONSTRAINT \"user_entitlements_granted_by_fkey\" FOREIGN KEY (granted_by) REFERENCES users(id) ON DELETE CASCADE,\nCONSTRAINT \"user_entitlements_meetings_total_check\" CHECK ((meetings_total >= 0)),\nCONSTRAINT \"user_entitlements_order_id_fkey\" FOREIGN KEY (order_id) REFERENCES billing_orders(id) ON DELETE CASCADE,\nCONSTRAINT \"user_entitlements_order_id_key\" UNIQUE (order_id),\nCONSTRAINT \"user_entitlements_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"user_entitlements_plan_code_fkey\" FOREIGN KEY (plan_code) REFERENCES billing_plans(code),\nCONSTRAINT \"user_entitlements_source_check\" CHECK ((source IN ('PAYMENT', 'ADMIN', 'BONUS'))),\nCONSTRAINT \"user_entitlements_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
     "CREATE TABLE \"user_profiles\" (\"user_id\" TEXT NOT NULL,\n\"display_name\" TEXT NOT NULL CHECK(\"display_name\" IS NULL OR (length(\"display_name\")<=100)),\n\"current_band\" REAL,\n\"target_band\" REAL,\n\"exam_date\" TEXT,\n\"exam_type\" TEXT CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=32)),\n\"timezone\" TEXT NOT NULL DEFAULT ('UTC') CHECK(\"timezone\" IS NULL OR (length(\"timezone\")<=64)),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"user_profiles_current_band_valid\" CHECK (((current_band IS NULL) OR (((current_band >= (0)) AND (current_band <= (9))) AND ((current_band * (2)) = trunc((current_band * (2))))))),\nCONSTRAINT \"user_profiles_display_name_not_blank\" CHECK ((trim((display_name)) <> '')),\nCONSTRAINT \"user_profiles_exam_type_valid\" CHECK (((exam_type IS NULL) OR ((exam_type) IN ('academic', 'general')))),\nCONSTRAINT \"user_profiles_pkey\" PRIMARY KEY (user_id),\nCONSTRAINT \"user_profiles_target_band_valid\" CHECK (((target_band IS NULL) OR (((target_band >= (0)) AND (target_band <= (9))) AND ((target_band * (2)) = trunc((target_band * (2))))))),\nCONSTRAINT \"user_profiles_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
     "CREATE TABLE \"user_skill_progress\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"skill\" TEXT NOT NULL CHECK(\"skill\" IS NULL OR (length(\"skill\")<=16)),\n\"estimated_band\" REAL,\n\"accuracy_percent\" REAL,\n\"completed_tasks\" INTEGER NOT NULL DEFAULT (0) CHECK(\"completed_tasks\" IS NULL OR (typeof(\"completed_tasks\")='integer')) CHECK(\"completed_tasks\" IS NULL OR (\"completed_tasks\" BETWEEN -2147483648 AND 2147483647)),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"user_skill_progress_accuracy_valid\" CHECK (((accuracy_percent IS NULL) OR ((accuracy_percent >= (0)) AND (accuracy_percent <= (100))))),\nCONSTRAINT \"user_skill_progress_band_valid\" CHECK (((estimated_band IS NULL) OR (((estimated_band >= (0)) AND (estimated_band <= (9))) AND ((estimated_band * (2)) = trunc((estimated_band * (2))))))),\nCONSTRAINT \"user_skill_progress_completed_tasks_valid\" CHECK ((completed_tasks >= 0)),\nCONSTRAINT \"user_skill_progress_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"user_skill_progress_skill_valid\" CHECK (((skill) IN ('listening', 'reading', 'writing', 'speaking'))),\nCONSTRAINT \"user_skill_progress_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,\nCONSTRAINT \"user_skill_progress_user_skill_unique\" UNIQUE (user_id, skill))",
     "CREATE TABLE \"users\" (\"id\" TEXT NOT NULL,\n\"email\" TEXT NOT NULL CHECK(\"email\" IS NULL OR (length(\"email\")<=254)),\n\"password_hash\" TEXT,\n\"role\" TEXT NOT NULL DEFAULT ('STUDENT') CHECK(\"role\" IS NULL OR (length(\"role\")<=32)),\n\"terms_accepted_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"phone\" TEXT CHECK(\"phone\" IS NULL OR (length(\"phone\")<=16)),\n\"google_sub\" TEXT,\n\"status\" TEXT NOT NULL DEFAULT ('REGISTERED') CHECK(\"status\" IS NULL OR (length(\"status\")<=32)),\n\"first_name\" TEXT CHECK(\"first_name\" IS NULL OR (length(\"first_name\")<=100)),\n\"last_name\" TEXT CHECK(\"last_name\" IS NULL OR (length(\"last_name\")<=100)),\n\"source\" TEXT CHECK(\"source\" IS NULL OR (length(\"source\")<=50)),\n\"referred_by_code\" TEXT CHECK(\"referred_by_code\" IS NULL OR (length(\"referred_by_code\")<=64)),\n\"referral_code\" TEXT CHECK(\"referral_code\" IS NULL OR (length(\"referral_code\")<=16)),\n\"blocked\" INTEGER NOT NULL DEFAULT (false) CHECK(\"blocked\" IS NULL OR (\"blocked\" IN(0,1))),\n\"token_version\" INTEGER NOT NULL DEFAULT (0) CHECK(\"token_version\" IS NULL OR (typeof(\"token_version\")='integer')) CHECK(\"token_version\" IS NULL OR (\"token_version\" BETWEEN -2147483648 AND 2147483647)),\n\"admin_permissions\" TEXT NOT NULL DEFAULT ('[]') CHECK(\"admin_permissions\" IS NULL OR (json_valid(\"admin_permissions\"))) CHECK(\"admin_permissions\" IS NULL OR (json_type(\"admin_permissions\")='array')),\nCONSTRAINT \"users_admin_permissions_valid\" CHECK ((1)),\nCONSTRAINT \"users_email_normalized\" CHECK (((email) = lower(trim((email))))),\nCONSTRAINT \"users_first_name_not_blank\" CHECK (((first_name IS NULL) OR (trim((first_name)) <> ''))),\nCONSTRAINT \"users_guest_status_valid\" CHECK ((((role) = 'GUEST') = ((status) = 'GUEST'))),\nCONSTRAINT \"users_last_name_not_blank\" CHECK (((last_name IS NULL) OR (trim((last_name)) <> ''))),\nCONSTRAINT \"users_phone_e164\" CHECK (((phone IS NULL) OR ((length(phone) BETWEEN 9 AND 16 AND substr(phone,1,1)='+' AND substr(phone,2,1) GLOB '[1-9]' AND substr(phone,2) NOT GLOB '*[^0-9]*')))),\nCONSTRAINT \"users_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"users_referral_code_required_for_leads\" CHECK ((((status) IN ('REGISTERED', 'GUEST')) OR (referral_code IS NOT NULL))),\nCONSTRAINT \"users_role_valid\" CHECK (((role) IN ('STUDENT', 'WRITER', 'EDITOR', 'ADMIN', 'GUEST'))),\nCONSTRAINT \"users_status_valid\" CHECK (((status) IN ('WAITING', 'INVITED', 'REGISTERED', 'GUEST'))))",
@@ -61,10 +66,12 @@
     "CREATE INDEX attempts_mistake_bank_idx ON attempts (user_id, material_type, submitted_at DESC, id DESC) WHERE ((status) = 'SUBMITTED')",
     "CREATE INDEX attempts_started_at_idx ON attempts (started_at)",
     "CREATE INDEX attempts_user_material_idx ON attempts (user_id, material_type, started_at DESC)",
+    "CREATE INDEX billing_orders_user_created_idx ON billing_orders (user_id, created_at DESC)",
     "CREATE INDEX blog_media_created_at_idx ON blog_media (created_at DESC)",
     "CREATE INDEX blog_posts_author_idx ON blog_posts (author_id, updated_at DESC)",
     "CREATE INDEX blog_posts_published_idx ON blog_posts (status, published_at DESC)",
     "CREATE TRIGGER \"blog_posts_set_updated_at\" AFTER UPDATE ON \"blog_posts\" BEGIN UPDATE \"blog_posts\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE INDEX free_usage_user_skill_idx ON free_usage (user_id, skill)",
     "CREATE UNIQUE INDEX full_mock_sessions_active_user_idx ON full_mock_sessions (mock_test_id, user_id) WHERE ((status) = 'IN_PROGRESS')",
     "CREATE UNIQUE INDEX full_mock_sessions_generated_active_user_idx ON full_mock_sessions (user_id) WHERE (((status) = 'IN_PROGRESS') AND (mock_test_id IS NULL))",
     "CREATE INDEX full_mock_sessions_started_at_idx ON full_mock_sessions (started_at)",
@@ -95,6 +102,7 @@
     "CREATE INDEX speaking_transcriptions_work_idx ON speaking_transcriptions (status, next_attempt_at, created_at)",
     "CREATE INDEX study_plan_attempts_plan_idx ON study_plan_attempts (plan_id)",
     "CREATE INDEX user_activity_days_user_idx ON user_activity_days (user_id, day)",
+    "CREATE INDEX user_entitlements_user_ends_idx ON user_entitlements (user_id, ends_at)",
     "CREATE TRIGGER \"user_profiles_set_updated_at\" AFTER UPDATE ON \"user_profiles\" BEGIN UPDATE \"user_profiles\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
     "CREATE INDEX user_skill_progress_user_idx ON user_skill_progress (user_id)",
     "CREATE TRIGGER \"user_skill_progress_set_updated_at\" AFTER UPDATE ON \"user_skill_progress\" BEGIN UPDATE \"user_skill_progress\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
@@ -126,6 +134,57 @@
           "hedge_delay_ms": 0,
           "provider_ids": "[]",
           "revision": 1
+        }
+      ]
+    },
+    {
+      "table": "billing_plans",
+      "rows": [
+        {
+          "code": "group",
+          "title": "Платформа + 4 встречи в мини-группе",
+          "list_price_kzt": 24990,
+          "sale_price_kzt": 14990,
+          "access_days": 30,
+          "meetings_count": 4,
+          "meetings_kind": "GROUP",
+          "sort_order": 2,
+          "active": 1
+        },
+        {
+          "code": "personal",
+          "title": "Платформа + 4 личные встречи по 30 минут",
+          "list_price_kzt": 54990,
+          "sale_price_kzt": 34990,
+          "access_days": 30,
+          "meetings_count": 4,
+          "meetings_kind": "PERSONAL",
+          "sort_order": 3,
+          "active": 1
+        },
+        {
+          "code": "self",
+          "title": "Платформа самостоятельно",
+          "list_price_kzt": 9990,
+          "sale_price_kzt": 4990,
+          "access_days": 30,
+          "meetings_count": 0,
+          "meetings_kind": null,
+          "sort_order": 1,
+          "active": 1
+        }
+      ]
+    },
+    {
+      "table": "billing_settings",
+      "rows": [
+        {
+          "id": 1,
+          "free_listening": 3,
+          "free_reading": 3,
+          "free_writing": 3,
+          "free_speaking": 3,
+          "free_assistant_daily_limit": 5
         }
       ]
     },
@@ -348,6 +407,132 @@
       "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
     },
     {
+      "table": "billing_orders",
+      "name": "billing_orders_amount_kzt_check",
+      "postgres": "CHECK ((amount_kzt >= 0))",
+      "sqlite": "CHECK ((amount_kzt >= 0))"
+    },
+    {
+      "table": "billing_orders",
+      "name": "billing_orders_currency_check",
+      "postgres": "CHECK ((currency = 'KZT'::text))",
+      "sqlite": "CHECK ((currency = 'KZT'))"
+    },
+    {
+      "table": "billing_orders",
+      "name": "billing_orders_list_price_kzt_check",
+      "postgres": "CHECK ((list_price_kzt >= 0))",
+      "sqlite": "CHECK ((list_price_kzt >= 0))"
+    },
+    {
+      "table": "billing_orders",
+      "name": "billing_orders_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "billing_orders",
+      "name": "billing_orders_plan_code_fkey",
+      "postgres": "FOREIGN KEY (plan_code) REFERENCES billing_plans(code)",
+      "sqlite": "FOREIGN KEY (plan_code) REFERENCES billing_plans(code)"
+    },
+    {
+      "table": "billing_orders",
+      "name": "billing_orders_provider_provider_order_id_key",
+      "postgres": "UNIQUE (provider, provider_order_id)",
+      "sqlite": "UNIQUE (provider, provider_order_id)"
+    },
+    {
+      "table": "billing_orders",
+      "name": "billing_orders_status_check",
+      "postgres": "CHECK ((status = ANY (ARRAY['PENDING'::text, 'PAID'::text, 'FAILED'::text, 'CANCELLED'::text, 'REFUNDED'::text])))",
+      "sqlite": "CHECK ((status IN ('PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED')))"
+    },
+    {
+      "table": "billing_orders",
+      "name": "billing_orders_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "billing_plans",
+      "name": "billing_plans_access_days_check",
+      "postgres": "CHECK ((access_days > 0))",
+      "sqlite": "CHECK ((access_days > 0))"
+    },
+    {
+      "table": "billing_plans",
+      "name": "billing_plans_check",
+      "postgres": "CHECK (((sale_price_kzt >= 0) AND (sale_price_kzt <= list_price_kzt)))",
+      "sqlite": "CHECK (((sale_price_kzt >= 0) AND (sale_price_kzt <= list_price_kzt)))"
+    },
+    {
+      "table": "billing_plans",
+      "name": "billing_plans_list_price_kzt_check",
+      "postgres": "CHECK ((list_price_kzt >= 0))",
+      "sqlite": "CHECK ((list_price_kzt >= 0))"
+    },
+    {
+      "table": "billing_plans",
+      "name": "billing_plans_meetings_count_check",
+      "postgres": "CHECK ((meetings_count >= 0))",
+      "sqlite": "CHECK ((meetings_count >= 0))"
+    },
+    {
+      "table": "billing_plans",
+      "name": "billing_plans_meetings_kind_check",
+      "postgres": "CHECK ((meetings_kind = ANY (ARRAY['GROUP'::text, 'PERSONAL'::text])))",
+      "sqlite": "CHECK ((meetings_kind IN ('GROUP', 'PERSONAL')))"
+    },
+    {
+      "table": "billing_plans",
+      "name": "billing_plans_pkey",
+      "postgres": "PRIMARY KEY (code)",
+      "sqlite": "PRIMARY KEY (code)"
+    },
+    {
+      "table": "billing_settings",
+      "name": "billing_settings_free_assistant_daily_limit_check",
+      "postgres": "CHECK ((free_assistant_daily_limit >= 0))",
+      "sqlite": "CHECK ((free_assistant_daily_limit >= 0))"
+    },
+    {
+      "table": "billing_settings",
+      "name": "billing_settings_free_listening_check",
+      "postgres": "CHECK ((free_listening >= 0))",
+      "sqlite": "CHECK ((free_listening >= 0))"
+    },
+    {
+      "table": "billing_settings",
+      "name": "billing_settings_free_reading_check",
+      "postgres": "CHECK ((free_reading >= 0))",
+      "sqlite": "CHECK ((free_reading >= 0))"
+    },
+    {
+      "table": "billing_settings",
+      "name": "billing_settings_free_speaking_check",
+      "postgres": "CHECK ((free_speaking >= 0))",
+      "sqlite": "CHECK ((free_speaking >= 0))"
+    },
+    {
+      "table": "billing_settings",
+      "name": "billing_settings_free_writing_check",
+      "postgres": "CHECK ((free_writing >= 0))",
+      "sqlite": "CHECK ((free_writing >= 0))"
+    },
+    {
+      "table": "billing_settings",
+      "name": "billing_settings_id_check",
+      "postgres": "CHECK ((id = 1))",
+      "sqlite": "CHECK ((id = 1))"
+    },
+    {
+      "table": "billing_settings",
+      "name": "billing_settings_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
       "table": "blog_media",
       "name": "blog_media_pkey",
       "postgres": "PRIMARY KEY (id)",
@@ -418,6 +603,30 @@
       "name": "blog_posts_title_not_blank",
       "postgres": "CHECK ((btrim((title)::text) <> ''::text))",
       "sqlite": "CHECK ((trim((title)) <> ''))"
+    },
+    {
+      "table": "free_usage",
+      "name": "free_usage_pkey",
+      "postgres": "PRIMARY KEY (source_kind, source_id, skill)",
+      "sqlite": "PRIMARY KEY (source_kind, source_id, skill)"
+    },
+    {
+      "table": "free_usage",
+      "name": "free_usage_skill_check",
+      "postgres": "CHECK ((skill = ANY (ARRAY['listening'::text, 'reading'::text, 'writing'::text, 'speaking'::text])))",
+      "sqlite": "CHECK ((skill IN ('listening', 'reading', 'writing', 'speaking')))"
+    },
+    {
+      "table": "free_usage",
+      "name": "free_usage_source_kind_check",
+      "postgres": "CHECK ((source_kind = ANY (ARRAY['ATTEMPT'::text, 'FULL_MOCK_SESSION'::text])))",
+      "sqlite": "CHECK ((source_kind IN ('ATTEMPT', 'FULL_MOCK_SESSION')))"
+    },
+    {
+      "table": "free_usage",
+      "name": "free_usage_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
     },
     {
       "table": "full_mock_session_sections",
@@ -1566,6 +1775,66 @@
       "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
     },
     {
+      "table": "user_entitlements",
+      "name": "user_entitlements_check",
+      "postgres": "CHECK ((ends_at > starts_at))",
+      "sqlite": "CHECK ((ends_at > starts_at))"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_check1",
+      "postgres": "CHECK (((meetings_used >= 0) AND (meetings_used <= meetings_total)))",
+      "sqlite": "CHECK (((meetings_used >= 0) AND (meetings_used <= meetings_total)))"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_granted_by_fkey",
+      "postgres": "FOREIGN KEY (granted_by) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (granted_by) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_meetings_total_check",
+      "postgres": "CHECK ((meetings_total >= 0))",
+      "sqlite": "CHECK ((meetings_total >= 0))"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_order_id_fkey",
+      "postgres": "FOREIGN KEY (order_id) REFERENCES billing_orders(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (order_id) REFERENCES billing_orders(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_order_id_key",
+      "postgres": "UNIQUE (order_id)",
+      "sqlite": "UNIQUE (order_id)"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_plan_code_fkey",
+      "postgres": "FOREIGN KEY (plan_code) REFERENCES billing_plans(code)",
+      "sqlite": "FOREIGN KEY (plan_code) REFERENCES billing_plans(code)"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_source_check",
+      "postgres": "CHECK ((source = ANY (ARRAY['PAYMENT'::text, 'ADMIN'::text, 'BONUS'::text])))",
+      "sqlite": "CHECK ((source IN ('PAYMENT', 'ADMIN', 'BONUS')))"
+    },
+    {
+      "table": "user_entitlements",
+      "name": "user_entitlements_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
       "table": "user_profiles",
       "name": "user_profiles_current_band_valid",
       "postgres": "CHECK (((current_band IS NULL) OR (((current_band >= (0)::numeric) AND (current_band <= (9)::numeric)) AND ((current_band * (2)::numeric) = trunc((current_band * (2)::numeric))))))",
@@ -1908,5 +2177,5 @@
       "sqlite": "UNIQUE (storage_key)"
     }
   ],
-  "version": "9f195b8e3a83f584953e70de4456a96ab6912a20e8f8c20481024e6e6b9e7ed6"
+  "version": "97bd76c3be69fa0ae68be43a9e08fe44a55ce1517491cc7e49213b90a9ce66c8"
 }

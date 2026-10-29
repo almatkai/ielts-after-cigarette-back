@@ -1,0 +1,1912 @@
+{
+  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "statements": [
+    "CREATE TABLE \"account_object_deletions\" (\"store\" TEXT NOT NULL CHECK(\"store\" IS NULL OR (length(\"store\")<=16)),\n\"storage_key\" TEXT NOT NULL,\nCONSTRAINT \"account_object_deletions_pkey\" PRIMARY KEY (store, storage_key),\nCONSTRAINT \"account_object_deletions_store_check\" CHECK (((store) IN ('blog', 'speaking'))))",
+    "CREATE TABLE \"ai_provider_calls\" (\"id\" TEXT NOT NULL,\n\"run_id\" TEXT NOT NULL,\n\"provider_id\" TEXT NOT NULL,\n\"provider_name\" TEXT NOT NULL CHECK(\"provider_name\" IS NULL OR (length(\"provider_name\")<=120)),\n\"model\" TEXT NOT NULL CHECK(\"model\" IS NULL OR (length(\"model\")<=200)),\n\"purpose\" TEXT NOT NULL CHECK(\"purpose\" IS NULL OR (length(\"purpose\")<=16)),\n\"from_env\" INTEGER NOT NULL CHECK(\"from_env\" IS NULL OR (\"from_env\" IN(0,1))),\n\"started_at\" TEXT NOT NULL,\n\"duration_ms\" INTEGER NOT NULL CHECK(\"duration_ms\" IS NULL OR (typeof(\"duration_ms\")='integer')),\n\"first_response_ms\" INTEGER CHECK(\"first_response_ms\" IS NULL OR (typeof(\"first_response_ms\")='integer')),\n\"first_token_ms\" INTEGER CHECK(\"first_token_ms\" IS NULL OR (typeof(\"first_token_ms\")='integer')),\n\"outcome\" TEXT NOT NULL CHECK(\"outcome\" IS NULL OR (length(\"outcome\")<=16)),\n\"won\" INTEGER NOT NULL CHECK(\"won\" IS NULL OR (\"won\" IN(0,1))),\n\"trigger\" TEXT NOT NULL CHECK(\"trigger\" IS NULL OR (length(\"trigger\")<=24)),\n\"mode\" TEXT NOT NULL CHECK(\"mode\" IS NULL OR (length(\"mode\")<=16)),\n\"code\" TEXT NOT NULL DEFAULT ('') CHECK(\"code\" IS NULL OR (length(\"code\")<=64)),\n\"http_status\" INTEGER NOT NULL DEFAULT (0) CHECK(\"http_status\" IS NULL OR (typeof(\"http_status\")='integer')) CHECK(\"http_status\" IS NULL OR (\"http_status\" BETWEEN -2147483648 AND 2147483647)),\n\"request_id\" TEXT NOT NULL DEFAULT ('') CHECK(\"request_id\" IS NULL OR (length(\"request_id\")<=128)),\nCONSTRAINT \"ai_provider_calls_duration_ms_check\" CHECK ((duration_ms >= 0)),\nCONSTRAINT \"ai_provider_calls_first_response_ms_check\" CHECK ((first_response_ms >= 0)),\nCONSTRAINT \"ai_provider_calls_first_token_ms_check\" CHECK ((first_token_ms >= 0)),\nCONSTRAINT \"ai_provider_calls_outcome_check\" CHECK (((outcome) IN ('success', 'failure', 'timeout', 'cancelled'))),\nCONSTRAINT \"ai_provider_calls_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"ai_provider_calls_purpose_check\" CHECK (((purpose) IN ('assistant', 'writing', 'speaking', 'test'))))",
+    "CREATE TABLE \"ai_provider_rotation\" (\"priority\" INTEGER NOT NULL CHECK(\"priority\" IS NULL OR (typeof(\"priority\")='integer')) CHECK(\"priority\" IS NULL OR (\"priority\" BETWEEN -2147483648 AND 2147483647)),\n\"purpose\" TEXT NOT NULL CHECK(\"purpose\" IS NULL OR (length(\"purpose\")<=16)),\n\"cursor\" INTEGER NOT NULL DEFAULT (0) CHECK(\"cursor\" IS NULL OR (typeof(\"cursor\")='integer')),\nCONSTRAINT \"ai_provider_rotation_cursor_check\" CHECK ((cursor >= 0)),\nCONSTRAINT \"ai_provider_rotation_pkey\" PRIMARY KEY (priority, purpose),\nCONSTRAINT \"ai_provider_rotation_priority_check\" CHECK (((priority >= 0) AND (priority <= 10000))),\nCONSTRAINT \"ai_provider_rotation_purpose_check\" CHECK (((purpose) IN ('assistant', 'writing', 'speaking'))))",
+    "CREATE TABLE \"ai_provider_routing\" (\"singleton\" INTEGER NOT NULL DEFAULT (true) CHECK(\"singleton\" IS NULL OR (\"singleton\" IN(0,1))),\n\"mode\" TEXT NOT NULL DEFAULT ('sequential'),\n\"max_parallel\" INTEGER NOT NULL DEFAULT (1) CHECK(\"max_parallel\" IS NULL OR (typeof(\"max_parallel\")='integer')) CHECK(\"max_parallel\" IS NULL OR (\"max_parallel\" BETWEEN -2147483648 AND 2147483647)),\n\"hedge_delay_ms\" INTEGER NOT NULL DEFAULT (0) CHECK(\"hedge_delay_ms\" IS NULL OR (typeof(\"hedge_delay_ms\")='integer')) CHECK(\"hedge_delay_ms\" IS NULL OR (\"hedge_delay_ms\" BETWEEN -2147483648 AND 2147483647)),\n\"provider_ids\" TEXT NOT NULL DEFAULT ('[]') CHECK(\"provider_ids\" IS NULL OR (json_valid(\"provider_ids\"))) CHECK(\"provider_ids\" IS NULL OR (json_type(\"provider_ids\")='array')),\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"ai_provider_routing_hedge_delay_ms_check\" CHECK (((hedge_delay_ms >= 0) AND (hedge_delay_ms <= 10000))),\nCONSTRAINT \"ai_provider_routing_max_parallel_check\" CHECK (((max_parallel >= 1) AND (max_parallel <= 4))),\nCONSTRAINT \"ai_provider_routing_mode_check\" CHECK ((mode = 'sequential')),\nCONSTRAINT \"ai_provider_routing_pkey\" PRIMARY KEY (singleton),\nCONSTRAINT \"ai_provider_routing_singleton_check\" CHECK (singleton))",
+    "CREATE TABLE \"ai_providers\" (\"id\" TEXT NOT NULL,\n\"name\" TEXT NOT NULL CHECK(\"name\" IS NULL OR (length(\"name\")<=120)),\n\"endpoint\" TEXT NOT NULL CHECK(\"endpoint\" IS NULL OR (length(\"endpoint\")<=1000)),\n\"model\" TEXT NOT NULL CHECK(\"model\" IS NULL OR (length(\"model\")<=200)),\n\"speaking_model\" TEXT NOT NULL DEFAULT ('') CHECK(\"speaking_model\" IS NULL OR (length(\"speaking_model\")<=200)),\n\"scopes\" TEXT NOT NULL DEFAULT ('[\"assistant\",\"writing\",\"speaking\"]') CHECK(\"scopes\" IS NULL OR (json_valid(\"scopes\"))) CHECK(\"scopes\" IS NULL OR (json_type(\"scopes\")='array')),\n\"enabled\" INTEGER NOT NULL DEFAULT (false) CHECK(\"enabled\" IS NULL OR (\"enabled\" IN(0,1))),\n\"priority\" INTEGER NOT NULL DEFAULT (100) CHECK(\"priority\" IS NULL OR (typeof(\"priority\")='integer')) CHECK(\"priority\" IS NULL OR (\"priority\" BETWEEN -2147483648 AND 2147483647)),\n\"timeout_seconds\" INTEGER NOT NULL DEFAULT (20) CHECK(\"timeout_seconds\" IS NULL OR (typeof(\"timeout_seconds\")='integer')) CHECK(\"timeout_seconds\" IS NULL OR (\"timeout_seconds\" BETWEEN -2147483648 AND 2147483647)),\n\"key_ciphertext\" BLOB NOT NULL,\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"created_by\" TEXT,\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"ai_provider_key\" CHECK (((length(key_ciphertext) >= 38) AND (length(key_ciphertext) <= 16384))),\nCONSTRAINT \"ai_provider_priority\" CHECK (((priority >= 0) AND (priority <= 10000))),\nCONSTRAINT \"ai_provider_scopes\" CHECK (((json_array_length(scopes) > 0) AND (1))),\nCONSTRAINT \"ai_provider_timeout\" CHECK (((timeout_seconds >= 5) AND (timeout_seconds <= 60))),\nCONSTRAINT \"ai_providers_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"ai_providers_pkey\" PRIMARY KEY (id))",
+    "CREATE TABLE \"attempt_answers\" (\"attempt_id\" TEXT NOT NULL,\n\"question_id\" TEXT NOT NULL,\n\"answer\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"answer\" IS NULL OR (json_valid(\"answer\"))),\n\"is_correct\" INTEGER CHECK(\"is_correct\" IS NULL OR (\"is_correct\" IN(0,1))),\n\"points_awarded\" INTEGER CHECK(\"points_awarded\" IS NULL OR (typeof(\"points_awarded\")='integer')) CHECK(\"points_awarded\" IS NULL OR (\"points_awarded\" BETWEEN -32768 AND 32767)),\nCONSTRAINT \"attempt_answers_answer_object\" CHECK ((json_type(answer) = 'object')),\nCONSTRAINT \"attempt_answers_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"attempt_answers_pk\" PRIMARY KEY (attempt_id, question_id),\nCONSTRAINT \"attempt_answers_points_valid\" CHECK (((points_awarded IS NULL) OR (points_awarded >= 0))))",
+    "CREATE TABLE \"attempts\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"material_type\" TEXT NOT NULL CHECK(\"material_type\" IS NULL OR (length(\"material_type\")<=16)),\n\"material_id\" TEXT NOT NULL,\n\"material_version_id\" TEXT NOT NULL,\n\"status\" TEXT NOT NULL DEFAULT ('IN_PROGRESS') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"score\" INTEGER CHECK(\"score\" IS NULL OR (typeof(\"score\")='integer')) CHECK(\"score\" IS NULL OR (\"score\" BETWEEN -32768 AND 32767)),\n\"max_score\" INTEGER CHECK(\"max_score\" IS NULL OR (typeof(\"max_score\")='integer')) CHECK(\"max_score\" IS NULL OR (\"max_score\" BETWEEN -32768 AND 32767)),\n\"band\" REAL,\n\"started_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"submitted_at\" TEXT,\nCONSTRAINT \"attempts_band_valid\" CHECK (((band IS NULL) OR (((band >= (0)) AND (band <= (9))) AND ((band * (2)) = trunc((band * (2))))))),\nCONSTRAINT \"attempts_material_type_valid\" CHECK (((material_type) IN ('listening', 'reading', 'writing', 'speaking'))),\nCONSTRAINT \"attempts_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"attempts_score_valid\" CHECK (((score IS NULL) OR ((max_score IS NOT NULL) AND ((score >= 0) AND (score <= max_score))))),\nCONSTRAINT \"attempts_status_valid\" CHECK (((status) IN ('IN_PROGRESS', 'PROCESSING', 'SUBMITTED', 'ABANDONED'))),\nCONSTRAINT \"attempts_submitted_fields\" CHECK ((((status) IN ('IN_PROGRESS', 'PROCESSING', 'ABANDONED')) OR ((score IS NOT NULL) AND (max_score IS NOT NULL) AND (submitted_at IS NOT NULL)))),\nCONSTRAINT \"attempts_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"blog_media\" (\"id\" TEXT NOT NULL,\n\"original_name\" TEXT NOT NULL CHECK(\"original_name\" IS NULL OR (length(\"original_name\")<=255)),\n\"mime_type\" TEXT NOT NULL CHECK(\"mime_type\" IS NULL OR (length(\"mime_type\")<=100)),\n\"storage_key\" TEXT NOT NULL CHECK(\"storage_key\" IS NULL OR (length(\"storage_key\")<=500)),\n\"byte_size\" INTEGER NOT NULL CHECK(\"byte_size\" IS NULL OR (typeof(\"byte_size\")='integer')),\n\"uploaded_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"blog_media_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"blog_media_size_valid\" CHECK ((byte_size > 0)),\nCONSTRAINT \"blog_media_storage_key_key\" UNIQUE (storage_key),\nCONSTRAINT \"blog_media_uploaded_by_fkey\" FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL)",
+    "CREATE TABLE \"blog_posts\" (\"id\" TEXT NOT NULL,\n\"author_id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=255)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=300)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"cover_media_id\" TEXT,\n\"body_html\" TEXT NOT NULL,\n\"body_json\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"body_json\" IS NULL OR (json_valid(\"body_json\"))),\n\"reading_time_minutes\" INTEGER NOT NULL DEFAULT (1) CHECK(\"reading_time_minutes\" IS NULL OR (typeof(\"reading_time_minutes\")='integer')) CHECK(\"reading_time_minutes\" IS NULL OR (\"reading_time_minutes\" BETWEEN -2147483648 AND 2147483647)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=20)),\n\"published_at\" TEXT,\n\"content_updated_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"blog_posts_author_id_fkey\" FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE RESTRICT,\nCONSTRAINT \"blog_posts_body_json_object\" CHECK ((json_type(body_json) = 'object')),\nCONSTRAINT \"blog_posts_cover_media_fk\" FOREIGN KEY (cover_media_id) REFERENCES blog_media(id) ON DELETE SET NULL,\nCONSTRAINT \"blog_posts_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"blog_posts_reading_time_valid\" CHECK (((reading_time_minutes >= 1) AND (reading_time_minutes <= 120))),\nCONSTRAINT \"blog_posts_slug_key\" UNIQUE (slug),\nCONSTRAINT \"blog_posts_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))),\nCONSTRAINT \"blog_posts_title_not_blank\" CHECK ((trim((title)) <> '')))",
+    "CREATE TABLE \"full_mock_session_sections\" (\"session_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -32768 AND 32767)),\n\"skill\" TEXT NOT NULL CHECK(\"skill\" IS NULL OR (length(\"skill\")<=16)),\n\"attempt_id\" TEXT NOT NULL,\n\"started_at\" TEXT,\n\"deadline_at\" TEXT,\n\"remaining_milliseconds\" INTEGER CHECK(\"remaining_milliseconds\" IS NULL OR (typeof(\"remaining_milliseconds\")='integer')),\nCONSTRAINT \"full_mock_section_clock\" CHECK ((((started_at IS NULL) AND (deadline_at IS NULL) AND (remaining_milliseconds IS NULL)) OR ((started_at IS NOT NULL) AND (((deadline_at IS NOT NULL) AND (deadline_at > started_at) AND (remaining_milliseconds IS NULL)) OR ((deadline_at IS NULL) AND (remaining_milliseconds IS NOT NULL)))))),\nCONSTRAINT \"full_mock_section_pause_valid\" CHECK (((remaining_milliseconds IS NULL) OR ((remaining_milliseconds > 0) AND (started_at IS NOT NULL) AND (deadline_at IS NULL)))),\nCONSTRAINT \"full_mock_session_sections_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE RESTRICT,\nCONSTRAINT \"full_mock_session_sections_attempt_id_key\" UNIQUE (attempt_id),\nCONSTRAINT \"full_mock_session_sections_pk\" PRIMARY KEY (session_id, \"position\"),\nCONSTRAINT \"full_mock_session_sections_position_skill_valid\" CHECK ((((\"position\" = 1) AND ((skill) = 'listening')) OR ((\"position\" = 2) AND ((skill) = 'reading')) OR ((\"position\" = 3) AND ((skill) = 'writing')) OR ((\"position\" = 4) AND ((skill) = 'speaking')))),\nCONSTRAINT \"full_mock_session_sections_position_valid\" CHECK (((\"position\" >= 1) AND (\"position\" <= 4))),\nCONSTRAINT \"full_mock_session_sections_session_id_fkey\" FOREIGN KEY (session_id) REFERENCES full_mock_sessions(id) ON DELETE CASCADE,\nCONSTRAINT \"full_mock_session_sections_skill_valid\" CHECK (((skill) IN ('listening', 'reading', 'writing', 'speaking'))))",
+    "CREATE TABLE \"full_mock_sessions\" (\"id\" TEXT NOT NULL,\n\"mock_test_id\" TEXT,\n\"user_id\" TEXT NOT NULL,\n\"status\" TEXT NOT NULL DEFAULT ('IN_PROGRESS') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"current_section\" INTEGER NOT NULL DEFAULT (1) CHECK(\"current_section\" IS NULL OR (typeof(\"current_section\")='integer')) CHECK(\"current_section\" IS NULL OR (\"current_section\" BETWEEN -32768 AND 32767)),\n\"started_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"submitted_at\" TEXT,\n\"exam_type\" TEXT CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"title\" TEXT CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"duration_minutes\" INTEGER CHECK(\"duration_minutes\" IS NULL OR (typeof(\"duration_minutes\")='integer')) CHECK(\"duration_minutes\" IS NULL OR (\"duration_minutes\" BETWEEN -2147483648 AND 2147483647)),\nCONSTRAINT \"full_mock_sessions_duration_valid\" CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300))),\nCONSTRAINT \"full_mock_sessions_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"full_mock_sessions_metadata_valid\" CHECK (((mock_test_id IS NOT NULL) OR ((exam_type IS NOT NULL) AND (title IS NOT NULL) AND (duration_minutes IS NOT NULL)))),\nCONSTRAINT \"full_mock_sessions_mock_test_id_fkey\" FOREIGN KEY (mock_test_id) REFERENCES full_mock_tests(id) ON DELETE RESTRICT,\nCONSTRAINT \"full_mock_sessions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"full_mock_sessions_section_valid\" CHECK (((current_section >= 1) AND (current_section <= 5))),\nCONSTRAINT \"full_mock_sessions_status_valid\" CHECK (((status) IN ('IN_PROGRESS', 'SUBMITTED', 'ABANDONED'))),\nCONSTRAINT \"full_mock_sessions_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"full_mock_tests\" (\"id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=160)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"exam_type\" TEXT NOT NULL CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"duration_minutes\" INTEGER NOT NULL DEFAULT (165) CHECK(\"duration_minutes\" IS NULL OR (typeof(\"duration_minutes\")='integer')) CHECK(\"duration_minutes\" IS NULL OR (\"duration_minutes\" BETWEEN -2147483648 AND 2147483647)),\n\"listening_material_id\" TEXT NOT NULL,\n\"reading_material_id\" TEXT NOT NULL,\n\"writing_material_id\" TEXT NOT NULL,\n\"speaking_material_id\" TEXT NOT NULL,\n\"published_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"full_mock_tests_duration_valid\" CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300))),\nCONSTRAINT \"full_mock_tests_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"full_mock_tests_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"full_mock_tests_revision_valid\" CHECK ((revision > 0)),\nCONSTRAINT \"full_mock_tests_slug_key\" UNIQUE (slug),\nCONSTRAINT \"full_mock_tests_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))))",
+    "CREATE TABLE \"guest_mock_materials\" (\"skill\" TEXT NOT NULL,\n\"material_id\" TEXT NOT NULL,\n\"material_version_id\" TEXT NOT NULL,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"guest_mock_materials_pkey\" PRIMARY KEY (skill),\nCONSTRAINT \"guest_mock_materials_skill_check\" CHECK ((skill IN ('listening', 'reading', 'writing', 'speaking'))))",
+    "CREATE TABLE \"guest_trials\" (\"user_id\" TEXT NOT NULL,\n\"token_hash\" BLOB NOT NULL,\n\"expires_at\" TEXT NOT NULL,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"claimed_by\" TEXT,\n\"claimed_session_id\" TEXT,\nCONSTRAINT \"guest_trial_claim_complete\" CHECK (((claimed_by IS NULL) = (claimed_session_id IS NULL))),\nCONSTRAINT \"guest_trials_claimed_by_fkey\" FOREIGN KEY (claimed_by) REFERENCES users(id),\nCONSTRAINT \"guest_trials_claimed_session_id_fkey\" FOREIGN KEY (claimed_session_id) REFERENCES full_mock_sessions(id),\nCONSTRAINT \"guest_trials_pkey\" PRIMARY KEY (user_id),\nCONSTRAINT \"guest_trials_token_hash_key\" UNIQUE (token_hash),\nCONSTRAINT \"guest_trials_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"listening_media\" (\"id\" TEXT NOT NULL,\n\"kind\" TEXT NOT NULL CHECK(\"kind\" IS NULL OR (length(\"kind\")<=16)),\n\"original_name\" TEXT NOT NULL CHECK(\"original_name\" IS NULL OR (length(\"original_name\")<=255)),\n\"mime_type\" TEXT NOT NULL CHECK(\"mime_type\" IS NULL OR (length(\"mime_type\")<=100)),\n\"storage_key\" TEXT NOT NULL CHECK(\"storage_key\" IS NULL OR (length(\"storage_key\")<=255)),\n\"byte_size\" INTEGER NOT NULL CHECK(\"byte_size\" IS NULL OR (typeof(\"byte_size\")='integer')),\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"listening_media_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"listening_media_kind_valid\" CHECK (((kind) IN ('audio', 'image'))),\nCONSTRAINT \"listening_media_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"listening_media_size_valid\" CHECK ((byte_size > 0)),\nCONSTRAINT \"listening_media_storage_key_key\" UNIQUE (storage_key))",
+    "CREATE TABLE \"listening_parts\" (\"id\" TEXT NOT NULL,\n\"test_version_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -2147483648 AND 2147483647)),\n\"title\" TEXT NOT NULL DEFAULT ('') CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"audio_asset_id\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"transcript\" TEXT NOT NULL DEFAULT (''),\n\"transcript_segments\" TEXT NOT NULL DEFAULT ('[]') CHECK(\"transcript_segments\" IS NULL OR (json_valid(\"transcript_segments\"))),\nCONSTRAINT \"listening_parts_audio_asset_id_fkey\" FOREIGN KEY (audio_asset_id) REFERENCES listening_media(id),\nCONSTRAINT \"listening_parts_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"listening_parts_position_valid\" CHECK ((\"position\" > 0)),\nCONSTRAINT \"listening_parts_test_version_id_fkey\" FOREIGN KEY (test_version_id) REFERENCES listening_test_versions(id) ON DELETE CASCADE,\nCONSTRAINT \"listening_parts_version_position_unique\" UNIQUE (test_version_id, \"position\"))",
+    "CREATE TABLE \"listening_question_groups\" (\"id\" TEXT NOT NULL,\n\"part_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -2147483648 AND 2147483647)),\n\"question_type\" TEXT NOT NULL CHECK(\"question_type\" IS NULL OR (length(\"question_type\")<=48)),\n\"instructions\" TEXT NOT NULL DEFAULT (''),\n\"context\" TEXT NOT NULL DEFAULT (''),\n\"config\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"config\" IS NULL OR (json_valid(\"config\"))),\n\"image_asset_id\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"listening_groups_config_object\" CHECK ((json_type(config) = 'object')),\nCONSTRAINT \"listening_groups_part_position_unique\" UNIQUE (part_id, \"position\"),\nCONSTRAINT \"listening_groups_position_valid\" CHECK ((\"position\" > 0)),\nCONSTRAINT \"listening_groups_type_valid\" CHECK (((question_type) IN ('multiple_choice', 'matching', 'map_labelling', 'plan_labelling', 'diagram_labelling', 'form_completion', 'note_completion', 'table_completion', 'flow_chart_completion', 'sentence_completion', 'short_answer'))),\nCONSTRAINT \"listening_question_groups_image_asset_id_fkey\" FOREIGN KEY (image_asset_id) REFERENCES listening_media(id),\nCONSTRAINT \"listening_question_groups_part_id_fkey\" FOREIGN KEY (part_id) REFERENCES listening_parts(id) ON DELETE CASCADE,\nCONSTRAINT \"listening_question_groups_pkey\" PRIMARY KEY (id))",
+    "CREATE TABLE \"listening_questions\" (\"id\" TEXT NOT NULL,\n\"group_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -2147483648 AND 2147483647)),\n\"number\" INTEGER NOT NULL CHECK(\"number\" IS NULL OR (typeof(\"number\")='integer')) CHECK(\"number\" IS NULL OR (\"number\" BETWEEN -2147483648 AND 2147483647)),\n\"prompt\" TEXT NOT NULL,\n\"content\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"content\" IS NULL OR (json_valid(\"content\"))),\n\"answer\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"answer\" IS NULL OR (json_valid(\"answer\"))),\n\"explanation\" TEXT NOT NULL DEFAULT (''),\n\"points\" INTEGER NOT NULL DEFAULT (1) CHECK(\"points\" IS NULL OR (typeof(\"points\")='integer')) CHECK(\"points\" IS NULL OR (\"points\" BETWEEN -32768 AND 32767)),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"listening_questions_answer_object\" CHECK ((json_type(answer) = 'object')),\nCONSTRAINT \"listening_questions_content_object\" CHECK ((json_type(content) = 'object')),\nCONSTRAINT \"listening_questions_group_id_fkey\" FOREIGN KEY (group_id) REFERENCES listening_question_groups(id) ON DELETE CASCADE,\nCONSTRAINT \"listening_questions_group_position_unique\" UNIQUE (group_id, \"position\"),\nCONSTRAINT \"listening_questions_number_valid\" CHECK ((number > 0)),\nCONSTRAINT \"listening_questions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"listening_questions_points_valid\" CHECK (((points >= 1) AND (points <= 10))),\nCONSTRAINT \"listening_questions_position_valid\" CHECK ((\"position\" > 0)),\nCONSTRAINT \"listening_questions_prompt_valid\" CHECK ((trim(prompt) <> '')))",
+    "CREATE TABLE \"listening_test_versions\" (\"id\" TEXT NOT NULL,\n\"test_id\" TEXT NOT NULL,\n\"version_number\" INTEGER NOT NULL CHECK(\"version_number\" IS NULL OR (typeof(\"version_number\")='integer')) CHECK(\"version_number\" IS NULL OR (\"version_number\" BETWEEN -2147483648 AND 2147483647)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"duration_minutes\" INTEGER NOT NULL DEFAULT (40) CHECK(\"duration_minutes\" IS NULL OR (typeof(\"duration_minutes\")='integer')) CHECK(\"duration_minutes\" IS NULL OR (\"duration_minutes\" BETWEEN -32768 AND 32767)),\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"listening_test_versions_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"listening_test_versions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"listening_test_versions_test_id_fkey\" FOREIGN KEY (test_id) REFERENCES listening_tests(id) ON DELETE CASCADE,\nCONSTRAINT \"listening_versions_duration_valid\" CHECK (((duration_minutes >= 1) AND (duration_minutes <= 180))),\nCONSTRAINT \"listening_versions_number_valid\" CHECK ((version_number > 0)),\nCONSTRAINT \"listening_versions_test_id_unique\" UNIQUE (test_id, id),\nCONSTRAINT \"listening_versions_test_number_unique\" UNIQUE (test_id, version_number),\nCONSTRAINT \"listening_versions_title_valid\" CHECK ((trim((title)) <> '')))",
+    "CREATE TABLE \"listening_tests\" (\"id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=160)),\n\"exam_type\" TEXT NOT NULL CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"current_version_id\" TEXT,\n\"published_version_id\" TEXT,\n\"published_at\" TEXT,\n\"created_by\" TEXT,\n\"updated_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"listening_tests_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"listening_tests_current_version_fk\" FOREIGN KEY (id, current_version_id) REFERENCES listening_test_versions(test_id, id),\nCONSTRAINT \"listening_tests_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"listening_tests_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"listening_tests_published_version_fk\" FOREIGN KEY (id, published_version_id) REFERENCES listening_test_versions(test_id, id),\nCONSTRAINT \"listening_tests_slug_key\" UNIQUE (slug),\nCONSTRAINT \"listening_tests_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))),\nCONSTRAINT \"listening_tests_updated_by_fkey\" FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL)",
+    "CREATE TABLE \"phone_verifications\" (\"id\" TEXT NOT NULL,\n\"phone\" TEXT NOT NULL CHECK(\"phone\" IS NULL OR (length(\"phone\")<=16)),\n\"purpose\" TEXT NOT NULL CHECK(\"purpose\" IS NULL OR (length(\"purpose\")<=32)),\n\"code_hash\" BLOB NOT NULL,\n\"attempts\" INTEGER NOT NULL DEFAULT (0) CHECK(\"attempts\" IS NULL OR (typeof(\"attempts\")='integer')) CHECK(\"attempts\" IS NULL OR (\"attempts\" BETWEEN -32768 AND 32767)),\n\"max_attempts\" INTEGER NOT NULL CHECK(\"max_attempts\" IS NULL OR (typeof(\"max_attempts\")='integer')) CHECK(\"max_attempts\" IS NULL OR (\"max_attempts\" BETWEEN -32768 AND 32767)),\n\"expires_at\" TEXT NOT NULL,\n\"verified_at\" TEXT,\n\"verification_token_hash\" BLOB,\n\"token_expires_at\" TEXT,\n\"consumed_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"phone_verifications_attempts_valid\" CHECK (((attempts >= 0) AND (max_attempts > 0) AND (attempts <= max_attempts))),\nCONSTRAINT \"phone_verifications_consumed_state_valid\" CHECK (((consumed_at IS NULL) OR (verified_at IS NOT NULL))),\nCONSTRAINT \"phone_verifications_expiry_valid\" CHECK ((expires_at > created_at)),\nCONSTRAINT \"phone_verifications_phone_e164\" CHECK (((length(phone) BETWEEN 9 AND 16 AND substr(phone,1,1)='+' AND substr(phone,2,1) GLOB '[1-9]' AND substr(phone,2) NOT GLOB '*[^0-9]*'))),\nCONSTRAINT \"phone_verifications_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"phone_verifications_purpose_valid\" CHECK (((purpose) IN ('WAITLIST', 'REGISTRATION'))),\nCONSTRAINT \"phone_verifications_verified_state_valid\" CHECK ((((verified_at IS NULL) AND (verification_token_hash IS NULL) AND (token_expires_at IS NULL)) OR ((verified_at IS NOT NULL) AND (verification_token_hash IS NOT NULL) AND (token_expires_at > verified_at)))))",
+    "CREATE TABLE \"question_translations\" (\"question_id\" TEXT NOT NULL,\n\"skill\" TEXT NOT NULL,\n\"lang\" TEXT NOT NULL,\n\"explanation\" TEXT NOT NULL DEFAULT (''),\n\"hint\" TEXT NOT NULL DEFAULT (''),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"question_translations_lang_check\" CHECK ((lang IN ('kk', 'en'))),\nCONSTRAINT \"question_translations_pkey\" PRIMARY KEY (question_id, lang),\nCONSTRAINT \"question_translations_skill_check\" CHECK ((skill IN ('reading', 'listening'))))",
+    "CREATE TABLE \"reading_material_versions\" (\"id\" TEXT NOT NULL,\n\"material_id\" TEXT NOT NULL,\n\"version_number\" INTEGER NOT NULL CHECK(\"version_number\" IS NULL OR (typeof(\"version_number\")='integer')) CHECK(\"version_number\" IS NULL OR (\"version_number\" BETWEEN -2147483648 AND 2147483647)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"body\" TEXT NOT NULL,\n\"source_title\" TEXT CHECK(\"source_title\" IS NULL OR (length(\"source_title\")<=200)),\n\"source_url\" TEXT,\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"duration_minutes\" INTEGER CHECK(\"duration_minutes\" IS NULL OR (typeof(\"duration_minutes\")='integer')) CHECK(\"duration_minutes\" IS NULL OR (\"duration_minutes\" BETWEEN -32768 AND 32767)),\nCONSTRAINT \"reading_material_versions_body_not_blank\" CHECK ((trim(body) <> '')),\nCONSTRAINT \"reading_material_versions_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"reading_material_versions_duration_valid\" CHECK (((duration_minutes IS NULL) OR ((duration_minutes >= 1) AND (duration_minutes <= 300)))),\nCONSTRAINT \"reading_material_versions_material_id_fkey\" FOREIGN KEY (material_id) REFERENCES reading_materials(id) ON DELETE CASCADE,\nCONSTRAINT \"reading_material_versions_material_id_unique\" UNIQUE (material_id, id),\nCONSTRAINT \"reading_material_versions_material_number_unique\" UNIQUE (material_id, version_number),\nCONSTRAINT \"reading_material_versions_number_valid\" CHECK ((version_number > 0)),\nCONSTRAINT \"reading_material_versions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"reading_material_versions_title_not_blank\" CHECK ((trim((title)) <> '')))",
+    "CREATE TABLE \"reading_materials\" (\"id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=160)),\n\"exam_type\" TEXT NOT NULL CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"difficulty\" TEXT NOT NULL CHECK(\"difficulty\" IS NULL OR (length(\"difficulty\")<=24)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"current_version_id\" TEXT,\n\"published_version_id\" TEXT,\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"created_by\" TEXT,\n\"updated_by\" TEXT,\n\"published_by\" TEXT,\n\"published_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"material_kind\" TEXT NOT NULL DEFAULT ('PASSAGE') CHECK(\"material_kind\" IS NULL OR (length(\"material_kind\")<=16)),\nCONSTRAINT \"reading_materials_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"reading_materials_current_version_fk\" FOREIGN KEY (id, current_version_id) REFERENCES reading_material_versions(material_id, id),\nCONSTRAINT \"reading_materials_difficulty_valid\" CHECK (((difficulty) IN ('foundation', 'intermediate', 'advanced'))),\nCONSTRAINT \"reading_materials_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"reading_materials_kind_valid\" CHECK (((material_kind) IN ('PASSAGE', 'TEST'))),\nCONSTRAINT \"reading_materials_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"reading_materials_published_by_fkey\" FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"reading_materials_published_state_valid\" CHECK ((((published_version_id IS NULL) AND (published_at IS NULL) AND (published_by IS NULL) AND ((status) = 'DRAFT')) OR ((published_version_id IS NOT NULL) AND (published_at IS NOT NULL) AND ((status) IN ('PUBLISHED', 'ARCHIVED'))))),\nCONSTRAINT \"reading_materials_published_version_fk\" FOREIGN KEY (id, published_version_id) REFERENCES reading_material_versions(material_id, id),\nCONSTRAINT \"reading_materials_revision_valid\" CHECK ((revision > 0)),\nCONSTRAINT \"reading_materials_slug_key\" UNIQUE (slug),\nCONSTRAINT \"reading_materials_slug_valid\" CHECK (((length(slug)>0 AND slug NOT GLOB '*[^a-z0-9-]*' AND substr(slug,1,1)!='-' AND substr(slug,-1)!='-' AND instr(slug,'--')=0))),\nCONSTRAINT \"reading_materials_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))),\nCONSTRAINT \"reading_materials_updated_by_fkey\" FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL)",
+    "CREATE TABLE \"reading_question_groups\" (\"id\" TEXT NOT NULL,\n\"material_version_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -2147483648 AND 2147483647)),\n\"question_type\" TEXT NOT NULL CHECK(\"question_type\" IS NULL OR (length(\"question_type\")<=48)),\n\"instructions\" TEXT NOT NULL DEFAULT (''),\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"reading_question_groups_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"reading_question_groups_material_version_id_fkey\" FOREIGN KEY (material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE,\nCONSTRAINT \"reading_question_groups_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"reading_question_groups_position_valid\" CHECK ((\"position\" > 0)),\nCONSTRAINT \"reading_question_groups_type_valid\" CHECK (((question_type) IN ('multiple_choice', 'true_false_not_given', 'yes_no_not_given', 'matching_information', 'matching_headings', 'matching_features', 'matching_sentence_endings', 'sentence_completion', 'summary_completion', 'note_completion', 'table_completion', 'flow_chart_completion', 'diagram_label_completion', 'short_answer'))),\nCONSTRAINT \"reading_question_groups_version_position_unique\" UNIQUE (material_version_id, \"position\"))",
+    "CREATE TABLE \"reading_questions\" (\"id\" TEXT NOT NULL,\n\"group_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -2147483648 AND 2147483647)),\n\"prompt\" TEXT NOT NULL,\n\"content\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"content\" IS NULL OR (json_valid(\"content\"))),\n\"answer\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"answer\" IS NULL OR (json_valid(\"answer\"))),\n\"explanation\" TEXT NOT NULL DEFAULT (''),\n\"points\" INTEGER NOT NULL DEFAULT (1) CHECK(\"points\" IS NULL OR (typeof(\"points\")='integer')) CHECK(\"points\" IS NULL OR (\"points\" BETWEEN -32768 AND 32767)),\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"reading_questions_answer_object\" CHECK ((json_type(answer) = 'object')),\nCONSTRAINT \"reading_questions_content_object\" CHECK ((json_type(content) = 'object')),\nCONSTRAINT \"reading_questions_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"reading_questions_group_id_fkey\" FOREIGN KEY (group_id) REFERENCES reading_question_groups(id) ON DELETE CASCADE,\nCONSTRAINT \"reading_questions_group_position_unique\" UNIQUE (group_id, \"position\"),\nCONSTRAINT \"reading_questions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"reading_questions_points_valid\" CHECK (((points >= 1) AND (points <= 10))),\nCONSTRAINT \"reading_questions_position_valid\" CHECK ((\"position\" > 0)),\nCONSTRAINT \"reading_questions_prompt_valid\" CHECK ((trim(prompt) <> '')))",
+    "CREATE TABLE \"reading_test_passages\" (\"test_material_version_id\" TEXT NOT NULL,\n\"position\" INTEGER NOT NULL CHECK(\"position\" IS NULL OR (typeof(\"position\")='integer')) CHECK(\"position\" IS NULL OR (\"position\" BETWEEN -32768 AND 32767)),\n\"passage_material_id\" TEXT NOT NULL,\n\"passage_material_version_id\" TEXT NOT NULL,\nCONSTRAINT \"reading_test_passages_distinct_materials\" CHECK ((test_material_version_id <> passage_material_version_id)),\nCONSTRAINT \"reading_test_passages_passage_material_id_fkey\" FOREIGN KEY (passage_material_id) REFERENCES reading_materials(id),\nCONSTRAINT \"reading_test_passages_pkey\" PRIMARY KEY (test_material_version_id, \"position\"),\nCONSTRAINT \"reading_test_passages_position_valid\" CHECK (((\"position\" >= 1) AND (\"position\" <= 20))),\nCONSTRAINT \"reading_test_passages_test_material_version_id_fkey\" FOREIGN KEY (test_material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE,\nCONSTRAINT \"reading_test_passages_test_material_version_id_passage_mate_key\" UNIQUE (test_material_version_id, passage_material_id),\nCONSTRAINT \"reading_test_passages_version_fk\" FOREIGN KEY (passage_material_id, passage_material_version_id) REFERENCES reading_material_versions(material_id, id))",
+    "CREATE TABLE \"refresh_sessions\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"token_hash\" BLOB NOT NULL,\n\"expires_at\" TEXT NOT NULL,\n\"revoked_at\" TEXT,\n\"replaced_by\" TEXT,\n\"user_agent\" TEXT CHECK(\"user_agent\" IS NULL OR (length(\"user_agent\")<=512)),\n\"ip_address\" TEXT CHECK(\"ip_address\" IS NULL OR (length(\"ip_address\")<=45)),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"refresh_sessions_expiry_valid\" CHECK ((expires_at > created_at)),\nCONSTRAINT \"refresh_sessions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"refresh_sessions_replaced_by_fkey\" FOREIGN KEY (replaced_by) REFERENCES refresh_sessions(id),\nCONSTRAINT \"refresh_sessions_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"speaking_assessment_jobs\" (\"attempt_id\" TEXT NOT NULL,\n\"status\" TEXT NOT NULL DEFAULT ('QUEUED') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"attempts\" INTEGER NOT NULL DEFAULT (0) CHECK(\"attempts\" IS NULL OR (typeof(\"attempts\")='integer')) CHECK(\"attempts\" IS NULL OR (\"attempts\" BETWEEN -2147483648 AND 2147483647)),\n\"next_attempt_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"error_code\" TEXT CHECK(\"error_code\" IS NULL OR (length(\"error_code\")<=64)),\n\"error_message\" TEXT,\n\"started_at\" TEXT,\n\"completed_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"speaking_assessment_jobs_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"speaking_assessment_jobs_attempts_valid\" CHECK (((attempts >= 0) AND (attempts <= 3))),\nCONSTRAINT \"speaking_assessment_jobs_pkey\" PRIMARY KEY (attempt_id),\nCONSTRAINT \"speaking_assessment_jobs_status_valid\" CHECK (((status) IN ('QUEUED', 'PROCESSING', 'READY', 'FAILED'))))",
+    "CREATE TABLE \"speaking_evaluations\" (\"attempt_id\" TEXT NOT NULL,\n\"model\" TEXT NOT NULL CHECK(\"model\" IS NULL OR (length(\"model\")<=200)),\n\"overall_band\" REAL NOT NULL,\n\"fluency_band\" REAL NOT NULL,\n\"lexical_resource_band\" REAL NOT NULL,\n\"grammar_band\" REAL NOT NULL,\n\"pronunciation_band\" REAL,\n\"feedback\" TEXT NOT NULL CHECK(\"feedback\" IS NULL OR (json_valid(\"feedback\"))),\n\"evaluated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"speaking_evaluations_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"speaking_evaluations_band_valid\" CHECK ((((overall_band >= (0)) AND (overall_band <= (9))) AND ((fluency_band >= (0)) AND (fluency_band <= (9))) AND ((lexical_resource_band >= (0)) AND (lexical_resource_band <= (9))) AND ((grammar_band >= (0)) AND (grammar_band <= (9))) AND ((pronunciation_band IS NULL) OR ((pronunciation_band >= (0)) AND (pronunciation_band <= (9)))))),\nCONSTRAINT \"speaking_evaluations_feedback_object\" CHECK ((json_type(feedback) = 'object')),\nCONSTRAINT \"speaking_evaluations_pkey\" PRIMARY KEY (attempt_id))",
+    "CREATE TABLE \"speaking_material_versions\" (\"id\" TEXT NOT NULL,\n\"material_id\" TEXT NOT NULL,\n\"version_number\" INTEGER NOT NULL CHECK(\"version_number\" IS NULL OR (typeof(\"version_number\")='integer')) CHECK(\"version_number\" IS NULL OR (\"version_number\" BETWEEN -2147483648 AND 2147483647)),\n\"exam_type\" TEXT NOT NULL CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"difficulty\" TEXT NOT NULL CHECK(\"difficulty\" IS NULL OR (length(\"difficulty\")<=16)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"parts\" TEXT NOT NULL CHECK(\"parts\" IS NULL OR (json_valid(\"parts\"))),\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"speaking_material_versions_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"speaking_material_versions_difficulty_valid\" CHECK (((difficulty) IN ('foundation', 'intermediate', 'advanced'))),\nCONSTRAINT \"speaking_material_versions_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"speaking_material_versions_material_id_fkey\" FOREIGN KEY (material_id) REFERENCES speaking_materials(id) ON DELETE CASCADE,\nCONSTRAINT \"speaking_material_versions_parts_array\" CHECK ((json_type(parts) = 'array')),\nCONSTRAINT \"speaking_material_versions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"speaking_material_versions_unique\" UNIQUE (material_id, version_number))",
+    "CREATE TABLE \"speaking_materials\" (\"id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=160)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"current_version_number\" INTEGER NOT NULL DEFAULT (1) CHECK(\"current_version_number\" IS NULL OR (typeof(\"current_version_number\")='integer')) CHECK(\"current_version_number\" IS NULL OR (\"current_version_number\" BETWEEN -2147483648 AND 2147483647)),\n\"published_version_id\" TEXT,\n\"published_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"speaking_materials_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"speaking_materials_published_version_fk\" FOREIGN KEY (published_version_id) REFERENCES speaking_material_versions(id) ON DELETE SET NULL,\nCONSTRAINT \"speaking_materials_revision_valid\" CHECK ((revision > 0)),\nCONSTRAINT \"speaking_materials_slug_key\" UNIQUE (slug),\nCONSTRAINT \"speaking_materials_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))),\nCONSTRAINT \"speaking_materials_version_valid\" CHECK ((current_version_number > 0)))",
+    "CREATE TABLE \"speaking_recordings\" (\"id\" TEXT NOT NULL,\n\"attempt_id\" TEXT NOT NULL,\n\"part_id\" TEXT NOT NULL,\n\"original_name\" TEXT NOT NULL CHECK(\"original_name\" IS NULL OR (length(\"original_name\")<=255)),\n\"mime_type\" TEXT NOT NULL CHECK(\"mime_type\" IS NULL OR (length(\"mime_type\")<=100)),\n\"storage_key\" TEXT NOT NULL CHECK(\"storage_key\" IS NULL OR (length(\"storage_key\")<=255)),\n\"byte_size\" INTEGER NOT NULL CHECK(\"byte_size\" IS NULL OR (typeof(\"byte_size\")='integer')),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')) CHECK(\"revision\" IS NULL OR (\"revision\" BETWEEN -2147483648 AND 2147483647)),\nCONSTRAINT \"speaking_recordings_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"speaking_recordings_part_unique\" UNIQUE (attempt_id, part_id),\nCONSTRAINT \"speaking_recordings_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"speaking_recordings_revision_valid\" CHECK ((revision > 0)),\nCONSTRAINT \"speaking_recordings_size_valid\" CHECK ((byte_size > 0)),\nCONSTRAINT \"speaking_recordings_storage_key_key\" UNIQUE (storage_key))",
+    "CREATE TABLE \"speaking_transcriptions\" (\"recording_id\" TEXT NOT NULL,\n\"recording_revision\" INTEGER NOT NULL CHECK(\"recording_revision\" IS NULL OR (typeof(\"recording_revision\")='integer')) CHECK(\"recording_revision\" IS NULL OR (\"recording_revision\" BETWEEN -2147483648 AND 2147483647)),\n\"status\" TEXT NOT NULL DEFAULT ('QUEUED') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"provider\" TEXT NOT NULL DEFAULT ('faster-whisper') CHECK(\"provider\" IS NULL OR (length(\"provider\")<=64)),\n\"model\" TEXT NOT NULL DEFAULT ('') CHECK(\"model\" IS NULL OR (length(\"model\")<=128)),\n\"language\" TEXT NOT NULL DEFAULT ('en') CHECK(\"language\" IS NULL OR (length(\"language\")<=16)),\n\"language_probability\" REAL,\n\"transcript\" TEXT NOT NULL DEFAULT (''),\n\"audio_duration_ms\" INTEGER CHECK(\"audio_duration_ms\" IS NULL OR (typeof(\"audio_duration_ms\")='integer')),\n\"speech_duration_ms\" INTEGER CHECK(\"speech_duration_ms\" IS NULL OR (typeof(\"speech_duration_ms\")='integer')),\n\"processing_time_ms\" INTEGER CHECK(\"processing_time_ms\" IS NULL OR (typeof(\"processing_time_ms\")='integer')),\n\"words\" TEXT NOT NULL DEFAULT ('[]') CHECK(\"words\" IS NULL OR (json_valid(\"words\"))),\n\"segments\" TEXT NOT NULL DEFAULT ('[]') CHECK(\"segments\" IS NULL OR (json_valid(\"segments\"))),\n\"metrics\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"metrics\" IS NULL OR (json_valid(\"metrics\"))),\n\"attempts\" INTEGER NOT NULL DEFAULT (0) CHECK(\"attempts\" IS NULL OR (typeof(\"attempts\")='integer')) CHECK(\"attempts\" IS NULL OR (\"attempts\" BETWEEN -2147483648 AND 2147483647)),\n\"next_attempt_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"error_code\" TEXT CHECK(\"error_code\" IS NULL OR (length(\"error_code\")<=64)),\n\"error_message\" TEXT,\n\"started_at\" TEXT,\n\"completed_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"speaking_transcriptions_attempts_valid\" CHECK (((attempts >= 0) AND (attempts <= 3))),\nCONSTRAINT \"speaking_transcriptions_metrics_object\" CHECK ((json_type(metrics) = 'object')),\nCONSTRAINT \"speaking_transcriptions_pkey\" PRIMARY KEY (recording_id),\nCONSTRAINT \"speaking_transcriptions_recording_id_fkey\" FOREIGN KEY (recording_id) REFERENCES speaking_recordings(id) ON DELETE CASCADE,\nCONSTRAINT \"speaking_transcriptions_revision_valid\" CHECK ((recording_revision > 0)),\nCONSTRAINT \"speaking_transcriptions_segments_array\" CHECK ((json_type(segments) = 'array')),\nCONSTRAINT \"speaking_transcriptions_status_valid\" CHECK (((status) IN ('QUEUED', 'PROCESSING', 'READY', 'FAILED'))),\nCONSTRAINT \"speaking_transcriptions_words_array\" CHECK ((json_type(words) = 'array')))",
+    "CREATE TABLE \"study_learning_content_metadata\" (\"kind\" TEXT NOT NULL,\n\"reference_id\" TEXT NOT NULL,\n\"version\" TEXT NOT NULL,\n\"section\" TEXT NOT NULL,\n\"family_id\" TEXT NOT NULL DEFAULT (''),\n\"status\" TEXT NOT NULL,\n\"content_hash\" TEXT NOT NULL,\n\"revision\" INTEGER NOT NULL CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"review_notes\" TEXT NOT NULL,\n\"reviewer_id\" TEXT NOT NULL,\n\"reviewed_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"checklist\" TEXT NOT NULL DEFAULT ('{}') CHECK(\"checklist\" IS NULL OR (json_valid(\"checklist\"))),\nCONSTRAINT \"study_learning_content_metadata_check\" CHECK (((status <> 'reviewed') OR (family_id <> ''))),\nCONSTRAINT \"study_learning_content_metadata_kind_check\" CHECK ((kind IN ('drill', 'material'))),\nCONSTRAINT \"study_learning_content_metadata_pkey\" PRIMARY KEY (kind, reference_id, version),\nCONSTRAINT \"study_learning_content_metadata_reviewer_id_fkey\" FOREIGN KEY (reviewer_id) REFERENCES users(id),\nCONSTRAINT \"study_learning_content_metadata_revision_check\" CHECK ((revision > 0)),\nCONSTRAINT \"study_learning_content_metadata_section_check\" CHECK ((section IN ('reading', 'listening', 'writing', 'speaking'))),\nCONSTRAINT \"study_learning_content_metadata_status_check\" CHECK ((status IN ('draft', 'reviewed', 'withdrawn'))))",
+    "CREATE TABLE \"study_learning_content_reviews\" (\"id\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL CHECK(\"id\" IS NULL OR (typeof(\"id\")='integer')),\n\"kind\" TEXT NOT NULL,\n\"reference_id\" TEXT NOT NULL,\n\"version\" TEXT NOT NULL,\n\"revision\" INTEGER NOT NULL CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"decision\" TEXT NOT NULL CHECK(\"decision\" IS NULL OR (json_valid(\"decision\"))),\n\"reviewer_id\" TEXT NOT NULL,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"study_learning_content_review_kind_reference_id_version_rev_key\" UNIQUE (kind, reference_id, version, revision),\nCONSTRAINT \"study_learning_content_reviews_reviewer_id_fkey\" FOREIGN KEY (reviewer_id) REFERENCES users(id))",
+    "CREATE TABLE \"study_plan_attempts\" (\"assignment_id\" TEXT NOT NULL,\n\"plan_id\" TEXT NOT NULL,\n\"attempt_id\" TEXT NOT NULL,\nCONSTRAINT \"study_plan_attempts_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"study_plan_attempts_attempt_id_key\" UNIQUE (attempt_id),\nCONSTRAINT \"study_plan_attempts_pkey\" PRIMARY KEY (assignment_id),\nCONSTRAINT \"study_plan_attempts_plan_id_fkey\" FOREIGN KEY (plan_id) REFERENCES study_plans(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"study_plans\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"revision\" INTEGER NOT NULL CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"state\" TEXT NOT NULL CHECK(\"state\" IS NULL OR (json_valid(\"state\"))),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"study_plans_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"study_plans_revision_check\" CHECK ((revision > 0)),\nCONSTRAINT \"study_plans_state_check\" CHECK ((json_type(state) = 'object')),\nCONSTRAINT \"study_plans_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,\nCONSTRAINT \"study_plans_user_id_key\" UNIQUE (user_id))",
+    "CREATE TABLE \"super_admins\" (\"email\" TEXT NOT NULL,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"super_admins_pkey\" PRIMARY KEY (email))",
+    "CREATE TABLE \"system_daily_limits\" (\"id\" INTEGER NOT NULL DEFAULT (1) CHECK(\"id\" IS NULL OR (typeof(\"id\")='integer')) CHECK(\"id\" IS NULL OR (\"id\" BETWEEN -2147483648 AND 2147483647)),\n\"assistant_limit\" INTEGER NOT NULL DEFAULT (100) CHECK(\"assistant_limit\" IS NULL OR (typeof(\"assistant_limit\")='integer')) CHECK(\"assistant_limit\" IS NULL OR (\"assistant_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"guest_assistant_limit\" INTEGER NOT NULL DEFAULT (15) CHECK(\"guest_assistant_limit\" IS NULL OR (typeof(\"guest_assistant_limit\")='integer')) CHECK(\"guest_assistant_limit\" IS NULL OR (\"guest_assistant_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"writing_limit\" INTEGER NOT NULL DEFAULT (25) CHECK(\"writing_limit\" IS NULL OR (typeof(\"writing_limit\")='integer')) CHECK(\"writing_limit\" IS NULL OR (\"writing_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"speaking_limit\" INTEGER NOT NULL DEFAULT (25) CHECK(\"speaking_limit\" IS NULL OR (typeof(\"speaking_limit\")='integer')) CHECK(\"speaking_limit\" IS NULL OR (\"speaking_limit\" BETWEEN -2147483648 AND 2147483647)),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"system_daily_limits_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"system_daily_limits_positive\" CHECK (((assistant_limit >= 0) AND (guest_assistant_limit >= 0) AND (writing_limit >= 0) AND (speaking_limit >= 0))),\nCONSTRAINT \"system_daily_limits_single_row\" CHECK ((id = 1)))",
+    "CREATE TABLE \"user_activity_days\" (\"day\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"first_seen_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"user_activity_days_pk\" PRIMARY KEY (day, user_id),\nCONSTRAINT \"user_activity_days_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"user_profiles\" (\"user_id\" TEXT NOT NULL,\n\"display_name\" TEXT NOT NULL CHECK(\"display_name\" IS NULL OR (length(\"display_name\")<=100)),\n\"current_band\" REAL,\n\"target_band\" REAL,\n\"exam_date\" TEXT,\n\"exam_type\" TEXT CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=32)),\n\"timezone\" TEXT NOT NULL DEFAULT ('UTC') CHECK(\"timezone\" IS NULL OR (length(\"timezone\")<=64)),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"user_profiles_current_band_valid\" CHECK (((current_band IS NULL) OR (((current_band >= (0)) AND (current_band <= (9))) AND ((current_band * (2)) = trunc((current_band * (2))))))),\nCONSTRAINT \"user_profiles_display_name_not_blank\" CHECK ((trim((display_name)) <> '')),\nCONSTRAINT \"user_profiles_exam_type_valid\" CHECK (((exam_type IS NULL) OR ((exam_type) IN ('academic', 'general')))),\nCONSTRAINT \"user_profiles_pkey\" PRIMARY KEY (user_id),\nCONSTRAINT \"user_profiles_target_band_valid\" CHECK (((target_band IS NULL) OR (((target_band >= (0)) AND (target_band <= (9))) AND ((target_band * (2)) = trunc((target_band * (2))))))),\nCONSTRAINT \"user_profiles_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"user_skill_progress\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"skill\" TEXT NOT NULL CHECK(\"skill\" IS NULL OR (length(\"skill\")<=16)),\n\"estimated_band\" REAL,\n\"accuracy_percent\" REAL,\n\"completed_tasks\" INTEGER NOT NULL DEFAULT (0) CHECK(\"completed_tasks\" IS NULL OR (typeof(\"completed_tasks\")='integer')) CHECK(\"completed_tasks\" IS NULL OR (\"completed_tasks\" BETWEEN -2147483648 AND 2147483647)),\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"user_skill_progress_accuracy_valid\" CHECK (((accuracy_percent IS NULL) OR ((accuracy_percent >= (0)) AND (accuracy_percent <= (100))))),\nCONSTRAINT \"user_skill_progress_band_valid\" CHECK (((estimated_band IS NULL) OR (((estimated_band >= (0)) AND (estimated_band <= (9))) AND ((estimated_band * (2)) = trunc((estimated_band * (2))))))),\nCONSTRAINT \"user_skill_progress_completed_tasks_valid\" CHECK ((completed_tasks >= 0)),\nCONSTRAINT \"user_skill_progress_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"user_skill_progress_skill_valid\" CHECK (((skill) IN ('listening', 'reading', 'writing', 'speaking'))),\nCONSTRAINT \"user_skill_progress_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,\nCONSTRAINT \"user_skill_progress_user_skill_unique\" UNIQUE (user_id, skill))",
+    "CREATE TABLE \"users\" (\"id\" TEXT NOT NULL,\n\"email\" TEXT NOT NULL CHECK(\"email\" IS NULL OR (length(\"email\")<=254)),\n\"password_hash\" TEXT,\n\"role\" TEXT NOT NULL DEFAULT ('STUDENT') CHECK(\"role\" IS NULL OR (length(\"role\")<=32)),\n\"terms_accepted_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"phone\" TEXT CHECK(\"phone\" IS NULL OR (length(\"phone\")<=16)),\n\"google_sub\" TEXT,\n\"status\" TEXT NOT NULL DEFAULT ('REGISTERED') CHECK(\"status\" IS NULL OR (length(\"status\")<=32)),\n\"first_name\" TEXT CHECK(\"first_name\" IS NULL OR (length(\"first_name\")<=100)),\n\"last_name\" TEXT CHECK(\"last_name\" IS NULL OR (length(\"last_name\")<=100)),\n\"source\" TEXT CHECK(\"source\" IS NULL OR (length(\"source\")<=50)),\n\"referred_by_code\" TEXT CHECK(\"referred_by_code\" IS NULL OR (length(\"referred_by_code\")<=64)),\n\"referral_code\" TEXT CHECK(\"referral_code\" IS NULL OR (length(\"referral_code\")<=16)),\n\"blocked\" INTEGER NOT NULL DEFAULT (false) CHECK(\"blocked\" IS NULL OR (\"blocked\" IN(0,1))),\n\"token_version\" INTEGER NOT NULL DEFAULT (0) CHECK(\"token_version\" IS NULL OR (typeof(\"token_version\")='integer')) CHECK(\"token_version\" IS NULL OR (\"token_version\" BETWEEN -2147483648 AND 2147483647)),\n\"admin_permissions\" TEXT NOT NULL DEFAULT ('[]') CHECK(\"admin_permissions\" IS NULL OR (json_valid(\"admin_permissions\"))) CHECK(\"admin_permissions\" IS NULL OR (json_type(\"admin_permissions\")='array')),\nCONSTRAINT \"users_admin_permissions_valid\" CHECK ((1)),\nCONSTRAINT \"users_email_normalized\" CHECK (((email) = lower(trim((email))))),\nCONSTRAINT \"users_first_name_not_blank\" CHECK (((first_name IS NULL) OR (trim((first_name)) <> ''))),\nCONSTRAINT \"users_guest_status_valid\" CHECK ((((role) = 'GUEST') = ((status) = 'GUEST'))),\nCONSTRAINT \"users_last_name_not_blank\" CHECK (((last_name IS NULL) OR (trim((last_name)) <> ''))),\nCONSTRAINT \"users_phone_e164\" CHECK (((phone IS NULL) OR ((length(phone) BETWEEN 9 AND 16 AND substr(phone,1,1)='+' AND substr(phone,2,1) GLOB '[1-9]' AND substr(phone,2) NOT GLOB '*[^0-9]*')))),\nCONSTRAINT \"users_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"users_referral_code_required_for_leads\" CHECK ((((status) IN ('REGISTERED', 'GUEST')) OR (referral_code IS NOT NULL))),\nCONSTRAINT \"users_role_valid\" CHECK (((role) IN ('STUDENT', 'WRITER', 'EDITOR', 'ADMIN', 'GUEST'))),\nCONSTRAINT \"users_status_valid\" CHECK (((status) IN ('WAITING', 'INVITED', 'REGISTERED', 'GUEST'))))",
+    "CREATE TABLE \"writer_applications\" (\"id\" TEXT NOT NULL,\n\"user_id\" TEXT NOT NULL,\n\"overall_band\" REAL NOT NULL,\n\"listening_band\" REAL,\n\"reading_band\" REAL NOT NULL,\n\"writing_band\" REAL NOT NULL,\n\"speaking_band\" REAL NOT NULL,\n\"trf_number\" TEXT NOT NULL CHECK(\"trf_number\" IS NULL OR (length(\"trf_number\")<=64)),\n\"test_date\" TEXT,\n\"exam_type\" TEXT CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=32)),\n\"bio\" TEXT NOT NULL DEFAULT (''),\n\"certificate_storage_key\" TEXT NOT NULL CHECK(\"certificate_storage_key\" IS NULL OR (length(\"certificate_storage_key\")<=500)),\n\"certificate_mime_type\" TEXT NOT NULL CHECK(\"certificate_mime_type\" IS NULL OR (length(\"certificate_mime_type\")<=100)),\n\"status\" TEXT NOT NULL DEFAULT ('PENDING') CHECK(\"status\" IS NULL OR (length(\"status\")<=20)),\n\"review_notes\" TEXT NOT NULL DEFAULT (''),\n\"reviewed_by\" TEXT,\n\"reviewed_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"writer_applications_bands_valid\" CHECK (((((overall_band >= (0)) AND (overall_band <= (9))) AND ((overall_band * (2)) = trunc((overall_band * (2)))) AND (overall_band >= 7.5) AND (listening_band IS NULL)) OR (((listening_band >= (0)) AND (listening_band <= (9))) AND ((listening_band * (2)) = trunc((listening_band * (2)))) AND ((reading_band >= (0)) AND (reading_band <= (9))) AND ((reading_band * (2)) = trunc((reading_band * (2)))) AND ((writing_band >= (0)) AND (writing_band <= (9))) AND ((writing_band * (2)) = trunc((writing_band * (2)))) AND ((speaking_band >= (0)) AND (speaking_band <= (9))) AND ((speaking_band * (2)) = trunc((speaking_band * (2))))))),\nCONSTRAINT \"writer_applications_exam_type_valid\" CHECK (((exam_type IS NULL) OR ((exam_type) IN ('academic', 'general')))),\nCONSTRAINT \"writer_applications_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"writer_applications_reviewed_by_fkey\" FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"writer_applications_status_valid\" CHECK (((status) IN ('PENDING', 'APPROVED', 'REJECTED'))),\nCONSTRAINT \"writer_applications_trf_not_blank\" CHECK ((trim((trf_number)) <> '')),\nCONSTRAINT \"writer_applications_user_id_fkey\" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)",
+    "CREATE TABLE \"writing_assessment_jobs\" (\"attempt_id\" TEXT NOT NULL,\n\"status\" TEXT NOT NULL DEFAULT ('QUEUED') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"attempts\" INTEGER NOT NULL DEFAULT (0) CHECK(\"attempts\" IS NULL OR (typeof(\"attempts\")='integer')) CHECK(\"attempts\" IS NULL OR (\"attempts\" BETWEEN -2147483648 AND 2147483647)),\n\"next_attempt_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"error_code\" TEXT CHECK(\"error_code\" IS NULL OR (length(\"error_code\")<=64)),\n\"error_message\" TEXT,\n\"started_at\" TEXT,\n\"completed_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"writing_assessment_jobs_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"writing_assessment_jobs_attempts_valid\" CHECK (((attempts >= 0) AND (attempts <= 3))),\nCONSTRAINT \"writing_assessment_jobs_pkey\" PRIMARY KEY (attempt_id),\nCONSTRAINT \"writing_assessment_jobs_status_valid\" CHECK (((status) IN ('QUEUED', 'PROCESSING', 'READY', 'FAILED'))))",
+    "CREATE TABLE \"writing_evaluations\" (\"attempt_id\" TEXT NOT NULL,\n\"model\" TEXT NOT NULL CHECK(\"model\" IS NULL OR (length(\"model\")<=200)),\n\"overall_band\" REAL NOT NULL,\n\"task_response_band\" REAL NOT NULL,\n\"coherence_band\" REAL NOT NULL,\n\"lexical_resource_band\" REAL NOT NULL,\n\"grammar_band\" REAL NOT NULL,\n\"feedback\" TEXT NOT NULL CHECK(\"feedback\" IS NULL OR (json_valid(\"feedback\"))),\n\"evaluated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"writing_evaluations_attempt_id_fkey\" FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,\nCONSTRAINT \"writing_evaluations_band_valid\" CHECK ((((overall_band >= (0)) AND (overall_band <= (9))) AND ((task_response_band >= (0)) AND (task_response_band <= (9))) AND ((coherence_band >= (0)) AND (coherence_band <= (9))) AND ((lexical_resource_band >= (0)) AND (lexical_resource_band <= (9))) AND ((grammar_band >= (0)) AND (grammar_band <= (9))))),\nCONSTRAINT \"writing_evaluations_feedback_object\" CHECK ((json_type(feedback) = 'object')),\nCONSTRAINT \"writing_evaluations_pkey\" PRIMARY KEY (attempt_id))",
+    "CREATE TABLE \"writing_material_versions\" (\"id\" TEXT NOT NULL,\n\"material_id\" TEXT NOT NULL,\n\"version_number\" INTEGER NOT NULL CHECK(\"version_number\" IS NULL OR (typeof(\"version_number\")='integer')) CHECK(\"version_number\" IS NULL OR (\"version_number\" BETWEEN -2147483648 AND 2147483647)),\n\"exam_type\" TEXT NOT NULL CHECK(\"exam_type\" IS NULL OR (length(\"exam_type\")<=16)),\n\"difficulty\" TEXT NOT NULL CHECK(\"difficulty\" IS NULL OR (length(\"difficulty\")<=16)),\n\"title\" TEXT NOT NULL CHECK(\"title\" IS NULL OR (length(\"title\")<=200)),\n\"description\" TEXT NOT NULL DEFAULT (''),\n\"tasks\" TEXT NOT NULL CHECK(\"tasks\" IS NULL OR (json_valid(\"tasks\"))),\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"duration_minutes\" INTEGER NOT NULL DEFAULT (60) CHECK(\"duration_minutes\" IS NULL OR (typeof(\"duration_minutes\")='integer')) CHECK(\"duration_minutes\" IS NULL OR (\"duration_minutes\" BETWEEN -2147483648 AND 2147483647)),\nCONSTRAINT \"writing_material_versions_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"writing_material_versions_difficulty_valid\" CHECK (((difficulty) IN ('foundation', 'intermediate', 'advanced'))),\nCONSTRAINT \"writing_material_versions_duration_minutes_check\" CHECK (((duration_minutes >= 5) AND (duration_minutes <= 180))),\nCONSTRAINT \"writing_material_versions_exam_type_valid\" CHECK (((exam_type) IN ('academic', 'general'))),\nCONSTRAINT \"writing_material_versions_material_id_fkey\" FOREIGN KEY (material_id) REFERENCES writing_materials(id) ON DELETE CASCADE,\nCONSTRAINT \"writing_material_versions_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"writing_material_versions_tasks_array\" CHECK ((json_type(tasks) = 'array')),\nCONSTRAINT \"writing_material_versions_unique\" UNIQUE (material_id, version_number))",
+    "CREATE TABLE \"writing_materials\" (\"id\" TEXT NOT NULL,\n\"slug\" TEXT NOT NULL CHECK(\"slug\" IS NULL OR (length(\"slug\")<=160)),\n\"status\" TEXT NOT NULL DEFAULT ('DRAFT') CHECK(\"status\" IS NULL OR (length(\"status\")<=16)),\n\"revision\" INTEGER NOT NULL DEFAULT (1) CHECK(\"revision\" IS NULL OR (typeof(\"revision\")='integer')),\n\"current_version_number\" INTEGER NOT NULL DEFAULT (1) CHECK(\"current_version_number\" IS NULL OR (typeof(\"current_version_number\")='integer')) CHECK(\"current_version_number\" IS NULL OR (\"current_version_number\" BETWEEN -2147483648 AND 2147483647)),\n\"published_version_id\" TEXT,\n\"published_at\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\n\"updated_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"writing_materials_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"writing_materials_published_version_fk\" FOREIGN KEY (published_version_id) REFERENCES writing_material_versions(id) ON DELETE SET NULL,\nCONSTRAINT \"writing_materials_revision_valid\" CHECK ((revision > 0)),\nCONSTRAINT \"writing_materials_slug_key\" UNIQUE (slug),\nCONSTRAINT \"writing_materials_status_valid\" CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))),\nCONSTRAINT \"writing_materials_version_valid\" CHECK ((current_version_number > 0)))",
+    "CREATE TABLE \"writing_media\" (\"id\" TEXT NOT NULL,\n\"kind\" TEXT NOT NULL DEFAULT ('image') CHECK(\"kind\" IS NULL OR (length(\"kind\")<=16)),\n\"original_name\" TEXT NOT NULL CHECK(\"original_name\" IS NULL OR (length(\"original_name\")<=255)),\n\"mime_type\" TEXT NOT NULL CHECK(\"mime_type\" IS NULL OR (length(\"mime_type\")<=100)),\n\"storage_key\" TEXT NOT NULL CHECK(\"storage_key\" IS NULL OR (length(\"storage_key\")<=500)),\n\"byte_size\" INTEGER NOT NULL CHECK(\"byte_size\" IS NULL OR (typeof(\"byte_size\")='integer')),\n\"created_by\" TEXT,\n\"created_at\" TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f000000Z','now')),\nCONSTRAINT \"writing_media_created_by_fkey\" FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,\nCONSTRAINT \"writing_media_kind_valid\" CHECK (((kind) = 'image')),\nCONSTRAINT \"writing_media_pkey\" PRIMARY KEY (id),\nCONSTRAINT \"writing_media_size_valid\" CHECK ((byte_size > 0)),\nCONSTRAINT \"writing_media_storage_key_key\" UNIQUE (storage_key))",
+    "CREATE INDEX ai_provider_calls_model_idx ON ai_provider_calls (provider_id, model, purpose, started_at DESC)",
+    "CREATE INDEX ai_provider_calls_window_idx ON ai_provider_calls (started_at DESC)",
+    "CREATE TRIGGER \"ai_provider_scopes_INSERT\" BEFORE INSERT ON \"ai_providers\" WHEN EXISTS(SELECT 1 FROM json_each(NEW.\"scopes\") WHERE value NOT IN ('assistant', 'writing', 'speaking')) BEGIN SELECT RAISE(ABORT, 'ai_provider_scopes'); END",
+    "CREATE TRIGGER \"ai_provider_scopes_UPDATE\" BEFORE UPDATE ON \"ai_providers\" WHEN EXISTS(SELECT 1 FROM json_each(NEW.\"scopes\") WHERE value NOT IN ('assistant', 'writing', 'speaking')) BEGIN SELECT RAISE(ABORT, 'ai_provider_scopes'); END",
+    "CREATE INDEX ai_providers_chain_idx ON ai_providers (priority, id) WHERE enabled",
+    "CREATE INDEX attempts_completed_material_idx ON attempts (user_id, material_type, material_id) WHERE ((status) IN ('SUBMITTED', 'PROCESSING'))",
+    "CREATE INDEX attempts_history_idx ON attempts (user_id, COALESCE(submitted_at, started_at) DESC, id DESC)",
+    "CREATE INDEX attempts_mistake_bank_idx ON attempts (user_id, material_type, submitted_at DESC, id DESC) WHERE ((status) = 'SUBMITTED')",
+    "CREATE INDEX attempts_started_at_idx ON attempts (started_at)",
+    "CREATE INDEX attempts_user_material_idx ON attempts (user_id, material_type, started_at DESC)",
+    "CREATE INDEX blog_media_created_at_idx ON blog_media (created_at DESC)",
+    "CREATE INDEX blog_posts_author_idx ON blog_posts (author_id, updated_at DESC)",
+    "CREATE INDEX blog_posts_published_idx ON blog_posts (status, published_at DESC)",
+    "CREATE TRIGGER \"blog_posts_set_updated_at\" AFTER UPDATE ON \"blog_posts\" BEGIN UPDATE \"blog_posts\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE UNIQUE INDEX full_mock_sessions_active_user_idx ON full_mock_sessions (mock_test_id, user_id) WHERE ((status) = 'IN_PROGRESS')",
+    "CREATE UNIQUE INDEX full_mock_sessions_generated_active_user_idx ON full_mock_sessions (user_id) WHERE (((status) = 'IN_PROGRESS') AND (mock_test_id IS NULL))",
+    "CREATE INDEX full_mock_sessions_started_at_idx ON full_mock_sessions (started_at)",
+    "CREATE INDEX full_mock_sessions_user_idx ON full_mock_sessions (user_id, started_at DESC)",
+    "CREATE INDEX full_mock_tests_published_idx ON full_mock_tests (status, published_at DESC)",
+    "CREATE INDEX guest_trials_expiry_idx ON guest_trials (expires_at)",
+    "CREATE INDEX listening_parts_version_idx ON listening_parts (test_version_id, \"position\")",
+    "CREATE INDEX listening_groups_part_idx ON listening_question_groups (part_id, \"position\")",
+    "CREATE INDEX listening_questions_group_idx ON listening_questions (group_id, \"position\")",
+    "CREATE INDEX listening_versions_test_idx ON listening_test_versions (test_id, version_number DESC)",
+    "CREATE INDEX listening_tests_status_idx ON listening_tests (status, updated_at DESC)",
+    "CREATE INDEX phone_verifications_phone_purpose_created_idx ON phone_verifications (phone, purpose, created_at DESC)",
+    "CREATE UNIQUE INDEX phone_verifications_token_unique ON phone_verifications (verification_token_hash) WHERE (verification_token_hash IS NOT NULL)",
+    "CREATE TRIGGER \"phone_verifications_set_updated_at\" AFTER UPDATE ON \"phone_verifications\" BEGIN UPDATE \"phone_verifications\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE INDEX question_translations_question_idx ON question_translations (question_id)",
+    "CREATE INDEX reading_materials_catalog_idx ON reading_materials (status, exam_type, difficulty, updated_at DESC)",
+    "CREATE TRIGGER \"reading_materials_set_updated_at\" AFTER UPDATE ON \"reading_materials\" BEGIN UPDATE \"reading_materials\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE INDEX reading_question_groups_version_idx ON reading_question_groups (material_version_id, \"position\")",
+    "CREATE INDEX reading_questions_group_idx ON reading_questions (group_id, \"position\")",
+    "CREATE INDEX reading_test_passages_passage_idx ON reading_test_passages (passage_material_id, passage_material_version_id)",
+    "CREATE UNIQUE INDEX refresh_sessions_token_hash_unique ON refresh_sessions (token_hash)",
+    "CREATE INDEX refresh_sessions_user_active_idx ON refresh_sessions (user_id, expires_at) WHERE (revoked_at IS NULL)",
+    "CREATE TRIGGER \"refresh_sessions_set_updated_at\" AFTER UPDATE ON \"refresh_sessions\" BEGIN UPDATE \"refresh_sessions\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE INDEX speaking_assessment_jobs_work_idx ON speaking_assessment_jobs (status, next_attempt_at, created_at)",
+    "CREATE INDEX speaking_material_versions_material_idx ON speaking_material_versions (material_id, version_number DESC)",
+    "CREATE INDEX speaking_materials_published_idx ON speaking_materials (status, published_at DESC)",
+    "CREATE INDEX speaking_recordings_attempt_idx ON speaking_recordings (attempt_id, created_at)",
+    "CREATE INDEX speaking_transcriptions_work_idx ON speaking_transcriptions (status, next_attempt_at, created_at)",
+    "CREATE INDEX study_plan_attempts_plan_idx ON study_plan_attempts (plan_id)",
+    "CREATE INDEX user_activity_days_user_idx ON user_activity_days (user_id, day)",
+    "CREATE TRIGGER \"user_profiles_set_updated_at\" AFTER UPDATE ON \"user_profiles\" BEGIN UPDATE \"user_profiles\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE INDEX user_skill_progress_user_idx ON user_skill_progress (user_id)",
+    "CREATE TRIGGER \"user_skill_progress_set_updated_at\" AFTER UPDATE ON \"user_skill_progress\" BEGIN UPDATE \"user_skill_progress\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE TRIGGER \"users_admin_permissions_valid_INSERT\" BEFORE INSERT ON \"users\" WHEN EXISTS(SELECT 1 FROM json_each(NEW.\"admin_permissions\") WHERE value NOT IN ('BLOG_MODERATOR', 'CONTENT_EDITOR')) BEGIN SELECT RAISE(ABORT, 'users_admin_permissions_valid'); END",
+    "CREATE TRIGGER \"users_admin_permissions_valid_UPDATE\" BEFORE UPDATE ON \"users\" WHEN EXISTS(SELECT 1 FROM json_each(NEW.\"admin_permissions\") WHERE value NOT IN ('BLOG_MODERATOR', 'CONTENT_EDITOR')) BEGIN SELECT RAISE(ABORT, 'users_admin_permissions_valid'); END",
+    "CREATE INDEX users_created_at_idx ON users (created_at)",
+    "CREATE UNIQUE INDEX users_email_unique ON users (lower((email)))",
+    "CREATE UNIQUE INDEX users_google_sub_unique ON users (google_sub) WHERE (google_sub IS NOT NULL)",
+    "CREATE UNIQUE INDEX users_phone_unique ON users (phone) WHERE (phone IS NOT NULL)",
+    "CREATE UNIQUE INDEX users_referral_code_unique ON users (referral_code) WHERE (referral_code IS NOT NULL)",
+    "CREATE INDEX users_referred_by_code_idx ON users (referred_by_code) WHERE (referred_by_code IS NOT NULL)",
+    "CREATE TRIGGER \"users_set_updated_at\" AFTER UPDATE ON \"users\" BEGIN UPDATE \"users\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE UNIQUE INDEX writer_applications_one_pending_per_user ON writer_applications (user_id) WHERE ((status) = 'PENDING')",
+    "CREATE INDEX writer_applications_status_idx ON writer_applications (status, created_at DESC)",
+    "CREATE TRIGGER \"writer_applications_set_updated_at\" AFTER UPDATE ON \"writer_applications\" BEGIN UPDATE \"writer_applications\" SET updated_at=strftime('%Y-%m-%dT%H:%M:%f000000Z','now') WHERE rowid=NEW.rowid; END",
+    "CREATE INDEX writing_assessment_jobs_work_idx ON writing_assessment_jobs (status, next_attempt_at, created_at)",
+    "CREATE INDEX writing_material_versions_material_idx ON writing_material_versions (material_id, version_number DESC)",
+    "CREATE INDEX writing_materials_published_idx ON writing_materials (status, published_at DESC)",
+    "CREATE INDEX writing_media_created_at_idx ON writing_media (created_at DESC)"
+  ],
+  "seeds": [
+    {
+      "table": "ai_provider_routing",
+      "rows": [
+        {
+          "singleton": 1,
+          "mode": "sequential",
+          "max_parallel": 1,
+          "hedge_delay_ms": 0,
+          "provider_ids": "[]",
+          "revision": 1
+        }
+      ]
+    },
+    {
+      "table": "system_daily_limits",
+      "rows": [
+        {
+          "id": 1,
+          "assistant_limit": 100,
+          "guest_assistant_limit": 15,
+          "writing_limit": 25,
+          "speaking_limit": 25
+        }
+      ]
+    }
+  ],
+  "constraints": [
+    {
+      "table": "account_object_deletions",
+      "name": "account_object_deletions_pkey",
+      "postgres": "PRIMARY KEY (store, storage_key)",
+      "sqlite": "PRIMARY KEY (store, storage_key)"
+    },
+    {
+      "table": "account_object_deletions",
+      "name": "account_object_deletions_store_check",
+      "postgres": "CHECK (((store)::text = ANY ((ARRAY['blog'::character varying, 'speaking'::character varying])::text[])))",
+      "sqlite": "CHECK (((store) IN ('blog', 'speaking')))"
+    },
+    {
+      "table": "ai_provider_calls",
+      "name": "ai_provider_calls_duration_ms_check",
+      "postgres": "CHECK ((duration_ms >= 0))",
+      "sqlite": "CHECK ((duration_ms >= 0))"
+    },
+    {
+      "table": "ai_provider_calls",
+      "name": "ai_provider_calls_first_response_ms_check",
+      "postgres": "CHECK ((first_response_ms >= 0))",
+      "sqlite": "CHECK ((first_response_ms >= 0))"
+    },
+    {
+      "table": "ai_provider_calls",
+      "name": "ai_provider_calls_first_token_ms_check",
+      "postgres": "CHECK ((first_token_ms >= 0))",
+      "sqlite": "CHECK ((first_token_ms >= 0))"
+    },
+    {
+      "table": "ai_provider_calls",
+      "name": "ai_provider_calls_outcome_check",
+      "postgres": "CHECK (((outcome)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying, 'timeout'::character varying, 'cancelled'::character varying])::text[])))",
+      "sqlite": "CHECK (((outcome) IN ('success', 'failure', 'timeout', 'cancelled')))"
+    },
+    {
+      "table": "ai_provider_calls",
+      "name": "ai_provider_calls_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "ai_provider_calls",
+      "name": "ai_provider_calls_purpose_check",
+      "postgres": "CHECK (((purpose)::text = ANY ((ARRAY['assistant'::character varying, 'writing'::character varying, 'speaking'::character varying, 'test'::character varying])::text[])))",
+      "sqlite": "CHECK (((purpose) IN ('assistant', 'writing', 'speaking', 'test')))"
+    },
+    {
+      "table": "ai_provider_rotation",
+      "name": "ai_provider_rotation_cursor_check",
+      "postgres": "CHECK ((cursor >= 0))",
+      "sqlite": "CHECK ((cursor >= 0))"
+    },
+    {
+      "table": "ai_provider_rotation",
+      "name": "ai_provider_rotation_pkey",
+      "postgres": "PRIMARY KEY (priority, purpose)",
+      "sqlite": "PRIMARY KEY (priority, purpose)"
+    },
+    {
+      "table": "ai_provider_rotation",
+      "name": "ai_provider_rotation_priority_check",
+      "postgres": "CHECK (((priority >= 0) AND (priority <= 10000)))",
+      "sqlite": "CHECK (((priority >= 0) AND (priority <= 10000)))"
+    },
+    {
+      "table": "ai_provider_rotation",
+      "name": "ai_provider_rotation_purpose_check",
+      "postgres": "CHECK (((purpose)::text = ANY ((ARRAY['assistant'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))",
+      "sqlite": "CHECK (((purpose) IN ('assistant', 'writing', 'speaking')))"
+    },
+    {
+      "table": "ai_provider_routing",
+      "name": "ai_provider_routing_hedge_delay_ms_check",
+      "postgres": "CHECK (((hedge_delay_ms >= 0) AND (hedge_delay_ms <= 10000)))",
+      "sqlite": "CHECK (((hedge_delay_ms >= 0) AND (hedge_delay_ms <= 10000)))"
+    },
+    {
+      "table": "ai_provider_routing",
+      "name": "ai_provider_routing_max_parallel_check",
+      "postgres": "CHECK (((max_parallel >= 1) AND (max_parallel <= 4)))",
+      "sqlite": "CHECK (((max_parallel >= 1) AND (max_parallel <= 4)))"
+    },
+    {
+      "table": "ai_provider_routing",
+      "name": "ai_provider_routing_mode_check",
+      "postgres": "CHECK ((mode = 'sequential'::text))",
+      "sqlite": "CHECK ((mode = 'sequential'))"
+    },
+    {
+      "table": "ai_provider_routing",
+      "name": "ai_provider_routing_pkey",
+      "postgres": "PRIMARY KEY (singleton)",
+      "sqlite": "PRIMARY KEY (singleton)"
+    },
+    {
+      "table": "ai_provider_routing",
+      "name": "ai_provider_routing_singleton_check",
+      "postgres": "CHECK (singleton)",
+      "sqlite": "CHECK (singleton)"
+    },
+    {
+      "table": "ai_providers",
+      "name": "ai_provider_key",
+      "postgres": "CHECK (((octet_length(key_ciphertext) >= 38) AND (octet_length(key_ciphertext) <= 16384)))",
+      "sqlite": "CHECK (((length(key_ciphertext) >= 38) AND (length(key_ciphertext) <= 16384)))"
+    },
+    {
+      "table": "ai_providers",
+      "name": "ai_provider_priority",
+      "postgres": "CHECK (((priority >= 0) AND (priority <= 10000)))",
+      "sqlite": "CHECK (((priority >= 0) AND (priority <= 10000)))"
+    },
+    {
+      "table": "ai_providers",
+      "name": "ai_provider_scopes",
+      "postgres": "CHECK (((cardinality(scopes) > 0) AND (scopes <@ ARRAY['assistant'::text, 'writing'::text, 'speaking'::text])))",
+      "sqlite": "CHECK (((json_array_length(scopes) > 0) AND (1)))"
+    },
+    {
+      "table": "ai_providers",
+      "name": "ai_provider_timeout",
+      "postgres": "CHECK (((timeout_seconds >= 5) AND (timeout_seconds <= 60)))",
+      "sqlite": "CHECK (((timeout_seconds >= 5) AND (timeout_seconds <= 60)))"
+    },
+    {
+      "table": "ai_providers",
+      "name": "ai_providers_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "ai_providers",
+      "name": "ai_providers_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "attempt_answers",
+      "name": "attempt_answers_answer_object",
+      "postgres": "CHECK ((jsonb_typeof(answer) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(answer) = 'object'))"
+    },
+    {
+      "table": "attempt_answers",
+      "name": "attempt_answers_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "attempt_answers",
+      "name": "attempt_answers_pk",
+      "postgres": "PRIMARY KEY (attempt_id, question_id)",
+      "sqlite": "PRIMARY KEY (attempt_id, question_id)"
+    },
+    {
+      "table": "attempt_answers",
+      "name": "attempt_answers_points_valid",
+      "postgres": "CHECK (((points_awarded IS NULL) OR (points_awarded >= 0)))",
+      "sqlite": "CHECK (((points_awarded IS NULL) OR (points_awarded >= 0)))"
+    },
+    {
+      "table": "attempts",
+      "name": "attempts_band_valid",
+      "postgres": "CHECK (((band IS NULL) OR (((band >= (0)::numeric) AND (band <= (9)::numeric)) AND ((band * (2)::numeric) = trunc((band * (2)::numeric))))))",
+      "sqlite": "CHECK (((band IS NULL) OR (((band >= (0)) AND (band <= (9))) AND ((band * (2)) = trunc((band * (2)))))))"
+    },
+    {
+      "table": "attempts",
+      "name": "attempts_material_type_valid",
+      "postgres": "CHECK (((material_type)::text = ANY ((ARRAY['listening'::character varying, 'reading'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))",
+      "sqlite": "CHECK (((material_type) IN ('listening', 'reading', 'writing', 'speaking')))"
+    },
+    {
+      "table": "attempts",
+      "name": "attempts_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "attempts",
+      "name": "attempts_score_valid",
+      "postgres": "CHECK (((score IS NULL) OR ((max_score IS NOT NULL) AND ((score >= 0) AND (score <= max_score)))))",
+      "sqlite": "CHECK (((score IS NULL) OR ((max_score IS NOT NULL) AND ((score >= 0) AND (score <= max_score)))))"
+    },
+    {
+      "table": "attempts",
+      "name": "attempts_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['IN_PROGRESS'::character varying, 'PROCESSING'::character varying, 'SUBMITTED'::character varying, 'ABANDONED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('IN_PROGRESS', 'PROCESSING', 'SUBMITTED', 'ABANDONED')))"
+    },
+    {
+      "table": "attempts",
+      "name": "attempts_submitted_fields",
+      "postgres": "CHECK ((((status)::text = ANY ((ARRAY['IN_PROGRESS'::character varying, 'PROCESSING'::character varying, 'ABANDONED'::character varying])::text[])) OR ((score IS NOT NULL) AND (max_score IS NOT NULL) AND (submitted_at IS NOT NULL))))",
+      "sqlite": "CHECK ((((status) IN ('IN_PROGRESS', 'PROCESSING', 'ABANDONED')) OR ((score IS NOT NULL) AND (max_score IS NOT NULL) AND (submitted_at IS NOT NULL))))"
+    },
+    {
+      "table": "attempts",
+      "name": "attempts_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "blog_media",
+      "name": "blog_media_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "blog_media",
+      "name": "blog_media_size_valid",
+      "postgres": "CHECK ((byte_size > 0))",
+      "sqlite": "CHECK ((byte_size > 0))"
+    },
+    {
+      "table": "blog_media",
+      "name": "blog_media_storage_key_key",
+      "postgres": "UNIQUE (storage_key)",
+      "sqlite": "UNIQUE (storage_key)"
+    },
+    {
+      "table": "blog_media",
+      "name": "blog_media_uploaded_by_fkey",
+      "postgres": "FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_author_id_fkey",
+      "postgres": "FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE RESTRICT",
+      "sqlite": "FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE RESTRICT"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_body_json_object",
+      "postgres": "CHECK ((jsonb_typeof(body_json) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(body_json) = 'object'))"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_cover_media_fk",
+      "postgres": "FOREIGN KEY (cover_media_id) REFERENCES blog_media(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (cover_media_id) REFERENCES blog_media(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_reading_time_valid",
+      "postgres": "CHECK (((reading_time_minutes >= 1) AND (reading_time_minutes <= 120)))",
+      "sqlite": "CHECK (((reading_time_minutes >= 1) AND (reading_time_minutes <= 120)))"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_slug_key",
+      "postgres": "UNIQUE (slug)",
+      "sqlite": "UNIQUE (slug)"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')))"
+    },
+    {
+      "table": "blog_posts",
+      "name": "blog_posts_title_not_blank",
+      "postgres": "CHECK ((btrim((title)::text) <> ''::text))",
+      "sqlite": "CHECK ((trim((title)) <> ''))"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_section_clock",
+      "postgres": "CHECK ((((started_at IS NULL) AND (deadline_at IS NULL) AND (remaining_milliseconds IS NULL)) OR ((started_at IS NOT NULL) AND (((deadline_at IS NOT NULL) AND (deadline_at > started_at) AND (remaining_milliseconds IS NULL)) OR ((deadline_at IS NULL) AND (remaining_milliseconds IS NOT NULL))))))",
+      "sqlite": "CHECK ((((started_at IS NULL) AND (deadline_at IS NULL) AND (remaining_milliseconds IS NULL)) OR ((started_at IS NOT NULL) AND (((deadline_at IS NOT NULL) AND (deadline_at > started_at) AND (remaining_milliseconds IS NULL)) OR ((deadline_at IS NULL) AND (remaining_milliseconds IS NOT NULL))))))"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_section_pause_valid",
+      "postgres": "CHECK (((remaining_milliseconds IS NULL) OR ((remaining_milliseconds > 0) AND (started_at IS NOT NULL) AND (deadline_at IS NULL))))",
+      "sqlite": "CHECK (((remaining_milliseconds IS NULL) OR ((remaining_milliseconds > 0) AND (started_at IS NOT NULL) AND (deadline_at IS NULL))))"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_session_sections_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE RESTRICT",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE RESTRICT"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_session_sections_attempt_id_key",
+      "postgres": "UNIQUE (attempt_id)",
+      "sqlite": "UNIQUE (attempt_id)"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_session_sections_pk",
+      "postgres": "PRIMARY KEY (session_id, \"position\")",
+      "sqlite": "PRIMARY KEY (session_id, \"position\")"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_session_sections_position_skill_valid",
+      "postgres": "CHECK ((((\"position\" = 1) AND ((skill)::text = 'listening'::text)) OR ((\"position\" = 2) AND ((skill)::text = 'reading'::text)) OR ((\"position\" = 3) AND ((skill)::text = 'writing'::text)) OR ((\"position\" = 4) AND ((skill)::text = 'speaking'::text))))",
+      "sqlite": "CHECK ((((\"position\" = 1) AND ((skill) = 'listening')) OR ((\"position\" = 2) AND ((skill) = 'reading')) OR ((\"position\" = 3) AND ((skill) = 'writing')) OR ((\"position\" = 4) AND ((skill) = 'speaking'))))"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_session_sections_position_valid",
+      "postgres": "CHECK (((\"position\" >= 1) AND (\"position\" <= 4)))",
+      "sqlite": "CHECK (((\"position\" >= 1) AND (\"position\" <= 4)))"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_session_sections_session_id_fkey",
+      "postgres": "FOREIGN KEY (session_id) REFERENCES full_mock_sessions(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (session_id) REFERENCES full_mock_sessions(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "full_mock_session_sections",
+      "name": "full_mock_session_sections_skill_valid",
+      "postgres": "CHECK (((skill)::text = ANY ((ARRAY['listening'::character varying, 'reading'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))",
+      "sqlite": "CHECK (((skill) IN ('listening', 'reading', 'writing', 'speaking')))"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_duration_valid",
+      "postgres": "CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300)))",
+      "sqlite": "CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300)))"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_exam_type_valid",
+      "postgres": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))",
+      "sqlite": "CHECK (((exam_type) IN ('academic', 'general')))"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_metadata_valid",
+      "postgres": "CHECK (((mock_test_id IS NOT NULL) OR ((exam_type IS NOT NULL) AND (title IS NOT NULL) AND (duration_minutes IS NOT NULL))))",
+      "sqlite": "CHECK (((mock_test_id IS NOT NULL) OR ((exam_type IS NOT NULL) AND (title IS NOT NULL) AND (duration_minutes IS NOT NULL))))"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_mock_test_id_fkey",
+      "postgres": "FOREIGN KEY (mock_test_id) REFERENCES full_mock_tests(id) ON DELETE RESTRICT",
+      "sqlite": "FOREIGN KEY (mock_test_id) REFERENCES full_mock_tests(id) ON DELETE RESTRICT"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_section_valid",
+      "postgres": "CHECK (((current_section >= 1) AND (current_section <= 5)))",
+      "sqlite": "CHECK (((current_section >= 1) AND (current_section <= 5)))"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['IN_PROGRESS'::character varying, 'SUBMITTED'::character varying, 'ABANDONED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('IN_PROGRESS', 'SUBMITTED', 'ABANDONED')))"
+    },
+    {
+      "table": "full_mock_sessions",
+      "name": "full_mock_sessions_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "full_mock_tests",
+      "name": "full_mock_tests_duration_valid",
+      "postgres": "CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300)))",
+      "sqlite": "CHECK (((duration_minutes >= 60) AND (duration_minutes <= 300)))"
+    },
+    {
+      "table": "full_mock_tests",
+      "name": "full_mock_tests_exam_type_valid",
+      "postgres": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))",
+      "sqlite": "CHECK (((exam_type) IN ('academic', 'general')))"
+    },
+    {
+      "table": "full_mock_tests",
+      "name": "full_mock_tests_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "full_mock_tests",
+      "name": "full_mock_tests_revision_valid",
+      "postgres": "CHECK ((revision > 0))",
+      "sqlite": "CHECK ((revision > 0))"
+    },
+    {
+      "table": "full_mock_tests",
+      "name": "full_mock_tests_slug_key",
+      "postgres": "UNIQUE (slug)",
+      "sqlite": "UNIQUE (slug)"
+    },
+    {
+      "table": "full_mock_tests",
+      "name": "full_mock_tests_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')))"
+    },
+    {
+      "table": "guest_mock_materials",
+      "name": "guest_mock_materials_pkey",
+      "postgres": "PRIMARY KEY (skill)",
+      "sqlite": "PRIMARY KEY (skill)"
+    },
+    {
+      "table": "guest_mock_materials",
+      "name": "guest_mock_materials_skill_check",
+      "postgres": "CHECK ((skill = ANY (ARRAY['listening'::text, 'reading'::text, 'writing'::text, 'speaking'::text])))",
+      "sqlite": "CHECK ((skill IN ('listening', 'reading', 'writing', 'speaking')))"
+    },
+    {
+      "table": "guest_trials",
+      "name": "guest_trial_claim_complete",
+      "postgres": "CHECK (((claimed_by IS NULL) = (claimed_session_id IS NULL)))",
+      "sqlite": "CHECK (((claimed_by IS NULL) = (claimed_session_id IS NULL)))"
+    },
+    {
+      "table": "guest_trials",
+      "name": "guest_trials_claimed_by_fkey",
+      "postgres": "FOREIGN KEY (claimed_by) REFERENCES users(id)",
+      "sqlite": "FOREIGN KEY (claimed_by) REFERENCES users(id)"
+    },
+    {
+      "table": "guest_trials",
+      "name": "guest_trials_claimed_session_id_fkey",
+      "postgres": "FOREIGN KEY (claimed_session_id) REFERENCES full_mock_sessions(id)",
+      "sqlite": "FOREIGN KEY (claimed_session_id) REFERENCES full_mock_sessions(id)"
+    },
+    {
+      "table": "guest_trials",
+      "name": "guest_trials_pkey",
+      "postgres": "PRIMARY KEY (user_id)",
+      "sqlite": "PRIMARY KEY (user_id)"
+    },
+    {
+      "table": "guest_trials",
+      "name": "guest_trials_token_hash_key",
+      "postgres": "UNIQUE (token_hash)",
+      "sqlite": "UNIQUE (token_hash)"
+    },
+    {
+      "table": "guest_trials",
+      "name": "guest_trials_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "listening_media",
+      "name": "listening_media_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "listening_media",
+      "name": "listening_media_kind_valid",
+      "postgres": "CHECK (((kind)::text = ANY ((ARRAY['audio'::character varying, 'image'::character varying])::text[])))",
+      "sqlite": "CHECK (((kind) IN ('audio', 'image')))"
+    },
+    {
+      "table": "listening_media",
+      "name": "listening_media_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "listening_media",
+      "name": "listening_media_size_valid",
+      "postgres": "CHECK ((byte_size > 0))",
+      "sqlite": "CHECK ((byte_size > 0))"
+    },
+    {
+      "table": "listening_media",
+      "name": "listening_media_storage_key_key",
+      "postgres": "UNIQUE (storage_key)",
+      "sqlite": "UNIQUE (storage_key)"
+    },
+    {
+      "table": "listening_parts",
+      "name": "listening_parts_audio_asset_id_fkey",
+      "postgres": "FOREIGN KEY (audio_asset_id) REFERENCES listening_media(id)",
+      "sqlite": "FOREIGN KEY (audio_asset_id) REFERENCES listening_media(id)"
+    },
+    {
+      "table": "listening_parts",
+      "name": "listening_parts_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "listening_parts",
+      "name": "listening_parts_position_valid",
+      "postgres": "CHECK ((\"position\" > 0))",
+      "sqlite": "CHECK ((\"position\" > 0))"
+    },
+    {
+      "table": "listening_parts",
+      "name": "listening_parts_test_version_id_fkey",
+      "postgres": "FOREIGN KEY (test_version_id) REFERENCES listening_test_versions(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (test_version_id) REFERENCES listening_test_versions(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "listening_parts",
+      "name": "listening_parts_version_position_unique",
+      "postgres": "UNIQUE (test_version_id, \"position\")",
+      "sqlite": "UNIQUE (test_version_id, \"position\")"
+    },
+    {
+      "table": "listening_question_groups",
+      "name": "listening_groups_config_object",
+      "postgres": "CHECK ((jsonb_typeof(config) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(config) = 'object'))"
+    },
+    {
+      "table": "listening_question_groups",
+      "name": "listening_groups_part_position_unique",
+      "postgres": "UNIQUE (part_id, \"position\")",
+      "sqlite": "UNIQUE (part_id, \"position\")"
+    },
+    {
+      "table": "listening_question_groups",
+      "name": "listening_groups_position_valid",
+      "postgres": "CHECK ((\"position\" > 0))",
+      "sqlite": "CHECK ((\"position\" > 0))"
+    },
+    {
+      "table": "listening_question_groups",
+      "name": "listening_groups_type_valid",
+      "postgres": "CHECK (((question_type)::text = ANY ((ARRAY['multiple_choice'::character varying, 'matching'::character varying, 'map_labelling'::character varying, 'plan_labelling'::character varying, 'diagram_labelling'::character varying, 'form_completion'::character varying, 'note_completion'::character varying, 'table_completion'::character varying, 'flow_chart_completion'::character varying, 'sentence_completion'::character varying, 'short_answer'::character varying])::text[])))",
+      "sqlite": "CHECK (((question_type) IN ('multiple_choice', 'matching', 'map_labelling', 'plan_labelling', 'diagram_labelling', 'form_completion', 'note_completion', 'table_completion', 'flow_chart_completion', 'sentence_completion', 'short_answer')))"
+    },
+    {
+      "table": "listening_question_groups",
+      "name": "listening_question_groups_image_asset_id_fkey",
+      "postgres": "FOREIGN KEY (image_asset_id) REFERENCES listening_media(id)",
+      "sqlite": "FOREIGN KEY (image_asset_id) REFERENCES listening_media(id)"
+    },
+    {
+      "table": "listening_question_groups",
+      "name": "listening_question_groups_part_id_fkey",
+      "postgres": "FOREIGN KEY (part_id) REFERENCES listening_parts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (part_id) REFERENCES listening_parts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "listening_question_groups",
+      "name": "listening_question_groups_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_answer_object",
+      "postgres": "CHECK ((jsonb_typeof(answer) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(answer) = 'object'))"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_content_object",
+      "postgres": "CHECK ((jsonb_typeof(content) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(content) = 'object'))"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_group_id_fkey",
+      "postgres": "FOREIGN KEY (group_id) REFERENCES listening_question_groups(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (group_id) REFERENCES listening_question_groups(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_group_position_unique",
+      "postgres": "UNIQUE (group_id, \"position\")",
+      "sqlite": "UNIQUE (group_id, \"position\")"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_number_valid",
+      "postgres": "CHECK ((number > 0))",
+      "sqlite": "CHECK ((number > 0))"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_points_valid",
+      "postgres": "CHECK (((points >= 1) AND (points <= 10)))",
+      "sqlite": "CHECK (((points >= 1) AND (points <= 10)))"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_position_valid",
+      "postgres": "CHECK ((\"position\" > 0))",
+      "sqlite": "CHECK ((\"position\" > 0))"
+    },
+    {
+      "table": "listening_questions",
+      "name": "listening_questions_prompt_valid",
+      "postgres": "CHECK ((btrim(prompt) <> ''::text))",
+      "sqlite": "CHECK ((trim(prompt) <> ''))"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_test_versions_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_test_versions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_test_versions_test_id_fkey",
+      "postgres": "FOREIGN KEY (test_id) REFERENCES listening_tests(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (test_id) REFERENCES listening_tests(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_versions_duration_valid",
+      "postgres": "CHECK (((duration_minutes >= 1) AND (duration_minutes <= 180)))",
+      "sqlite": "CHECK (((duration_minutes >= 1) AND (duration_minutes <= 180)))"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_versions_number_valid",
+      "postgres": "CHECK ((version_number > 0))",
+      "sqlite": "CHECK ((version_number > 0))"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_versions_test_id_unique",
+      "postgres": "UNIQUE (test_id, id)",
+      "sqlite": "UNIQUE (test_id, id)"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_versions_test_number_unique",
+      "postgres": "UNIQUE (test_id, version_number)",
+      "sqlite": "UNIQUE (test_id, version_number)"
+    },
+    {
+      "table": "listening_test_versions",
+      "name": "listening_versions_title_valid",
+      "postgres": "CHECK ((btrim((title)::text) <> ''::text))",
+      "sqlite": "CHECK ((trim((title)) <> ''))"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_current_version_fk",
+      "postgres": "FOREIGN KEY (id, current_version_id) REFERENCES listening_test_versions(test_id, id)",
+      "sqlite": "FOREIGN KEY (id, current_version_id) REFERENCES listening_test_versions(test_id, id)"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_exam_type_valid",
+      "postgres": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))",
+      "sqlite": "CHECK (((exam_type) IN ('academic', 'general')))"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_published_version_fk",
+      "postgres": "FOREIGN KEY (id, published_version_id) REFERENCES listening_test_versions(test_id, id)",
+      "sqlite": "FOREIGN KEY (id, published_version_id) REFERENCES listening_test_versions(test_id, id)"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_slug_key",
+      "postgres": "UNIQUE (slug)",
+      "sqlite": "UNIQUE (slug)"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')))"
+    },
+    {
+      "table": "listening_tests",
+      "name": "listening_tests_updated_by_fkey",
+      "postgres": "FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "phone_verifications",
+      "name": "phone_verifications_attempts_valid",
+      "postgres": "CHECK (((attempts >= 0) AND (max_attempts > 0) AND (attempts <= max_attempts)))",
+      "sqlite": "CHECK (((attempts >= 0) AND (max_attempts > 0) AND (attempts <= max_attempts)))"
+    },
+    {
+      "table": "phone_verifications",
+      "name": "phone_verifications_consumed_state_valid",
+      "postgres": "CHECK (((consumed_at IS NULL) OR (verified_at IS NOT NULL)))",
+      "sqlite": "CHECK (((consumed_at IS NULL) OR (verified_at IS NOT NULL)))"
+    },
+    {
+      "table": "phone_verifications",
+      "name": "phone_verifications_expiry_valid",
+      "postgres": "CHECK ((expires_at > created_at))",
+      "sqlite": "CHECK ((expires_at > created_at))"
+    },
+    {
+      "table": "phone_verifications",
+      "name": "phone_verifications_phone_e164",
+      "postgres": "CHECK (((phone)::text ~ '^\\+[1-9][0-9]{7,14}$'::text))",
+      "sqlite": "CHECK (((length(phone) BETWEEN 9 AND 16 AND substr(phone,1,1)='+' AND substr(phone,2,1) GLOB '[1-9]' AND substr(phone,2) NOT GLOB '*[^0-9]*')))"
+    },
+    {
+      "table": "phone_verifications",
+      "name": "phone_verifications_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "phone_verifications",
+      "name": "phone_verifications_purpose_valid",
+      "postgres": "CHECK (((purpose)::text = ANY ((ARRAY['WAITLIST'::character varying, 'REGISTRATION'::character varying])::text[])))",
+      "sqlite": "CHECK (((purpose) IN ('WAITLIST', 'REGISTRATION')))"
+    },
+    {
+      "table": "phone_verifications",
+      "name": "phone_verifications_verified_state_valid",
+      "postgres": "CHECK ((((verified_at IS NULL) AND (verification_token_hash IS NULL) AND (token_expires_at IS NULL)) OR ((verified_at IS NOT NULL) AND (verification_token_hash IS NOT NULL) AND (token_expires_at > verified_at))))",
+      "sqlite": "CHECK ((((verified_at IS NULL) AND (verification_token_hash IS NULL) AND (token_expires_at IS NULL)) OR ((verified_at IS NOT NULL) AND (verification_token_hash IS NOT NULL) AND (token_expires_at > verified_at))))"
+    },
+    {
+      "table": "question_translations",
+      "name": "question_translations_lang_check",
+      "postgres": "CHECK ((lang = ANY (ARRAY['kk'::text, 'en'::text])))",
+      "sqlite": "CHECK ((lang IN ('kk', 'en')))"
+    },
+    {
+      "table": "question_translations",
+      "name": "question_translations_pkey",
+      "postgres": "PRIMARY KEY (question_id, lang)",
+      "sqlite": "PRIMARY KEY (question_id, lang)"
+    },
+    {
+      "table": "question_translations",
+      "name": "question_translations_skill_check",
+      "postgres": "CHECK ((skill = ANY (ARRAY['reading'::text, 'listening'::text])))",
+      "sqlite": "CHECK ((skill IN ('reading', 'listening')))"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_body_not_blank",
+      "postgres": "CHECK ((btrim(body) <> ''::text))",
+      "sqlite": "CHECK ((trim(body) <> ''))"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_duration_valid",
+      "postgres": "CHECK (((duration_minutes IS NULL) OR ((duration_minutes >= 1) AND (duration_minutes <= 300))))",
+      "sqlite": "CHECK (((duration_minutes IS NULL) OR ((duration_minutes >= 1) AND (duration_minutes <= 300))))"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_material_id_fkey",
+      "postgres": "FOREIGN KEY (material_id) REFERENCES reading_materials(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (material_id) REFERENCES reading_materials(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_material_id_unique",
+      "postgres": "UNIQUE (material_id, id)",
+      "sqlite": "UNIQUE (material_id, id)"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_material_number_unique",
+      "postgres": "UNIQUE (material_id, version_number)",
+      "sqlite": "UNIQUE (material_id, version_number)"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_number_valid",
+      "postgres": "CHECK ((version_number > 0))",
+      "sqlite": "CHECK ((version_number > 0))"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "reading_material_versions",
+      "name": "reading_material_versions_title_not_blank",
+      "postgres": "CHECK ((btrim((title)::text) <> ''::text))",
+      "sqlite": "CHECK ((trim((title)) <> ''))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_current_version_fk",
+      "postgres": "FOREIGN KEY (id, current_version_id) REFERENCES reading_material_versions(material_id, id)",
+      "sqlite": "FOREIGN KEY (id, current_version_id) REFERENCES reading_material_versions(material_id, id)"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_difficulty_valid",
+      "postgres": "CHECK (((difficulty)::text = ANY ((ARRAY['foundation'::character varying, 'intermediate'::character varying, 'advanced'::character varying])::text[])))",
+      "sqlite": "CHECK (((difficulty) IN ('foundation', 'intermediate', 'advanced')))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_exam_type_valid",
+      "postgres": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))",
+      "sqlite": "CHECK (((exam_type) IN ('academic', 'general')))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_kind_valid",
+      "postgres": "CHECK (((material_kind)::text = ANY ((ARRAY['PASSAGE'::character varying, 'TEST'::character varying])::text[])))",
+      "sqlite": "CHECK (((material_kind) IN ('PASSAGE', 'TEST')))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_published_by_fkey",
+      "postgres": "FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (published_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_published_state_valid",
+      "postgres": "CHECK ((((published_version_id IS NULL) AND (published_at IS NULL) AND (published_by IS NULL) AND ((status)::text = 'DRAFT'::text)) OR ((published_version_id IS NOT NULL) AND (published_at IS NOT NULL) AND ((status)::text = ANY ((ARRAY['PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))))",
+      "sqlite": "CHECK ((((published_version_id IS NULL) AND (published_at IS NULL) AND (published_by IS NULL) AND ((status) = 'DRAFT')) OR ((published_version_id IS NOT NULL) AND (published_at IS NOT NULL) AND ((status) IN ('PUBLISHED', 'ARCHIVED')))))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_published_version_fk",
+      "postgres": "FOREIGN KEY (id, published_version_id) REFERENCES reading_material_versions(material_id, id)",
+      "sqlite": "FOREIGN KEY (id, published_version_id) REFERENCES reading_material_versions(material_id, id)"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_revision_valid",
+      "postgres": "CHECK ((revision > 0))",
+      "sqlite": "CHECK ((revision > 0))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_slug_key",
+      "postgres": "UNIQUE (slug)",
+      "sqlite": "UNIQUE (slug)"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_slug_valid",
+      "postgres": "CHECK (((slug)::text ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'::text))",
+      "sqlite": "CHECK (((length(slug)>0 AND slug NOT GLOB '*[^a-z0-9-]*' AND substr(slug,1,1)!='-' AND substr(slug,-1)!='-' AND instr(slug,'--')=0)))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')))"
+    },
+    {
+      "table": "reading_materials",
+      "name": "reading_materials_updated_by_fkey",
+      "postgres": "FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "reading_question_groups",
+      "name": "reading_question_groups_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "reading_question_groups",
+      "name": "reading_question_groups_material_version_id_fkey",
+      "postgres": "FOREIGN KEY (material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "reading_question_groups",
+      "name": "reading_question_groups_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "reading_question_groups",
+      "name": "reading_question_groups_position_valid",
+      "postgres": "CHECK ((\"position\" > 0))",
+      "sqlite": "CHECK ((\"position\" > 0))"
+    },
+    {
+      "table": "reading_question_groups",
+      "name": "reading_question_groups_type_valid",
+      "postgres": "CHECK (((question_type)::text = ANY ((ARRAY['multiple_choice'::character varying, 'true_false_not_given'::character varying, 'yes_no_not_given'::character varying, 'matching_information'::character varying, 'matching_headings'::character varying, 'matching_features'::character varying, 'matching_sentence_endings'::character varying, 'sentence_completion'::character varying, 'summary_completion'::character varying, 'note_completion'::character varying, 'table_completion'::character varying, 'flow_chart_completion'::character varying, 'diagram_label_completion'::character varying, 'short_answer'::character varying])::text[])))",
+      "sqlite": "CHECK (((question_type) IN ('multiple_choice', 'true_false_not_given', 'yes_no_not_given', 'matching_information', 'matching_headings', 'matching_features', 'matching_sentence_endings', 'sentence_completion', 'summary_completion', 'note_completion', 'table_completion', 'flow_chart_completion', 'diagram_label_completion', 'short_answer')))"
+    },
+    {
+      "table": "reading_question_groups",
+      "name": "reading_question_groups_version_position_unique",
+      "postgres": "UNIQUE (material_version_id, \"position\")",
+      "sqlite": "UNIQUE (material_version_id, \"position\")"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_answer_object",
+      "postgres": "CHECK ((jsonb_typeof(answer) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(answer) = 'object'))"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_content_object",
+      "postgres": "CHECK ((jsonb_typeof(content) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(content) = 'object'))"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_group_id_fkey",
+      "postgres": "FOREIGN KEY (group_id) REFERENCES reading_question_groups(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (group_id) REFERENCES reading_question_groups(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_group_position_unique",
+      "postgres": "UNIQUE (group_id, \"position\")",
+      "sqlite": "UNIQUE (group_id, \"position\")"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_points_valid",
+      "postgres": "CHECK (((points >= 1) AND (points <= 10)))",
+      "sqlite": "CHECK (((points >= 1) AND (points <= 10)))"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_position_valid",
+      "postgres": "CHECK ((\"position\" > 0))",
+      "sqlite": "CHECK ((\"position\" > 0))"
+    },
+    {
+      "table": "reading_questions",
+      "name": "reading_questions_prompt_valid",
+      "postgres": "CHECK ((btrim(prompt) <> ''::text))",
+      "sqlite": "CHECK ((trim(prompt) <> ''))"
+    },
+    {
+      "table": "reading_test_passages",
+      "name": "reading_test_passages_distinct_materials",
+      "postgres": "CHECK ((test_material_version_id <> passage_material_version_id))",
+      "sqlite": "CHECK ((test_material_version_id <> passage_material_version_id))"
+    },
+    {
+      "table": "reading_test_passages",
+      "name": "reading_test_passages_passage_material_id_fkey",
+      "postgres": "FOREIGN KEY (passage_material_id) REFERENCES reading_materials(id)",
+      "sqlite": "FOREIGN KEY (passage_material_id) REFERENCES reading_materials(id)"
+    },
+    {
+      "table": "reading_test_passages",
+      "name": "reading_test_passages_pkey",
+      "postgres": "PRIMARY KEY (test_material_version_id, \"position\")",
+      "sqlite": "PRIMARY KEY (test_material_version_id, \"position\")"
+    },
+    {
+      "table": "reading_test_passages",
+      "name": "reading_test_passages_position_valid",
+      "postgres": "CHECK (((\"position\" >= 1) AND (\"position\" <= 20)))",
+      "sqlite": "CHECK (((\"position\" >= 1) AND (\"position\" <= 20)))"
+    },
+    {
+      "table": "reading_test_passages",
+      "name": "reading_test_passages_test_material_version_id_fkey",
+      "postgres": "FOREIGN KEY (test_material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (test_material_version_id) REFERENCES reading_material_versions(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "reading_test_passages",
+      "name": "reading_test_passages_test_material_version_id_passage_mate_key",
+      "postgres": "UNIQUE (test_material_version_id, passage_material_id)",
+      "sqlite": "UNIQUE (test_material_version_id, passage_material_id)"
+    },
+    {
+      "table": "reading_test_passages",
+      "name": "reading_test_passages_version_fk",
+      "postgres": "FOREIGN KEY (passage_material_id, passage_material_version_id) REFERENCES reading_material_versions(material_id, id)",
+      "sqlite": "FOREIGN KEY (passage_material_id, passage_material_version_id) REFERENCES reading_material_versions(material_id, id)"
+    },
+    {
+      "table": "refresh_sessions",
+      "name": "refresh_sessions_expiry_valid",
+      "postgres": "CHECK ((expires_at > created_at))",
+      "sqlite": "CHECK ((expires_at > created_at))"
+    },
+    {
+      "table": "refresh_sessions",
+      "name": "refresh_sessions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "refresh_sessions",
+      "name": "refresh_sessions_replaced_by_fkey",
+      "postgres": "FOREIGN KEY (replaced_by) REFERENCES refresh_sessions(id)",
+      "sqlite": "FOREIGN KEY (replaced_by) REFERENCES refresh_sessions(id)"
+    },
+    {
+      "table": "refresh_sessions",
+      "name": "refresh_sessions_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "speaking_assessment_jobs",
+      "name": "speaking_assessment_jobs_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "speaking_assessment_jobs",
+      "name": "speaking_assessment_jobs_attempts_valid",
+      "postgres": "CHECK (((attempts >= 0) AND (attempts <= 3)))",
+      "sqlite": "CHECK (((attempts >= 0) AND (attempts <= 3)))"
+    },
+    {
+      "table": "speaking_assessment_jobs",
+      "name": "speaking_assessment_jobs_pkey",
+      "postgres": "PRIMARY KEY (attempt_id)",
+      "sqlite": "PRIMARY KEY (attempt_id)"
+    },
+    {
+      "table": "speaking_assessment_jobs",
+      "name": "speaking_assessment_jobs_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'PROCESSING'::character varying, 'READY'::character varying, 'FAILED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('QUEUED', 'PROCESSING', 'READY', 'FAILED')))"
+    },
+    {
+      "table": "speaking_evaluations",
+      "name": "speaking_evaluations_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "speaking_evaluations",
+      "name": "speaking_evaluations_band_valid",
+      "postgres": "CHECK ((((overall_band >= (0)::numeric) AND (overall_band <= (9)::numeric)) AND ((fluency_band >= (0)::numeric) AND (fluency_band <= (9)::numeric)) AND ((lexical_resource_band >= (0)::numeric) AND (lexical_resource_band <= (9)::numeric)) AND ((grammar_band >= (0)::numeric) AND (grammar_band <= (9)::numeric)) AND ((pronunciation_band IS NULL) OR ((pronunciation_band >= (0)::numeric) AND (pronunciation_band <= (9)::numeric)))))",
+      "sqlite": "CHECK ((((overall_band >= (0)) AND (overall_band <= (9))) AND ((fluency_band >= (0)) AND (fluency_band <= (9))) AND ((lexical_resource_band >= (0)) AND (lexical_resource_band <= (9))) AND ((grammar_band >= (0)) AND (grammar_band <= (9))) AND ((pronunciation_band IS NULL) OR ((pronunciation_band >= (0)) AND (pronunciation_band <= (9))))))"
+    },
+    {
+      "table": "speaking_evaluations",
+      "name": "speaking_evaluations_feedback_object",
+      "postgres": "CHECK ((jsonb_typeof(feedback) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(feedback) = 'object'))"
+    },
+    {
+      "table": "speaking_evaluations",
+      "name": "speaking_evaluations_pkey",
+      "postgres": "PRIMARY KEY (attempt_id)",
+      "sqlite": "PRIMARY KEY (attempt_id)"
+    },
+    {
+      "table": "speaking_material_versions",
+      "name": "speaking_material_versions_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "speaking_material_versions",
+      "name": "speaking_material_versions_difficulty_valid",
+      "postgres": "CHECK (((difficulty)::text = ANY ((ARRAY['foundation'::character varying, 'intermediate'::character varying, 'advanced'::character varying])::text[])))",
+      "sqlite": "CHECK (((difficulty) IN ('foundation', 'intermediate', 'advanced')))"
+    },
+    {
+      "table": "speaking_material_versions",
+      "name": "speaking_material_versions_exam_type_valid",
+      "postgres": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))",
+      "sqlite": "CHECK (((exam_type) IN ('academic', 'general')))"
+    },
+    {
+      "table": "speaking_material_versions",
+      "name": "speaking_material_versions_material_id_fkey",
+      "postgres": "FOREIGN KEY (material_id) REFERENCES speaking_materials(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (material_id) REFERENCES speaking_materials(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "speaking_material_versions",
+      "name": "speaking_material_versions_parts_array",
+      "postgres": "CHECK ((jsonb_typeof(parts) = 'array'::text))",
+      "sqlite": "CHECK ((json_type(parts) = 'array'))"
+    },
+    {
+      "table": "speaking_material_versions",
+      "name": "speaking_material_versions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "speaking_material_versions",
+      "name": "speaking_material_versions_unique",
+      "postgres": "UNIQUE (material_id, version_number)",
+      "sqlite": "UNIQUE (material_id, version_number)"
+    },
+    {
+      "table": "speaking_materials",
+      "name": "speaking_materials_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "speaking_materials",
+      "name": "speaking_materials_published_version_fk",
+      "postgres": "FOREIGN KEY (published_version_id) REFERENCES speaking_material_versions(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (published_version_id) REFERENCES speaking_material_versions(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "speaking_materials",
+      "name": "speaking_materials_revision_valid",
+      "postgres": "CHECK ((revision > 0))",
+      "sqlite": "CHECK ((revision > 0))"
+    },
+    {
+      "table": "speaking_materials",
+      "name": "speaking_materials_slug_key",
+      "postgres": "UNIQUE (slug)",
+      "sqlite": "UNIQUE (slug)"
+    },
+    {
+      "table": "speaking_materials",
+      "name": "speaking_materials_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')))"
+    },
+    {
+      "table": "speaking_materials",
+      "name": "speaking_materials_version_valid",
+      "postgres": "CHECK ((current_version_number > 0))",
+      "sqlite": "CHECK ((current_version_number > 0))"
+    },
+    {
+      "table": "speaking_recordings",
+      "name": "speaking_recordings_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "speaking_recordings",
+      "name": "speaking_recordings_part_unique",
+      "postgres": "UNIQUE (attempt_id, part_id)",
+      "sqlite": "UNIQUE (attempt_id, part_id)"
+    },
+    {
+      "table": "speaking_recordings",
+      "name": "speaking_recordings_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "speaking_recordings",
+      "name": "speaking_recordings_revision_valid",
+      "postgres": "CHECK ((revision > 0))",
+      "sqlite": "CHECK ((revision > 0))"
+    },
+    {
+      "table": "speaking_recordings",
+      "name": "speaking_recordings_size_valid",
+      "postgres": "CHECK ((byte_size > 0))",
+      "sqlite": "CHECK ((byte_size > 0))"
+    },
+    {
+      "table": "speaking_recordings",
+      "name": "speaking_recordings_storage_key_key",
+      "postgres": "UNIQUE (storage_key)",
+      "sqlite": "UNIQUE (storage_key)"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_attempts_valid",
+      "postgres": "CHECK (((attempts >= 0) AND (attempts <= 3)))",
+      "sqlite": "CHECK (((attempts >= 0) AND (attempts <= 3)))"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_metrics_object",
+      "postgres": "CHECK ((jsonb_typeof(metrics) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(metrics) = 'object'))"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_pkey",
+      "postgres": "PRIMARY KEY (recording_id)",
+      "sqlite": "PRIMARY KEY (recording_id)"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_recording_id_fkey",
+      "postgres": "FOREIGN KEY (recording_id) REFERENCES speaking_recordings(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (recording_id) REFERENCES speaking_recordings(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_revision_valid",
+      "postgres": "CHECK ((recording_revision > 0))",
+      "sqlite": "CHECK ((recording_revision > 0))"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_segments_array",
+      "postgres": "CHECK ((jsonb_typeof(segments) = 'array'::text))",
+      "sqlite": "CHECK ((json_type(segments) = 'array'))"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'PROCESSING'::character varying, 'READY'::character varying, 'FAILED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('QUEUED', 'PROCESSING', 'READY', 'FAILED')))"
+    },
+    {
+      "table": "speaking_transcriptions",
+      "name": "speaking_transcriptions_words_array",
+      "postgres": "CHECK ((jsonb_typeof(words) = 'array'::text))",
+      "sqlite": "CHECK ((json_type(words) = 'array'))"
+    },
+    {
+      "table": "study_learning_content_metadata",
+      "name": "study_learning_content_metadata_check",
+      "postgres": "CHECK (((status <> 'reviewed'::text) OR (family_id <> ''::text)))",
+      "sqlite": "CHECK (((status <> 'reviewed') OR (family_id <> '')))"
+    },
+    {
+      "table": "study_learning_content_metadata",
+      "name": "study_learning_content_metadata_kind_check",
+      "postgres": "CHECK ((kind = ANY (ARRAY['drill'::text, 'material'::text])))",
+      "sqlite": "CHECK ((kind IN ('drill', 'material')))"
+    },
+    {
+      "table": "study_learning_content_metadata",
+      "name": "study_learning_content_metadata_pkey",
+      "postgres": "PRIMARY KEY (kind, reference_id, version)",
+      "sqlite": "PRIMARY KEY (kind, reference_id, version)"
+    },
+    {
+      "table": "study_learning_content_metadata",
+      "name": "study_learning_content_metadata_reviewer_id_fkey",
+      "postgres": "FOREIGN KEY (reviewer_id) REFERENCES users(id)",
+      "sqlite": "FOREIGN KEY (reviewer_id) REFERENCES users(id)"
+    },
+    {
+      "table": "study_learning_content_metadata",
+      "name": "study_learning_content_metadata_revision_check",
+      "postgres": "CHECK ((revision > 0))",
+      "sqlite": "CHECK ((revision > 0))"
+    },
+    {
+      "table": "study_learning_content_metadata",
+      "name": "study_learning_content_metadata_section_check",
+      "postgres": "CHECK ((section = ANY (ARRAY['reading'::text, 'listening'::text, 'writing'::text, 'speaking'::text])))",
+      "sqlite": "CHECK ((section IN ('reading', 'listening', 'writing', 'speaking')))"
+    },
+    {
+      "table": "study_learning_content_metadata",
+      "name": "study_learning_content_metadata_status_check",
+      "postgres": "CHECK ((status = ANY (ARRAY['draft'::text, 'reviewed'::text, 'withdrawn'::text])))",
+      "sqlite": "CHECK ((status IN ('draft', 'reviewed', 'withdrawn')))"
+    },
+    {
+      "table": "study_learning_content_reviews",
+      "name": "study_learning_content_review_kind_reference_id_version_rev_key",
+      "postgres": "UNIQUE (kind, reference_id, version, revision)",
+      "sqlite": "UNIQUE (kind, reference_id, version, revision)"
+    },
+    {
+      "table": "study_learning_content_reviews",
+      "name": "study_learning_content_reviews_reviewer_id_fkey",
+      "postgres": "FOREIGN KEY (reviewer_id) REFERENCES users(id)",
+      "sqlite": "FOREIGN KEY (reviewer_id) REFERENCES users(id)"
+    },
+    {
+      "table": "study_plan_attempts",
+      "name": "study_plan_attempts_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "study_plan_attempts",
+      "name": "study_plan_attempts_attempt_id_key",
+      "postgres": "UNIQUE (attempt_id)",
+      "sqlite": "UNIQUE (attempt_id)"
+    },
+    {
+      "table": "study_plan_attempts",
+      "name": "study_plan_attempts_pkey",
+      "postgres": "PRIMARY KEY (assignment_id)",
+      "sqlite": "PRIMARY KEY (assignment_id)"
+    },
+    {
+      "table": "study_plan_attempts",
+      "name": "study_plan_attempts_plan_id_fkey",
+      "postgres": "FOREIGN KEY (plan_id) REFERENCES study_plans(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (plan_id) REFERENCES study_plans(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "study_plans",
+      "name": "study_plans_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "study_plans",
+      "name": "study_plans_revision_check",
+      "postgres": "CHECK ((revision > 0))",
+      "sqlite": "CHECK ((revision > 0))"
+    },
+    {
+      "table": "study_plans",
+      "name": "study_plans_state_check",
+      "postgres": "CHECK ((jsonb_typeof(state) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(state) = 'object'))"
+    },
+    {
+      "table": "study_plans",
+      "name": "study_plans_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "study_plans",
+      "name": "study_plans_user_id_key",
+      "postgres": "UNIQUE (user_id)",
+      "sqlite": "UNIQUE (user_id)"
+    },
+    {
+      "table": "super_admins",
+      "name": "super_admins_pkey",
+      "postgres": "PRIMARY KEY (email)",
+      "sqlite": "PRIMARY KEY (email)"
+    },
+    {
+      "table": "system_daily_limits",
+      "name": "system_daily_limits_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "system_daily_limits",
+      "name": "system_daily_limits_positive",
+      "postgres": "CHECK (((assistant_limit >= 0) AND (guest_assistant_limit >= 0) AND (writing_limit >= 0) AND (speaking_limit >= 0)))",
+      "sqlite": "CHECK (((assistant_limit >= 0) AND (guest_assistant_limit >= 0) AND (writing_limit >= 0) AND (speaking_limit >= 0)))"
+    },
+    {
+      "table": "system_daily_limits",
+      "name": "system_daily_limits_single_row",
+      "postgres": "CHECK ((id = 1))",
+      "sqlite": "CHECK ((id = 1))"
+    },
+    {
+      "table": "user_activity_days",
+      "name": "user_activity_days_pk",
+      "postgres": "PRIMARY KEY (day, user_id)",
+      "sqlite": "PRIMARY KEY (day, user_id)"
+    },
+    {
+      "table": "user_activity_days",
+      "name": "user_activity_days_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "user_profiles",
+      "name": "user_profiles_current_band_valid",
+      "postgres": "CHECK (((current_band IS NULL) OR (((current_band >= (0)::numeric) AND (current_band <= (9)::numeric)) AND ((current_band * (2)::numeric) = trunc((current_band * (2)::numeric))))))",
+      "sqlite": "CHECK (((current_band IS NULL) OR (((current_band >= (0)) AND (current_band <= (9))) AND ((current_band * (2)) = trunc((current_band * (2)))))))"
+    },
+    {
+      "table": "user_profiles",
+      "name": "user_profiles_display_name_not_blank",
+      "postgres": "CHECK ((btrim((display_name)::text) <> ''::text))",
+      "sqlite": "CHECK ((trim((display_name)) <> ''))"
+    },
+    {
+      "table": "user_profiles",
+      "name": "user_profiles_exam_type_valid",
+      "postgres": "CHECK (((exam_type IS NULL) OR ((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[]))))",
+      "sqlite": "CHECK (((exam_type IS NULL) OR ((exam_type) IN ('academic', 'general'))))"
+    },
+    {
+      "table": "user_profiles",
+      "name": "user_profiles_pkey",
+      "postgres": "PRIMARY KEY (user_id)",
+      "sqlite": "PRIMARY KEY (user_id)"
+    },
+    {
+      "table": "user_profiles",
+      "name": "user_profiles_target_band_valid",
+      "postgres": "CHECK (((target_band IS NULL) OR (((target_band >= (0)::numeric) AND (target_band <= (9)::numeric)) AND ((target_band * (2)::numeric) = trunc((target_band * (2)::numeric))))))",
+      "sqlite": "CHECK (((target_band IS NULL) OR (((target_band >= (0)) AND (target_band <= (9))) AND ((target_band * (2)) = trunc((target_band * (2)))))))"
+    },
+    {
+      "table": "user_profiles",
+      "name": "user_profiles_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "user_skill_progress",
+      "name": "user_skill_progress_accuracy_valid",
+      "postgres": "CHECK (((accuracy_percent IS NULL) OR ((accuracy_percent >= (0)::numeric) AND (accuracy_percent <= (100)::numeric))))",
+      "sqlite": "CHECK (((accuracy_percent IS NULL) OR ((accuracy_percent >= (0)) AND (accuracy_percent <= (100)))))"
+    },
+    {
+      "table": "user_skill_progress",
+      "name": "user_skill_progress_band_valid",
+      "postgres": "CHECK (((estimated_band IS NULL) OR (((estimated_band >= (0)::numeric) AND (estimated_band <= (9)::numeric)) AND ((estimated_band * (2)::numeric) = trunc((estimated_band * (2)::numeric))))))",
+      "sqlite": "CHECK (((estimated_band IS NULL) OR (((estimated_band >= (0)) AND (estimated_band <= (9))) AND ((estimated_band * (2)) = trunc((estimated_band * (2)))))))"
+    },
+    {
+      "table": "user_skill_progress",
+      "name": "user_skill_progress_completed_tasks_valid",
+      "postgres": "CHECK ((completed_tasks >= 0))",
+      "sqlite": "CHECK ((completed_tasks >= 0))"
+    },
+    {
+      "table": "user_skill_progress",
+      "name": "user_skill_progress_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "user_skill_progress",
+      "name": "user_skill_progress_skill_valid",
+      "postgres": "CHECK (((skill)::text = ANY ((ARRAY['listening'::character varying, 'reading'::character varying, 'writing'::character varying, 'speaking'::character varying])::text[])))",
+      "sqlite": "CHECK (((skill) IN ('listening', 'reading', 'writing', 'speaking')))"
+    },
+    {
+      "table": "user_skill_progress",
+      "name": "user_skill_progress_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "user_skill_progress",
+      "name": "user_skill_progress_user_skill_unique",
+      "postgres": "UNIQUE (user_id, skill)",
+      "sqlite": "UNIQUE (user_id, skill)"
+    },
+    {
+      "table": "users",
+      "name": "users_admin_permissions_valid",
+      "postgres": "CHECK ((admin_permissions <@ ARRAY['BLOG_MODERATOR'::text, 'CONTENT_EDITOR'::text]))",
+      "sqlite": "CHECK ((1))"
+    },
+    {
+      "table": "users",
+      "name": "users_email_normalized",
+      "postgres": "CHECK (((email)::text = lower(btrim((email)::text))))",
+      "sqlite": "CHECK (((email) = lower(trim((email)))))"
+    },
+    {
+      "table": "users",
+      "name": "users_first_name_not_blank",
+      "postgres": "CHECK (((first_name IS NULL) OR (btrim((first_name)::text) <> ''::text)))",
+      "sqlite": "CHECK (((first_name IS NULL) OR (trim((first_name)) <> '')))"
+    },
+    {
+      "table": "users",
+      "name": "users_guest_status_valid",
+      "postgres": "CHECK ((((role)::text = 'GUEST'::text) = ((status)::text = 'GUEST'::text)))",
+      "sqlite": "CHECK ((((role) = 'GUEST') = ((status) = 'GUEST')))"
+    },
+    {
+      "table": "users",
+      "name": "users_last_name_not_blank",
+      "postgres": "CHECK (((last_name IS NULL) OR (btrim((last_name)::text) <> ''::text)))",
+      "sqlite": "CHECK (((last_name IS NULL) OR (trim((last_name)) <> '')))"
+    },
+    {
+      "table": "users",
+      "name": "users_phone_e164",
+      "postgres": "CHECK (((phone IS NULL) OR ((phone)::text ~ '^\\+[1-9][0-9]{7,14}$'::text)))",
+      "sqlite": "CHECK (((phone IS NULL) OR ((length(phone) BETWEEN 9 AND 16 AND substr(phone,1,1)='+' AND substr(phone,2,1) GLOB '[1-9]' AND substr(phone,2) NOT GLOB '*[^0-9]*'))))"
+    },
+    {
+      "table": "users",
+      "name": "users_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "users",
+      "name": "users_referral_code_required_for_leads",
+      "postgres": "CHECK ((((status)::text = ANY ((ARRAY['REGISTERED'::character varying, 'GUEST'::character varying])::text[])) OR (referral_code IS NOT NULL)))",
+      "sqlite": "CHECK ((((status) IN ('REGISTERED', 'GUEST')) OR (referral_code IS NOT NULL)))"
+    },
+    {
+      "table": "users",
+      "name": "users_role_valid",
+      "postgres": "CHECK (((role)::text = ANY ((ARRAY['STUDENT'::character varying, 'WRITER'::character varying, 'EDITOR'::character varying, 'ADMIN'::character varying, 'GUEST'::character varying])::text[])))",
+      "sqlite": "CHECK (((role) IN ('STUDENT', 'WRITER', 'EDITOR', 'ADMIN', 'GUEST')))"
+    },
+    {
+      "table": "users",
+      "name": "users_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['WAITING'::character varying, 'INVITED'::character varying, 'REGISTERED'::character varying, 'GUEST'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('WAITING', 'INVITED', 'REGISTERED', 'GUEST')))"
+    },
+    {
+      "table": "writer_applications",
+      "name": "writer_applications_bands_valid",
+      "postgres": "CHECK (((((overall_band >= (0)::numeric) AND (overall_band <= (9)::numeric)) AND ((overall_band * (2)::numeric) = trunc((overall_band * (2)::numeric))) AND (overall_band >= 7.5) AND (listening_band IS NULL)) OR (((listening_band >= (0)::numeric) AND (listening_band <= (9)::numeric)) AND ((listening_band * (2)::numeric) = trunc((listening_band * (2)::numeric))) AND ((reading_band >= (0)::numeric) AND (reading_band <= (9)::numeric)) AND ((reading_band * (2)::numeric) = trunc((reading_band * (2)::numeric))) AND ((writing_band >= (0)::numeric) AND (writing_band <= (9)::numeric)) AND ((writing_band * (2)::numeric) = trunc((writing_band * (2)::numeric))) AND ((speaking_band >= (0)::numeric) AND (speaking_band <= (9)::numeric)) AND ((speaking_band * (2)::numeric) = trunc((speaking_band * (2)::numeric))))))",
+      "sqlite": "CHECK (((((overall_band >= (0)) AND (overall_band <= (9))) AND ((overall_band * (2)) = trunc((overall_band * (2)))) AND (overall_band >= 7.5) AND (listening_band IS NULL)) OR (((listening_band >= (0)) AND (listening_band <= (9))) AND ((listening_band * (2)) = trunc((listening_band * (2)))) AND ((reading_band >= (0)) AND (reading_band <= (9))) AND ((reading_band * (2)) = trunc((reading_band * (2)))) AND ((writing_band >= (0)) AND (writing_band <= (9))) AND ((writing_band * (2)) = trunc((writing_band * (2)))) AND ((speaking_band >= (0)) AND (speaking_band <= (9))) AND ((speaking_band * (2)) = trunc((speaking_band * (2)))))))"
+    },
+    {
+      "table": "writer_applications",
+      "name": "writer_applications_exam_type_valid",
+      "postgres": "CHECK (((exam_type IS NULL) OR ((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[]))))",
+      "sqlite": "CHECK (((exam_type IS NULL) OR ((exam_type) IN ('academic', 'general'))))"
+    },
+    {
+      "table": "writer_applications",
+      "name": "writer_applications_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "writer_applications",
+      "name": "writer_applications_reviewed_by_fkey",
+      "postgres": "FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "writer_applications",
+      "name": "writer_applications_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('PENDING', 'APPROVED', 'REJECTED')))"
+    },
+    {
+      "table": "writer_applications",
+      "name": "writer_applications_trf_not_blank",
+      "postgres": "CHECK ((btrim((trf_number)::text) <> ''::text))",
+      "sqlite": "CHECK ((trim((trf_number)) <> ''))"
+    },
+    {
+      "table": "writer_applications",
+      "name": "writer_applications_user_id_fkey",
+      "postgres": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "writing_assessment_jobs",
+      "name": "writing_assessment_jobs_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "writing_assessment_jobs",
+      "name": "writing_assessment_jobs_attempts_valid",
+      "postgres": "CHECK (((attempts >= 0) AND (attempts <= 3)))",
+      "sqlite": "CHECK (((attempts >= 0) AND (attempts <= 3)))"
+    },
+    {
+      "table": "writing_assessment_jobs",
+      "name": "writing_assessment_jobs_pkey",
+      "postgres": "PRIMARY KEY (attempt_id)",
+      "sqlite": "PRIMARY KEY (attempt_id)"
+    },
+    {
+      "table": "writing_assessment_jobs",
+      "name": "writing_assessment_jobs_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['QUEUED'::character varying, 'PROCESSING'::character varying, 'READY'::character varying, 'FAILED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('QUEUED', 'PROCESSING', 'READY', 'FAILED')))"
+    },
+    {
+      "table": "writing_evaluations",
+      "name": "writing_evaluations_attempt_id_fkey",
+      "postgres": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "writing_evaluations",
+      "name": "writing_evaluations_band_valid",
+      "postgres": "CHECK ((((overall_band >= (0)::numeric) AND (overall_band <= (9)::numeric)) AND ((task_response_band >= (0)::numeric) AND (task_response_band <= (9)::numeric)) AND ((coherence_band >= (0)::numeric) AND (coherence_band <= (9)::numeric)) AND ((lexical_resource_band >= (0)::numeric) AND (lexical_resource_band <= (9)::numeric)) AND ((grammar_band >= (0)::numeric) AND (grammar_band <= (9)::numeric))))",
+      "sqlite": "CHECK ((((overall_band >= (0)) AND (overall_band <= (9))) AND ((task_response_band >= (0)) AND (task_response_band <= (9))) AND ((coherence_band >= (0)) AND (coherence_band <= (9))) AND ((lexical_resource_band >= (0)) AND (lexical_resource_band <= (9))) AND ((grammar_band >= (0)) AND (grammar_band <= (9)))))"
+    },
+    {
+      "table": "writing_evaluations",
+      "name": "writing_evaluations_feedback_object",
+      "postgres": "CHECK ((jsonb_typeof(feedback) = 'object'::text))",
+      "sqlite": "CHECK ((json_type(feedback) = 'object'))"
+    },
+    {
+      "table": "writing_evaluations",
+      "name": "writing_evaluations_pkey",
+      "postgres": "PRIMARY KEY (attempt_id)",
+      "sqlite": "PRIMARY KEY (attempt_id)"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_difficulty_valid",
+      "postgres": "CHECK (((difficulty)::text = ANY ((ARRAY['foundation'::character varying, 'intermediate'::character varying, 'advanced'::character varying])::text[])))",
+      "sqlite": "CHECK (((difficulty) IN ('foundation', 'intermediate', 'advanced')))"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_duration_minutes_check",
+      "postgres": "CHECK (((duration_minutes >= 5) AND (duration_minutes <= 180)))",
+      "sqlite": "CHECK (((duration_minutes >= 5) AND (duration_minutes <= 180)))"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_exam_type_valid",
+      "postgres": "CHECK (((exam_type)::text = ANY ((ARRAY['academic'::character varying, 'general'::character varying])::text[])))",
+      "sqlite": "CHECK (((exam_type) IN ('academic', 'general')))"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_material_id_fkey",
+      "postgres": "FOREIGN KEY (material_id) REFERENCES writing_materials(id) ON DELETE CASCADE",
+      "sqlite": "FOREIGN KEY (material_id) REFERENCES writing_materials(id) ON DELETE CASCADE"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_tasks_array",
+      "postgres": "CHECK ((jsonb_typeof(tasks) = 'array'::text))",
+      "sqlite": "CHECK ((json_type(tasks) = 'array'))"
+    },
+    {
+      "table": "writing_material_versions",
+      "name": "writing_material_versions_unique",
+      "postgres": "UNIQUE (material_id, version_number)",
+      "sqlite": "UNIQUE (material_id, version_number)"
+    },
+    {
+      "table": "writing_materials",
+      "name": "writing_materials_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "writing_materials",
+      "name": "writing_materials_published_version_fk",
+      "postgres": "FOREIGN KEY (published_version_id) REFERENCES writing_material_versions(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (published_version_id) REFERENCES writing_material_versions(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "writing_materials",
+      "name": "writing_materials_revision_valid",
+      "postgres": "CHECK ((revision > 0))",
+      "sqlite": "CHECK ((revision > 0))"
+    },
+    {
+      "table": "writing_materials",
+      "name": "writing_materials_slug_key",
+      "postgres": "UNIQUE (slug)",
+      "sqlite": "UNIQUE (slug)"
+    },
+    {
+      "table": "writing_materials",
+      "name": "writing_materials_status_valid",
+      "postgres": "CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'PUBLISHED'::character varying, 'ARCHIVED'::character varying])::text[])))",
+      "sqlite": "CHECK (((status) IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')))"
+    },
+    {
+      "table": "writing_materials",
+      "name": "writing_materials_version_valid",
+      "postgres": "CHECK ((current_version_number > 0))",
+      "sqlite": "CHECK ((current_version_number > 0))"
+    },
+    {
+      "table": "writing_media",
+      "name": "writing_media_created_by_fkey",
+      "postgres": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL",
+      "sqlite": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL"
+    },
+    {
+      "table": "writing_media",
+      "name": "writing_media_kind_valid",
+      "postgres": "CHECK (((kind)::text = 'image'::text))",
+      "sqlite": "CHECK (((kind) = 'image'))"
+    },
+    {
+      "table": "writing_media",
+      "name": "writing_media_pkey",
+      "postgres": "PRIMARY KEY (id)",
+      "sqlite": "PRIMARY KEY (id)"
+    },
+    {
+      "table": "writing_media",
+      "name": "writing_media_size_valid",
+      "postgres": "CHECK ((byte_size > 0))",
+      "sqlite": "CHECK ((byte_size > 0))"
+    },
+    {
+      "table": "writing_media",
+      "name": "writing_media_storage_key_key",
+      "postgres": "UNIQUE (storage_key)",
+      "sqlite": "UNIQUE (storage_key)"
+    }
+  ],
+  "version": "9f195b8e3a83f584953e70de4456a96ab6912a20e8f8c20481024e6e6b9e7ed6"
+}

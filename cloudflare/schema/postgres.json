@@ -1,5 +1,5 @@
 {
-  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "revision": "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206",
   "migrations": [
     {
       "file": "000001_initial.up.sql",
@@ -184,6 +184,10 @@
     {
       "file": "000046_learning_content_metadata.up.sql",
       "sha256": "67f175060ce113b6db650c18b24fe67f41a9fa76bbfd015d68888384636af361"
+    },
+    {
+      "file": "000047_billing.up.sql",
+      "sha256": "fd8ccbe08c14347f3b139528ec5a4072390663e4c350c36c354c4b042e28b3ba"
     }
   ],
   "tables": [
@@ -858,6 +862,381 @@
       "triggers": []
     },
     {
+      "name": "billing_orders",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "plan_code",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "list_price_kzt",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "amount_kzt",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "currency",
+          "type": "text",
+          "required": true,
+          "default": "'KZT'::text"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": true,
+          "default": "'PENDING'::text"
+        },
+        {
+          "name": "provider",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "provider_order_id",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "payload",
+          "type": "jsonb",
+          "required": true,
+          "default": "'{}'::jsonb"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "billing_orders_amount_kzt_check",
+          "type": "c",
+          "definition": "CHECK ((amount_kzt >= 0))"
+        },
+        {
+          "name": "billing_orders_currency_check",
+          "type": "c",
+          "definition": "CHECK ((currency = 'KZT'::text))"
+        },
+        {
+          "name": "billing_orders_list_price_kzt_check",
+          "type": "c",
+          "definition": "CHECK ((list_price_kzt >= 0))"
+        },
+        {
+          "name": "billing_orders_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "billing_orders_plan_code_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (plan_code) REFERENCES billing_plans(code)"
+        },
+        {
+          "name": "billing_orders_provider_provider_order_id_key",
+          "type": "u",
+          "definition": "UNIQUE (provider, provider_order_id)"
+        },
+        {
+          "name": "billing_orders_status_check",
+          "type": "c",
+          "definition": "CHECK ((status = ANY (ARRAY['PENDING'::text, 'PAID'::text, 'FAILED'::text, 'CANCELLED'::text, 'REFUNDED'::text])))"
+        },
+        {
+          "name": "billing_orders_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "billing_orders_pkey",
+          "definition": "CREATE UNIQUE INDEX billing_orders_pkey ON public.billing_orders USING btree (id)"
+        },
+        {
+          "name": "billing_orders_provider_provider_order_id_key",
+          "definition": "CREATE UNIQUE INDEX billing_orders_provider_provider_order_id_key ON public.billing_orders USING btree (provider, provider_order_id)"
+        },
+        {
+          "name": "billing_orders_user_created_idx",
+          "definition": "CREATE INDEX billing_orders_user_created_idx ON public.billing_orders USING btree (user_id, created_at DESC)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "billing_plans",
+      "columns": [
+        {
+          "name": "code",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "list_price_kzt",
+          "type": "bigint",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "sale_price_kzt",
+          "type": "bigint",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "access_days",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "meetings_count",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "meetings_kind",
+          "type": "text",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "required": true,
+          "default": "true"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "billing_plans_access_days_check",
+          "type": "c",
+          "definition": "CHECK ((access_days > 0))"
+        },
+        {
+          "name": "billing_plans_check",
+          "type": "c",
+          "definition": "CHECK (((sale_price_kzt >= 0) AND (sale_price_kzt <= list_price_kzt)))"
+        },
+        {
+          "name": "billing_plans_list_price_kzt_check",
+          "type": "c",
+          "definition": "CHECK ((list_price_kzt >= 0))"
+        },
+        {
+          "name": "billing_plans_meetings_count_check",
+          "type": "c",
+          "definition": "CHECK ((meetings_count >= 0))"
+        },
+        {
+          "name": "billing_plans_meetings_kind_check",
+          "type": "c",
+          "definition": "CHECK ((meetings_kind = ANY (ARRAY['GROUP'::text, 'PERSONAL'::text])))"
+        },
+        {
+          "name": "billing_plans_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (code)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "billing_plans_pkey",
+          "definition": "CREATE UNIQUE INDEX billing_plans_pkey ON public.billing_plans USING btree (code)"
+        }
+      ],
+      "seed": [
+        {
+          "code": "group",
+          "title": "Платформа + 4 встречи в мини-группе",
+          "list_price_kzt": 24990,
+          "sale_price_kzt": 14990,
+          "access_days": 30,
+          "meetings_count": 4,
+          "meetings_kind": "GROUP",
+          "sort_order": 2,
+          "active": true
+        },
+        {
+          "code": "personal",
+          "title": "Платформа + 4 личные встречи по 30 минут",
+          "list_price_kzt": 54990,
+          "sale_price_kzt": 34990,
+          "access_days": 30,
+          "meetings_count": 4,
+          "meetings_kind": "PERSONAL",
+          "sort_order": 3,
+          "active": true
+        },
+        {
+          "code": "self",
+          "title": "Платформа самостоятельно",
+          "list_price_kzt": 9990,
+          "sale_price_kzt": 4990,
+          "access_days": 30,
+          "meetings_count": 0,
+          "meetings_kind": null,
+          "sort_order": 1,
+          "active": true
+        }
+      ],
+      "triggers": []
+    },
+    {
+      "name": "billing_settings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "free_listening",
+          "type": "integer",
+          "required": true,
+          "default": "3"
+        },
+        {
+          "name": "free_reading",
+          "type": "integer",
+          "required": true,
+          "default": "3"
+        },
+        {
+          "name": "free_writing",
+          "type": "integer",
+          "required": true,
+          "default": "3"
+        },
+        {
+          "name": "free_speaking",
+          "type": "integer",
+          "required": true,
+          "default": "3"
+        },
+        {
+          "name": "free_assistant_daily_limit",
+          "type": "integer",
+          "required": true,
+          "default": "5"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "billing_settings_free_assistant_daily_limit_check",
+          "type": "c",
+          "definition": "CHECK ((free_assistant_daily_limit >= 0))"
+        },
+        {
+          "name": "billing_settings_free_listening_check",
+          "type": "c",
+          "definition": "CHECK ((free_listening >= 0))"
+        },
+        {
+          "name": "billing_settings_free_reading_check",
+          "type": "c",
+          "definition": "CHECK ((free_reading >= 0))"
+        },
+        {
+          "name": "billing_settings_free_speaking_check",
+          "type": "c",
+          "definition": "CHECK ((free_speaking >= 0))"
+        },
+        {
+          "name": "billing_settings_free_writing_check",
+          "type": "c",
+          "definition": "CHECK ((free_writing >= 0))"
+        },
+        {
+          "name": "billing_settings_id_check",
+          "type": "c",
+          "definition": "CHECK ((id = 1))"
+        },
+        {
+          "name": "billing_settings_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "billing_settings_pkey",
+          "definition": "CREATE UNIQUE INDEX billing_settings_pkey ON public.billing_settings USING btree (id)"
+        }
+      ],
+      "seed": [
+        {
+          "id": 1,
+          "free_listening": 3,
+          "free_reading": 3,
+          "free_writing": 3,
+          "free_speaking": 3,
+          "free_assistant_daily_limit": 5
+        }
+      ],
+      "triggers": []
+    },
+    {
       "name": "blog_media",
       "columns": [
         {
@@ -1097,6 +1476,75 @@
           "definition": "CREATE TRIGGER blog_posts_set_updated_at BEFORE UPDATE ON public.blog_posts FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
         }
       ]
+    },
+    {
+      "name": "free_usage",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "skill",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "source_kind",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "source_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "free_usage_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (source_kind, source_id, skill)"
+        },
+        {
+          "name": "free_usage_skill_check",
+          "type": "c",
+          "definition": "CHECK ((skill = ANY (ARRAY['listening'::text, 'reading'::text, 'writing'::text, 'speaking'::text])))"
+        },
+        {
+          "name": "free_usage_source_kind_check",
+          "type": "c",
+          "definition": "CHECK ((source_kind = ANY (ARRAY['ATTEMPT'::text, 'FULL_MOCK_SESSION'::text])))"
+        },
+        {
+          "name": "free_usage_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "free_usage_pkey",
+          "definition": "CREATE UNIQUE INDEX free_usage_pkey ON public.free_usage USING btree (source_kind, source_id, skill)"
+        },
+        {
+          "name": "free_usage_user_skill_idx",
+          "definition": "CREATE INDEX free_usage_user_skill_idx ON public.free_usage USING btree (user_id, skill)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
     },
     {
       "name": "full_mock_session_sections",
@@ -4448,6 +4896,157 @@
         {
           "name": "user_activity_days_user_idx",
           "definition": "CREATE INDEX user_activity_days_user_idx ON public.user_activity_days USING btree (user_id, day)"
+        }
+      ],
+      "seed": [],
+      "triggers": []
+    },
+    {
+      "name": "user_entitlements",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "plan_code",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "order_id",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": null
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "meetings_total",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "meetings_used",
+          "type": "integer",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "granted_by",
+          "type": "uuid",
+          "required": false,
+          "default": null
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "required": true,
+          "default": "''::text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "required": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "constraints": [
+        {
+          "name": "user_entitlements_check",
+          "type": "c",
+          "definition": "CHECK ((ends_at > starts_at))"
+        },
+        {
+          "name": "user_entitlements_check1",
+          "type": "c",
+          "definition": "CHECK (((meetings_used >= 0) AND (meetings_used <= meetings_total)))"
+        },
+        {
+          "name": "user_entitlements_granted_by_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (granted_by) REFERENCES users(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "user_entitlements_meetings_total_check",
+          "type": "c",
+          "definition": "CHECK ((meetings_total >= 0))"
+        },
+        {
+          "name": "user_entitlements_order_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (order_id) REFERENCES billing_orders(id) ON DELETE CASCADE"
+        },
+        {
+          "name": "user_entitlements_order_id_key",
+          "type": "u",
+          "definition": "UNIQUE (order_id)"
+        },
+        {
+          "name": "user_entitlements_pkey",
+          "type": "p",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "user_entitlements_plan_code_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (plan_code) REFERENCES billing_plans(code)"
+        },
+        {
+          "name": "user_entitlements_source_check",
+          "type": "c",
+          "definition": "CHECK ((source = ANY (ARRAY['PAYMENT'::text, 'ADMIN'::text, 'BONUS'::text])))"
+        },
+        {
+          "name": "user_entitlements_user_id_fkey",
+          "type": "f",
+          "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "user_entitlements_order_id_key",
+          "definition": "CREATE UNIQUE INDEX user_entitlements_order_id_key ON public.user_entitlements USING btree (order_id)"
+        },
+        {
+          "name": "user_entitlements_pkey",
+          "definition": "CREATE UNIQUE INDEX user_entitlements_pkey ON public.user_entitlements USING btree (id)"
+        },
+        {
+          "name": "user_entitlements_user_ends_idx",
+          "definition": "CREATE INDEX user_entitlements_user_ends_idx ON public.user_entitlements USING btree (user_id, ends_at)"
         }
       ],
       "seed": [],

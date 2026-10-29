@@ -1,9 +1,9 @@
 {
   "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
   "runtime": "real workerd + SQLite Durable Object + private SQLite blobs; synthetic identities/providers only",
-  "registered": 165,
-  "exercised": 165,
-  "successful": 165,
+  "registered": 179,
+  "exercised": 169,
+  "successful": 169,
   "routes": [
     {
       "method": "GET",
@@ -151,6 +151,34 @@
     },
     {
       "method": "GET",
+      "path": "/api/v1/admin/billing/orders",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/billing/plans/{code}",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/billing/settings",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/billing/settings",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
+      "method": "GET",
       "path": "/api/v1/admin/blog/posts",
       "contractRequests": 1,
       "statuses": [
@@ -193,6 +221,20 @@
         200
       ],
       "state": "exercised"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/admin/entitlements/{entitlementID}/meetings",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/entitlements/{entitlementID}/revoke",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
     },
     {
       "method": "GET",
@@ -584,6 +626,20 @@
       "state": "exercised"
     },
     {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}/billing",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userID}/entitlements",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
       "method": "POST",
       "path": "/api/v1/admin/users/{userID}/password",
       "contractRequests": 1,
@@ -793,6 +849,13 @@
       "state": "exercised"
     },
     {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/assessment/retry",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
       "method": "GET",
       "path": "/api/v1/attempts/{attemptID}/material",
       "contractRequests": 1,
@@ -831,7 +894,7 @@
     {
       "method": "GET",
       "path": "/api/v1/attempts/{attemptID}/status",
-      "contractRequests": 1,
+      "contractRequests": 3,
       "statuses": [
         200
       ],
@@ -908,6 +971,50 @@
       "statuses": [
         200,
         401
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/billing/callbacks/{provider}",
+      "contractRequests": 0,
+      "statuses": [],
+      "state": "not-exercised"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/billing/checkout",
+      "contractRequests": 1,
+      "statuses": [
+        201
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/billing/me",
+      "contractRequests": 2,
+      "statuses": [
+        200
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/billing/orders/{orderID}",
+      "contractRequests": 2,
+      "statuses": [
+        200,
+        404
+      ],
+      "state": "exercised"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/billing/plans",
+      "contractRequests": 1,
+      "statuses": [
+        200
       ],
       "state": "exercised"
     },

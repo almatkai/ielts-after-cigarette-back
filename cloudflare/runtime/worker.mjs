@@ -2,10 +2,12 @@ import { mediaEnvironment } from "./blob-store.mjs";
 import { NativeFetch } from "./fetch.mjs";
 import { storageError } from "./errors.mjs";
 import { migrationStatus, importDatabase, activate } from "./transfer.mjs";
+import { applySchemaUpgrade, applySchemaRevert } from "./schema-upgrade.mjs";
 import { DurableObject } from "cloudflare:workers";
 import wasm from "../dist/api.wasm";
 import { Go } from "../dist/wasm_exec.js";
 import schema from "../schema/sqlite.json";
+import baselineSchema from "../schema/history/sqlite-9f195b8e3a83f584953e70de4456a96ab6912a20e8f8c20481024e6e6b9e7ed6.json";
 import { translate } from "./sql.mjs";
 import { specialSQL } from "./special-sql.mjs";
 import { Coordination } from "./redis.mjs";
@@ -47,9 +49,9 @@ export class IELTSDev extends DurableObject {
         .exec("SELECT version FROM cf_schema")
         .toArray()[0];
       if (storedSchema && storedSchema.version !== schema.version)
-        throw Error(
-          "Native schema changed; an explicit data-preserving migration is required",
-        );
+        if (this.env.SCHEMA_REVERT === "true")
+          this.revertedSchema = applySchemaRevert(ctx.storage, baselineSchema);
+        else this.upgradedSchema = applySchemaUpgrade(ctx.storage, schema);
       if (!storedSchema) {
         ctx.storage.transactionSync(() => {
           for (const statement of schema.statements) sql.exec(statement);
@@ -378,11 +380,20 @@ export class IELTSDev extends DurableObject {
   }
   async schedule() {
     while (this.transaction) await this.transaction.done.catch(() => {});
-    const jobs = this.ctx.storage.sql
+    const writingJobs = this.ctx.storage.sql
       .exec(
         "SELECT MIN(CASE WHEN status='PROCESSING' THEN strftime('%s',updated_at)*1000+121000 ELSE strftime('%s',next_attempt_at)*1000 END) AS next FROM writing_assessment_jobs WHERE (status='QUEUED' AND attempts<3) OR status='PROCESSING'",
       )
       .one().next;
+    const speakingJobs = this.ctx.storage.sql
+      .exec(
+        "SELECT MIN(CASE WHEN status='PROCESSING' THEN strftime('%s',updated_at)*1000+121000 ELSE strftime('%s',next_attempt_at)*1000 END) AS next FROM speaking_assessment_jobs WHERE (status='QUEUED' AND attempts<3) OR status='PROCESSING'",
+      )
+      .one().next;
+    const jobs =
+      writingJobs === null && speakingJobs === null
+        ? null
+        : Math.min(writingJobs ?? Infinity, speakingJobs ?? Infinity);
     let cleanup = this.ctx.storage.sql
       .exec(
         "SELECT MIN(expires) next FROM cf_coordination WHERE expires IS NOT NULL",
@@ -407,18 +418,39 @@ export class IELTSDev extends DurableObject {
     await this.initialize();
     // Persist the recovery wake before provider I/O; an eviction cannot orphan a lease.
     await this.ctx.storage.setAlarm(Date.now() + 125000);
-    const pending = this.ctx.storage.sql
+    const pendingWriting = this.ctx.storage.sql
       .exec(
         "SELECT attempt_id FROM writing_assessment_jobs WHERE status='QUEUED' AND attempts<3 AND next_attempt_at<=? ORDER BY next_attempt_at,created_at LIMIT 1",
         new Date().toISOString(),
       )
       .toArray()[0];
-    const jobID = "alarm:" + crypto.randomUUID();
-    this.activeJobs.add(jobID);
+    const pendingSpeaking = this.ctx.storage.sql
+      .exec(
+        "SELECT attempt_id FROM speaking_assessment_jobs WHERE status='QUEUED' AND attempts<3 AND next_attempt_at<=? ORDER BY next_attempt_at,created_at LIMIT 1",
+        new Date().toISOString(),
+      )
+      .toArray()[0];
+    const wJobID = "alarm:" + crypto.randomUUID();
+    this.activeJobs.add(wJobID);
     try {
-      await globalThis.iacJob(pending?.attempt_id ?? "", jobID);
+      if (pendingWriting) {
+        await globalThis.iacJob(pendingWriting.attempt_id, wJobID, "writing");
+      } else {
+        await globalThis.iacJob("", wJobID, "writing");
+      }
     } finally {
-      this.activeJobs.delete(jobID);
+      this.activeJobs.delete(wJobID);
+    }
+    const sJobID = "alarm:" + crypto.randomUUID();
+    this.activeJobs.add(sJobID);
+    try {
+      if (pendingSpeaking) {
+        await globalThis.iacJob(pendingSpeaking.attempt_id, sJobID, "speaking");
+      } else {
+        await globalThis.iacJob("", sJobID, "speaking");
+      }
+    } finally {
+      this.activeJobs.delete(sJobID);
     }
     this.ctx.storage.sql.exec(
       "DELETE FROM cf_coordination WHERE key IN(SELECT key FROM cf_coordination WHERE expires<=? LIMIT 1000)",

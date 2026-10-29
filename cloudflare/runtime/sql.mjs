@@ -18,12 +18,21 @@ export function expression(sql) {
     .replace(/\bjsonb_typeof\s*\(/gi, "json_type(")
     .replace(/\bjsonb_array_length\s*\(/gi, "json_array_length(")
     .replace(/\bcardinality\s*\(/gi, "json_array_length(");
-  s = s.replace(/\bCURRENT_TIMESTAMP\b|\bnow\(\)/gi, NOW);
+  s = s.replace(/\bCURRENT_TIMESTAMP\b|\bnow\(\)|\bclock_timestamp\(\)/gi, NOW);
+  s = s.replace(/E'\\n'/g, "char(10)");
   s = s.replace(/'\{\}'(?=\s*(?:[,)]|$))/g, "'{}'");
   return s;
 }
 export function translate(sql, args = []) {
-  let s = sql.replace(/(\$\d+)::jsonb/gi, "CAST($1 AS TEXT)");
+  let s = sql.replace(
+    /\bjsonb_set\(\s*([A-Za-z_][\w.]*|\$\d+)\s*,\s*'\{([^}']+)\}'\s*,\s*(\$(\d+))(?:[^,()]*)\s*\)/gi,
+    (_, document, path, value, position) =>
+      `json_set(${document},'$${path
+        .split(",")
+        .map((key) => "." + key)
+        .join("")}',json(${value}))`,
+  );
+  s = s.replace(/(\$\d+)::jsonb/gi, "CAST($1 AS TEXT)");
   // Parameterized ANY accepts a single JSON array and stays below 100 bind slots.
   s = s.replace(
     /=\s*ANY\s*\(\s*(\$\d+)(?:::[a-z]+\[\])?\s*\)/gi,

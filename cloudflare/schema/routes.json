@@ -1,5 +1,5 @@
 {
-  "revision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
+  "revision": "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206",
   "routes": [
     {
       "method": "GET",
@@ -67,6 +67,22 @@
     },
     {
       "method": "GET",
+      "path": "/api/v1/admin/billing/orders"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/billing/plans/{code}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/billing/settings"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/billing/settings"
+    },
+    {
+      "method": "GET",
       "path": "/api/v1/admin/blog/posts"
     },
     {
@@ -84,6 +100,14 @@
     {
       "method": "POST",
       "path": "/api/v1/admin/blog/posts/{postID}/publish"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/admin/entitlements/{entitlementID}/meetings"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/entitlements/{entitlementID}/revoke"
     },
     {
       "method": "GET",
@@ -258,6 +282,14 @@
       "path": "/api/v1/admin/users/{userID}/attempts/{attemptID}"
     },
     {
+      "method": "GET",
+      "path": "/api/v1/admin/users/{userID}/billing"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/users/{userID}/entitlements"
+    },
+    {
       "method": "POST",
       "path": "/api/v1/admin/users/{userID}/password"
     },
@@ -350,6 +382,10 @@
       "path": "/api/v1/attempts/{attemptID}/answers"
     },
     {
+      "method": "POST",
+      "path": "/api/v1/attempts/{attemptID}/assessment/retry"
+    },
+    {
       "method": "GET",
       "path": "/api/v1/attempts/{attemptID}/material"
     },
@@ -400,6 +436,26 @@
     {
       "method": "POST",
       "path": "/api/v1/auth/refresh"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/billing/callbacks/{provider}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/billing/checkout"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/billing/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/billing/orders/{orderID}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/billing/plans"
     },
     {
       "method": "POST",

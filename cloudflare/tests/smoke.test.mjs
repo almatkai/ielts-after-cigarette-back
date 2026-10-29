@@ -217,6 +217,8 @@ const apiOptions = {
     AI_MODEL: "synthetic-test",
     AI_SPEAKING_MODEL: "synthetic-test",
     AI_TIMEOUT: "3s",
+    PAYMENT_PROVIDER: "fake",
+    PAYMENT_RETURN_URL: "https://web.test/app/billing/return",
   },
 };
 const audioOptions = {
@@ -607,7 +609,7 @@ test("authoritative runtime route inventory", async () => {
   await writeFile(
     "schema/routes.json",
     JSON.stringify(
-      { revision: "40ed0dc5fca0b9df989a29d421a81476e7df0f50", routes },
+      { revision: "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206", routes },
       null,
       2,
     ) + "\n",
@@ -631,6 +633,57 @@ test("admin account, AI configuration and analytics contracts", async () => {
   ])
     await api(path, { as: admin, role: "ADMIN" });
 });
+test("billing catalog, checkout and entitlement contracts", async () => {
+  const anonymous = await call("/api/v1/billing/plans");
+  assert.equal(anonymous.status, 200, await anonymous.clone().text());
+  const catalog = await anonymous.json();
+  assert.equal(catalog.currency, "KZT");
+  assert.deepEqual(
+    catalog.plans.map((plan) => [
+      plan.code,
+      plan.listPrice,
+      plan.salePrice,
+      plan.price,
+    ]),
+    [
+      ["self", 9990, 4990, 4990],
+      ["group", 24990, 14990, 14990],
+      ["personal", 54990, 34990, 34990],
+    ],
+  );
+
+  const before = await api("/billing/me");
+  assert.equal(before.paywallEnabled, false);
+  assert.deepEqual(before.free.reading, { limit: 3, used: 0, remaining: 3 });
+  assert.equal(before.active, false);
+
+  const checkout = await api("/billing/checkout", {
+    method: "POST",
+    body: { planCode: "self", acceptedTerms: true },
+    status: 201,
+  });
+  assert.equal(
+    checkout.redirectUrl,
+    "https://web.test/app/billing/return?orderId=" + checkout.orderId,
+  );
+
+  const after = await api("/billing/me");
+  assert.equal(after.active, true);
+  assert.equal(after.plan.code, "self");
+  assert.ok(new Date(after.endsAt).getTime() > Date.now());
+
+  const order = await api("/billing/orders/" + checkout.orderId);
+  assert.equal(order.status, "PAID");
+  assert.equal(order.amount, 4990);
+  assert.equal(order.provider, "fake");
+  assert.equal(order.providerOrderId, "fake-" + checkout.orderId);
+  const other = await api("/billing/orders/" + checkout.orderId, {
+    as: "22222222-2222-4222-8222-222222222222",
+    status: 404,
+  });
+  assert.equal(other.code, "NOT_FOUND");
+});
+
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
   "base64",
@@ -1062,7 +1115,10 @@ test("Speaking media and AI feedback retain the original live synchronous contra
       })),
     },
   });
-  assert.equal(done.status, "SUBMITTED");
+  assert.equal(done.status, "PROCESSING");
+  await sql("__alarm");
+  const final = await api(`/attempts/${started.attempt.id}/status`);
+  assert.equal(final.status, "SUBMITTED");
   assert.equal(
     (
       await sql(
@@ -1885,7 +1941,10 @@ test("compressed Speaking transcription uses a separate native Wasm Worker befor
       })),
     },
   });
-  assert.equal(done.status, "SUBMITTED");
+  assert.equal(done.status, "PROCESSING");
+  await sql("__alarm");
+  const final = await api(`/attempts/${started.attempt.id}/status`);
+  assert.equal(final.status, "SUBMITTED");
   const saved = (
     await sql(
       "SELECT answer FROM attempt_answers WHERE attempt_id=? AND question_id=?",

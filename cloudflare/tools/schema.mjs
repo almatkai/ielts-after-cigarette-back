@@ -2,7 +2,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
-const sha = "40ed0dc5fca0b9df989a29d421a81476e7df0f50";
+const sha = "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206";
 const base = new URL(
   `../.artifacts/${sha}/source/migrations/`,
   import.meta.url,
