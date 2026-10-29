@@ -2,7 +2,7 @@
 // Only additive differences are applied; any changed or removed object aborts so
 // that an explicit migration is written instead of silently rebuilding the store.
 
-const SYSTEM = /^(?:cf_|sqlite_)/;
+const SYSTEM = /^(?:_cf_|cf_|sqlite_)/;
 
 function identity(statement) {
   const match =
