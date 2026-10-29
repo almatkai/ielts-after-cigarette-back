@@ -8,6 +8,7 @@ import (
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -282,6 +283,9 @@ func (h *Handler) writeSave(w http.ResponseWriter, r *http.Request, status int, 
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
+	if billing.WritePaymentRequired(w, r, err) {
+		return
+	}
 	switch {
 	case errors.Is(err, ErrBankIncomplete):
 		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_BANK_INCOMPLETE", "Для полного экзамена пока недостаточно опубликованных тестов по всем четырём секциям", nil)

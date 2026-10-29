@@ -99,12 +99,17 @@ func (s *Service) Archive(ctx context.Context, id uuid.UUID, revision int64) (Te
 }
 
 func (s *Service) Start(ctx context.Context, userID, testID uuid.UUID, restart bool) (Session, bool, error) {
+	billedRepo, billed := s.repository.(interface {
+		BillingEnabled() bool
+		StartBilledSession(context.Context, Session, []SessionSection, bool) (uuid.UUID, bool, error)
+	})
+	billed = billed && billedRepo.BillingEnabled()
 	if existing, err := s.repository.FindActiveSession(ctx, userID, testID); err == nil {
-		if restart {
+		if restart && !billed {
 			if err := s.repository.Abandon(ctx, existing.ID); err != nil {
 				return Session{}, false, err
 			}
-		} else {
+		} else if !restart {
 			item, err := s.decorate(ctx, userID, existing)
 			return item, false, err
 		}
@@ -142,7 +147,15 @@ func (s *Service) Start(ctx context.Context, userID, testID uuid.UUID, restart b
 		sections = append(sections, SessionSection{Position: definition.position, Skill: definition.skill, Attempt: att})
 	}
 	session := Session{ID: uuid.New(), MockTestID: testID, UserID: userID, MockTest: item}
-	if err := s.repository.CreateSession(ctx, session, sections); err != nil {
+	created := true
+	if billed {
+		var id uuid.UUID
+		id, created, err = billedRepo.StartBilledSession(ctx, session, sections, restart)
+		if err != nil {
+			return Session{}, false, err
+		}
+		session.ID = id
+	} else if err := s.repository.CreateSession(ctx, session, sections); err != nil {
 		return Session{}, false, err
 	}
 	session, err = s.repository.GetSession(ctx, session.ID)
@@ -150,7 +163,7 @@ func (s *Service) Start(ctx context.Context, userID, testID uuid.UUID, restart b
 		return Session{}, false, err
 	}
 	session, err = s.decorate(ctx, userID, session)
-	return session, true, err
+	return session, created, err
 }
 
 func (s *Service) GetSession(ctx context.Context, userID, sessionID uuid.UUID) (Session, error) {

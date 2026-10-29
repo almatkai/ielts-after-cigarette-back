@@ -91,6 +91,9 @@ func (r *PostgresRepository) Claim(ctx context.Context, hash []byte, account uui
 		// A completed earlier try must not consume access to a running retake.
 		return nil, nil
 	}
+	if err = r.billing.ClaimTx(ctx, tx, account, id); err != nil {
+		return nil, err
+	}
 	if _, err = tx.Exec(ctx, `UPDATE attempts SET user_id=$1 WHERE user_id=$2 AND id IN
  (SELECT sec.attempt_id FROM full_mock_session_sections sec JOIN full_mock_sessions s
  ON s.id=sec.session_id WHERE s.user_id=$2 AND s.status='SUBMITTED')`, account, actor); err != nil {

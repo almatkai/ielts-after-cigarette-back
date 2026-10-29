@@ -1,5 +1,7 @@
 # IELTS preparation API
 
+Платный доступ, тарифы и API: [docs/BILLING.md](docs/BILLING.md).
+
 Общая dev-БД и запуск: [docs/SHARED_DEV_DATABASE.md](docs/SHARED_DEV_DATABASE.md).
 Ревизия текущего dev и известные проблемы: [docs/DEV_REVIEW.md](docs/DEV_REVIEW.md).
 Повторная проверка обновлений 2026-09-14: [docs/DEV_REVIEW_2026-09-14.md](docs/DEV_REVIEW_2026-09-14.md).
