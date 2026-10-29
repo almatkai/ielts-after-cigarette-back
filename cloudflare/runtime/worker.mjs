@@ -11,6 +11,7 @@ import baselineSchema from "../schema/history/sqlite-9f195b8e3a83f584953e70de445
 import { translate } from "./sql.mjs";
 import { specialSQL } from "./special-sql.mjs";
 import { Coordination } from "./redis.mjs";
+import { SqlReadProfile } from "./sql-read-profile.mjs";
 
 const ok = (data) => JSON.stringify({ data });
 const error = storageError;
@@ -32,6 +33,8 @@ export default {
 export class IELTSDev extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
+    this.sqlProfile = new SqlReadProfile(env.IAC_SQL_PROFILE === "true");
+    this.db = this.sqlProfile.wrapStorage(ctx.storage);
     this.env = mediaEnvironment(env);
     env = this.env;
     this.tail = Promise.resolve();
@@ -41,7 +44,7 @@ export class IELTSDev extends DurableObject {
     this.activeJobs = new Set();
     this.nativeFetch = new NativeFetch(env.MEDIA, env.IAC_AUDIO);
     ctx.blockConcurrencyWhile(async () => {
-      const sql = ctx.storage.sql;
+      const sql = this.db.sql;
       sql.exec(
         "CREATE TABLE IF NOT EXISTS cf_schema(version TEXT PRIMARY KEY)",
       );
@@ -50,10 +53,10 @@ export class IELTSDev extends DurableObject {
         .toArray()[0];
       if (storedSchema && storedSchema.version !== schema.version)
         if (this.env.SCHEMA_REVERT === "true")
-          this.revertedSchema = applySchemaRevert(ctx.storage, baselineSchema);
-        else this.upgradedSchema = applySchemaUpgrade(ctx.storage, schema);
+          this.revertedSchema = applySchemaRevert(this.db, baselineSchema);
+        else this.upgradedSchema = applySchemaUpgrade(this.db, schema);
       if (!storedSchema) {
-        ctx.storage.transactionSync(() => {
+        this.db.transactionSync(() => {
           for (const statement of schema.statements) sql.exec(statement);
           for (const seed of schema.seeds)
             for (const row of seed.rows) {
@@ -66,7 +69,7 @@ export class IELTSDev extends DurableObject {
           sql.exec("INSERT INTO cf_schema VALUES(?)", schema.version);
         });
       }
-      this.coordination = new Coordination(ctx.storage);
+      this.coordination = new Coordination(this.db);
     });
   }
   serial(fn) {
@@ -148,17 +151,18 @@ export class IELTSDev extends DurableObject {
     try {
       switch (op) {
         case "ping":
-          this.ctx.storage.sql.exec("SELECT 1");
+          this.db.sql.exec("SELECT 1");
           return ok(null);
         case "cursor.start": {
           const translated = translate(input, []),
-            cursor = this.ctx.storage.sql.exec(
-              translated.sql,
-              ...translated.args,
-            );
+            cursor = this.db.sql.exec(translated.sql, ...translated.args);
           this.cursors ??= new Map();
           const key = crypto.randomUUID();
-          this.cursors.set(key, { owner: id, iterator: cursor.raw() });
+          this.cursors.set(key, {
+            owner: id,
+            iterator: cursor.raw(),
+            profileCursor: cursor,
+          });
           return ok({ id: key, columns: cursor.columnNames });
         }
         case "cursor.next": {
@@ -174,9 +178,11 @@ export class IELTSDev extends DurableObject {
             }
             rows.push(item.value);
           }
+          this.sqlProfile.sample(cursor.profileCursor);
           return ok(rows);
         }
         case "cursor.close":
+          this.sqlProfile.sample(this.cursors?.get(input)?.profileCursor);
           this.cursors?.delete(input);
           return ok(null);
         case "sql":
@@ -187,7 +193,7 @@ export class IELTSDev extends DurableObject {
           const transactionID = crypto.randomUUID();
           let release, reject, entered;
           const gate = new Promise((r) => (entered = r));
-          const done = this.ctx.storage
+          const done = this.db
             .transaction(async () => {
               entered();
               return new Promise((r, j) => {
@@ -226,11 +232,11 @@ export class IELTSDev extends DurableObject {
         case "redis": {
           const value = this.coordination.run(input.op, input.args ?? []);
           if (input.op === "LPush") {
-            this.ctx.storage.sql.exec(
+            this.db.sql.exec(
               "DELETE FROM cf_coordination WHERE key=?",
               input.args[0],
             );
-            this.ctx.waitUntil(this.ctx.storage.setAlarm(Date.now() + 100));
+            this.ctx.waitUntil(this.db.setAlarm(Date.now() + 100));
           }
           return ok(value);
         }
@@ -352,6 +358,9 @@ export class IELTSDev extends DurableObject {
     }
   }
   query(original, args) {
+    return this.sqlProfile.observe(() => this.queryObserved(original, args));
+  }
+  queryObserved(original, args) {
     if (
       /^\s*LOCK TABLE ai_providers IN SHARE ROW EXCLUSIVE MODE\s*$/i.test(
         original,
@@ -363,29 +372,29 @@ export class IELTSDev extends DurableObject {
     }
     if (/pg_advisory_xact_lock\(/i.test(original))
       return { rows: [[null]], columns: ["lock"], changes: 0 };
-    const special = specialSQL(this.ctx.storage, original, args, (q, a) =>
+    const special = specialSQL(this.db, original, args, (q, a) =>
       this.query(q, a),
     );
     if (special !== undefined) return special;
     const q = translate(original, args);
-    const cursor = this.ctx.storage.sql.exec(q.sql, ...q.args);
+    const cursor = this.db.sql.exec(q.sql, ...q.args);
     const columns = cursor.columnNames;
     const rows = Array.from(cursor.raw(), (row) =>
       row.map((v) =>
         v instanceof ArrayBuffer ? { $bytes: encode(new Uint8Array(v)) } : v,
       ),
     );
-    const changes = this.ctx.storage.sql.exec("SELECT changes() AS n").one().n;
+    const changes = this.db.sql.exec("SELECT changes() AS n").one().n;
     return { rows, columns, changes };
   }
   async schedule() {
     while (this.transaction) await this.transaction.done.catch(() => {});
-    const writingJobs = this.ctx.storage.sql
+    const writingJobs = this.db.sql
       .exec(
         "SELECT MIN(CASE WHEN status='PROCESSING' THEN strftime('%s',updated_at)*1000+121000 ELSE strftime('%s',next_attempt_at)*1000 END) AS next FROM writing_assessment_jobs WHERE (status='QUEUED' AND attempts<3) OR status='PROCESSING'",
       )
       .one().next;
-    const speakingJobs = this.ctx.storage.sql
+    const speakingJobs = this.db.sql
       .exec(
         "SELECT MIN(CASE WHEN status='PROCESSING' THEN strftime('%s',updated_at)*1000+121000 ELSE strftime('%s',next_attempt_at)*1000 END) AS next FROM speaking_assessment_jobs WHERE (status='QUEUED' AND attempts<3) OR status='PROCESSING'",
       )
@@ -394,19 +403,19 @@ export class IELTSDev extends DurableObject {
       writingJobs === null && speakingJobs === null
         ? null
         : Math.min(writingJobs ?? Infinity, speakingJobs ?? Infinity);
-    let cleanup = this.ctx.storage.sql
+    let cleanup = this.db.sql
       .exec(
         "SELECT MIN(expires) next FROM cf_coordination WHERE expires IS NOT NULL",
       )
       .one().next;
     if (
-      this.ctx.storage.sql
+      this.db.sql
         .exec("SELECT 1 FROM account_object_deletions LIMIT 1")
         .toArray().length
     )
       cleanup = Math.min(cleanup ?? Infinity, Date.now() + 60000);
     if (jobs !== null || cleanup !== null)
-      await this.ctx.storage.setAlarm(
+      await this.db.setAlarm(
         Math.max(
           Date.now() + 100,
           Math.min(jobs ?? Infinity, cleanup ?? Infinity),
@@ -417,14 +426,14 @@ export class IELTSDev extends DurableObject {
     if (this.transaction) await this.transaction.done.catch(() => {});
     await this.initialize();
     // Persist the recovery wake before provider I/O; an eviction cannot orphan a lease.
-    await this.ctx.storage.setAlarm(Date.now() + 125000);
-    const pendingWriting = this.ctx.storage.sql
+    await this.db.setAlarm(Date.now() + 125000);
+    const pendingWriting = this.db.sql
       .exec(
         "SELECT attempt_id FROM writing_assessment_jobs WHERE status='QUEUED' AND attempts<3 AND next_attempt_at<=? ORDER BY next_attempt_at,created_at LIMIT 1",
         new Date().toISOString(),
       )
       .toArray()[0];
-    const pendingSpeaking = this.ctx.storage.sql
+    const pendingSpeaking = this.db.sql
       .exec(
         "SELECT attempt_id FROM speaking_assessment_jobs WHERE status='QUEUED' AND attempts<3 AND next_attempt_at<=? ORDER BY next_attempt_at,created_at LIMIT 1",
         new Date().toISOString(),
@@ -452,36 +461,36 @@ export class IELTSDev extends DurableObject {
     } finally {
       this.activeJobs.delete(sJobID);
     }
-    this.ctx.storage.sql.exec(
+    this.db.sql.exec(
       "DELETE FROM cf_coordination WHERE key IN(SELECT key FROM cf_coordination WHERE expires<=? LIMIT 1000)",
       Date.now(),
     );
-    const objects = this.ctx.storage.sql
+    const objects = this.db.sql
       .exec("SELECT store,storage_key FROM account_object_deletions LIMIT 100")
       .toArray();
     for (const object of objects) {
       await this.env.MEDIA.delete(object.storage_key);
-      this.ctx.storage.sql.exec(
+      this.db.sql.exec(
         "DELETE FROM account_object_deletions WHERE store=? AND storage_key=?",
         object.store,
         object.storage_key,
       );
     }
-    await this.ctx.storage.deleteAlarm();
+    await this.db.deleteAlarm();
     await this.schedule();
   }
   importData(request) {
-    return this.serial(() => importDatabase(this.ctx.storage, request.body));
+    return this.serial(() => importDatabase(this.db, request.body));
   }
   activateData(id) {
     return this.serial(async () => {
-      const report = await activate(this.ctx.storage, this.env.MEDIA, id);
+      const report = await activate(this.db, this.env.MEDIA, id);
       await this.schedule();
       return report;
     });
   }
   importReport() {
-    return this.serial(() => migrationStatus(this.ctx.storage));
+    return this.serial(() => migrationStatus(this.db));
   }
   async readRequest(length, id) {
     const t = this.transports.get(id);
@@ -495,8 +504,25 @@ export class IELTSDev extends DurableObject {
     t.pending = t.pending.subarray(bytes.length);
     return encode(bytes);
   }
-  getMetrics() {
-    return this.handle(new Request("https://private.invalid/metrics"), true);
+  // Binding-only RPC: no request route exposes diagnostics or query text.
+  getSqlReadProfile() {
+    return this.sqlProfile.snapshot();
+  }
+  async getMetrics() {
+    const response = await this.handle(
+      new Request("https://private.invalid/metrics"),
+      true,
+    );
+    if (!this.sqlProfile.enabled || !response.ok) return response;
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    return new Response(
+      (await response.text()) + "\n" + this.sqlProfile.prometheus(),
+      {
+        status: response.status,
+        headers,
+      },
+    );
   }
   fetch(request) {
     return this.handle(request, false);
@@ -518,7 +544,7 @@ export class IELTSDev extends DurableObject {
       try {
         if (
           this.env.IAC_REQUIRE_IMPORT !== "false" &&
-          migrationStatus(this.ctx.storage)?.status !== "active"
+          migrationStatus(this.db)?.status !== "active"
         ) {
           respond(
             Response.json(

@@ -4,6 +4,55 @@ This is the **deployed native DEV backend**, built from the selected DEV applica
 
 The real-data cutover completed on 2026-10-28: **https://ielts.woolet.cc/app/** now uses the native frontend, API, SQLite data/blob storage and audio Worker. All ten current and legacy IELTS DEV containers are stopped; their source volumes are retained. The existing `ielts-dev` Worker is now a tiny private service-binding frontdoor, with its VPC origin binding removed. The temporary migration helper and local OAuth bridge have been removed/stopped. See [native cutover evidence and rollback boundaries](NATIVE-CUTOVER.md).
 
+## SQL read audit and bounded maintenance — 2026-10-30
+
+Cloudflare GraphQL namespace metrics for 29 October UTC show 2,892,980 reads
+for IELTS (2,887,433 in its API) and 2,851,817 for Drone. The shared total is
+5,744,797. Raw namespace/hour and IELTS minute aggregates are preserved in
+`schema/sql-read-metrics-20261029.json` and
+`schema/sql-read-minutes-20261029.json`. They identify consumption by project,
+not individual SQL statements. Most IELTS reads occurred at 21:36–21:57 UTC.
+
+Actual workerd regression tests demonstrate avoidable maintenance scans.
+The additive `cf_coordination_expires` and `leases_expires` indexes reduce a
+10,000-row minimum-expiry lookup from 10,000 reads to one. The partial temporary
+object index reduces catalog cleanup planning from 10,002 reads to 12 without
+reading permanent objects. Existing results and blob lifecycle tests are retained.
+These indexes preserve application rows and its schema fingerprint. They do
+not by themselves explain the historical API total: the imported coordination
+snapshot contained only 68 keys.
+
+A separate isolated replay of the exact Wasm against the private 15,540-row
+snapshot found startup/public catalogs inexpensive, and Full Mock eligibility
+at 2,448 reads. No checked route reproduced the historical ~91,600-read pattern.
+`schema/sql-read-local-replay.json` records only route/status/count metadata;
+no user rows or credentials. All outgoing requests were denied during replay.
+
+Opt-in `IAC_SQL_PROFILE=true` now records bounded, in-memory, hash-only counters
+for underlying SQL, including special adapter queries and maintenance. Counters
+reset on eviction; no SQL text, bind values or user rows are retained. The
+binding-only `getSqlReadProfile()` RPC does not initialize Go or query SQL.
+Existing private Prometheus output includes the same counters. Use
+`new SqlReadProfile().fingerprint(sql)` locally to map a known source query.
+
+An operator-only read bridge is provided; it must never be deployed publicly:
+
+```sh
+node node_modules/wrangler/bin/wrangler.js dev --remote \
+  --config tools/sql-profile-local/wrangler.jsonc
+curl http://127.0.0.1:8796/profile
+```
+
+Wrangler authenticates the remote preview with the existing operator session.
+The bridge accepts literal loopback GETs only. It does not expose SQL execution,
+imports or user rows. Free quota exhaustion can still prevent the remote object
+constructor from running, so diagnostics may require the midnight UTC reset.
+Changing code or adding indexes cannot reset the account's consumed daily quota.
+
+Validation: all 84 Cloudflare tests passed, including actual workerd rowsRead
+bounds, profile privacy/retention and blob lifecycle. API/blob and operator bridge
+Wrangler dry-runs passed. Production and Drone application code are unchanged.
+
 ## Selected source and reproducibility
 
 - Source: `40ed0dc5fca0b9df989a29d421a81476e7df0f50`.

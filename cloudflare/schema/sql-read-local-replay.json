@@ -1,0 +1,89 @@
+{
+  "sourceRevision": "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206",
+  "wasmSha256": "52677416da6fffab9d06812648e41a587409207313e2648960460a0fa7c54c89",
+  "snapshotSource": "local private approved-cutover-20261028-v2; no rows included",
+  "outboundRequests": "denied",
+  "isolatedState": "removed after replay",
+  "limitations": [
+    "Current runtime with maintenance indexes",
+    "IAC_REQUIRE_IMPORT=false in local replay",
+    "Does not reconstruct historical live state or explain 2.9M reads"
+  ],
+  "routes": [
+    {
+      "route": "/api/v1/guest/config",
+      "status": 200,
+      "rowsRead": 7
+    },
+    {
+      "route": "/api/v1/reading/materials",
+      "status": 200,
+      "rowsRead": 121
+    },
+    {
+      "route": "/api/v1/listening/tests",
+      "status": 200,
+      "rowsRead": 61
+    },
+    {
+      "route": "/api/v1/writing/materials",
+      "status": 200,
+      "rowsRead": 44
+    },
+    {
+      "route": "/api/v1/speaking/materials",
+      "status": 200,
+      "rowsRead": 20
+    },
+    {
+      "route": "/api/v1/analytics/ping",
+      "status": 204,
+      "rowsRead": 8
+    },
+    {
+      "route": "/api/v1/auth/refresh",
+      "status": 401,
+      "rowsRead": 2
+    },
+    {
+      "route": "/api/v1/guest/session",
+      "status": 401,
+      "rowsRead": 2
+    },
+    {
+      "route": "/api/v1/billing/plans",
+      "status": 200,
+      "rowsRead": 8
+    },
+    {
+      "route": "/api/v1/billing/me",
+      "status": 401,
+      "rowsRead": 2
+    },
+    {
+      "route": "/__metrics",
+      "status": 200,
+      "rowsRead": 13
+    },
+    {
+      "route": "/api/v1/full-mocks/overview",
+      "status": 200,
+      "rowsRead": 2456
+    },
+    {
+      "route": "/api/v1/billing/me",
+      "status": 200,
+      "rowsRead": 9
+    },
+    {
+      "route": "/api/v1/progress",
+      "status": 404,
+      "rowsRead": 2
+    },
+    {
+      "route": "/api/v1/mistakes",
+      "status": 404,
+      "rowsRead": 2
+    }
+  ]
+}

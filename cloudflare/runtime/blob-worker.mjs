@@ -20,6 +20,9 @@ export class IACBlobChunks extends DurableObject {
     this.sql.exec(
       "CREATE TABLE IF NOT EXISTS chunks(upload TEXT NOT NULL,position INTEGER NOT NULL,bytes BLOB NOT NULL,PRIMARY KEY(upload,position)); CREATE TABLE IF NOT EXISTS usage(id INTEGER PRIMARY KEY CHECK(id=1),bytes INTEGER NOT NULL); INSERT OR IGNORE INTO usage VALUES(1,0); CREATE TABLE IF NOT EXISTS leases(upload TEXT PRIMARY KEY,expires INTEGER)",
     );
+    this.sql.exec(
+      "CREATE INDEX IF NOT EXISTS leases_expires ON leases(expires)",
+    );
   }
   write(id, position, bytes) {
     if (
@@ -129,6 +132,10 @@ export class IACBlobIndex extends DurableObject {
     this.sql = ctx.storage.sql;
     this.sql.exec(
       "CREATE TABLE IF NOT EXISTS objects(key TEXT PRIMARY KEY,meta TEXT NOT NULL); CREATE TABLE IF NOT EXISTS uploads(id TEXT PRIMARY KEY,key TEXT NOT NULL,parent TEXT,fields TEXT NOT NULL,part TEXT,expires INTEGER); CREATE INDEX IF NOT EXISTS expiry ON uploads(expires); CREATE TABLE IF NOT EXISTS multipart(id TEXT PRIMARY KEY,key TEXT NOT NULL,fields TEXT NOT NULL,parts TEXT NOT NULL,expires INTEGER NOT NULL);",
+    );
+    // Temporary cleanup must not scan permanent media on every staged upload.
+    this.sql.exec(
+      "CREATE INDEX IF NOT EXISTS temporary_objects_expiry ON objects(json_extract(meta,'$.uploaded')) WHERE substr(key,1,9)='_cf-temp/'",
     );
   }
   capacity() {

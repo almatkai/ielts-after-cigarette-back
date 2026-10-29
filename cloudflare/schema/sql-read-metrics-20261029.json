@@ -1,0 +1,822 @@
+{
+  "date": "2026-10-29",
+  "retrievedAt": "2026-10-29T22:53:56.623Z",
+  "source": "Cloudflare GraphQL durableObjectsPeriodicGroups",
+  "totals": {
+    "drone-dev-app_AppDomain": {
+      "rowsRead": 2077582,
+      "rowsWritten": 3699
+    },
+    "drone-dev-blobs_BlobIndex": {
+      "rowsRead": 766267,
+      "rowsWritten": 5247
+    },
+    "drone-dev-app_AuthState": {
+      "rowsRead": 205,
+      "rowsWritten": 72
+    },
+    "drone-dev-blobs_BlobChunks": {
+      "rowsRead": 7763,
+      "rowsWritten": 2209
+    },
+    "ielts-web-dev_IELTSRender": {
+      "rowsRead": 0,
+      "rowsWritten": 0
+    },
+    "ielts-api-dev_IELTSDev": {
+      "rowsRead": 2887433,
+      "rowsWritten": 617
+    },
+    "ielts-blob-dev_IACBlobIndex": {
+      "rowsRead": 1266,
+      "rowsWritten": 27
+    },
+    "ielts-blob-dev_IACBlobChunks": {
+      "rowsRead": 4281,
+      "rowsWritten": 403
+    }
+  },
+  "hourly": [
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T19:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 38030,
+        "rowsWritten": 30
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T14:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 311835,
+        "rowsWritten": 2034
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T16:00:00Z",
+        "namespaceId": "0d5d00dd55ab48ac94bb11cf1de98224"
+      },
+      "sum": {
+        "rowsRead": 57,
+        "rowsWritten": 15
+      },
+      "name": "drone-dev-app_AuthState"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T08:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 1536,
+        "rowsWritten": 275
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T22:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T06:00:00Z",
+        "namespaceId": "0d5d00dd55ab48ac94bb11cf1de98224"
+      },
+      "sum": {
+        "rowsRead": 12,
+        "rowsWritten": 6
+      },
+      "name": "drone-dev-app_AuthState"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T07:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T22:00:00Z",
+        "namespaceId": "d1ed078762cc4504b78099565ebc5a51"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-api-dev_IELTSDev"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T19:00:00Z",
+        "namespaceId": "0d5d00dd55ab48ac94bb11cf1de98224"
+      },
+      "sum": {
+        "rowsRead": 6,
+        "rowsWritten": 2
+      },
+      "name": "drone-dev-app_AuthState"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T03:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 24014,
+        "rowsWritten": 6
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T16:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 167262,
+        "rowsWritten": 897
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T05:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 8070,
+        "rowsWritten": 75
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T06:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 50,
+        "rowsWritten": 2
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T10:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 343071,
+        "rowsWritten": 295
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T16:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 788,
+        "rowsWritten": 300
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T07:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 259328,
+        "rowsWritten": 195
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T13:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T15:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T06:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 2479,
+        "rowsWritten": 231
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T08:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 29799,
+        "rowsWritten": 189
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T04:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 7946,
+        "rowsWritten": 75
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T09:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 12060,
+        "rowsWritten": 9
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T02:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 3123,
+        "rowsWritten": 30
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T21:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T04:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 24287,
+        "rowsWritten": 27
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T04:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 48,
+        "rowsWritten": 25
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T01:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 4017,
+        "rowsWritten": 1990
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T17:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 28885,
+        "rowsWritten": 39
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T14:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 826543,
+        "rowsWritten": 664
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T22:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T21:00:00Z",
+        "namespaceId": "d1ed078762cc4504b78099565ebc5a51"
+      },
+      "sum": {
+        "rowsRead": 2887067,
+        "rowsWritten": 615
+      },
+      "name": "ielts-api-dev_IELTSDev"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T11:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 12090,
+        "rowsWritten": 12
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T10:00:00Z",
+        "namespaceId": "0d5d00dd55ab48ac94bb11cf1de98224"
+      },
+      "sum": {
+        "rowsRead": 34,
+        "rowsWritten": 18
+      },
+      "name": "drone-dev-app_AuthState"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T20:00:00Z",
+        "namespaceId": "d1ed078762cc4504b78099565ebc5a51"
+      },
+      "sum": {
+        "rowsRead": 73,
+        "rowsWritten": 0
+      },
+      "name": "ielts-api-dev_IELTSDev"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T06:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 3562,
+        "rowsWritten": 15
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T05:00:00Z",
+        "namespaceId": "da3a8e81329a46e6ae95b32ba3e8c865"
+      },
+      "sum": {
+        "rowsRead": 1266,
+        "rowsWritten": 27
+      },
+      "name": "ielts-blob-dev_IACBlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T19:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 80,
+        "rowsWritten": 30
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T17:00:00Z",
+        "namespaceId": "0d5d00dd55ab48ac94bb11cf1de98224"
+      },
+      "sum": {
+        "rowsRead": 14,
+        "rowsWritten": 4
+      },
+      "name": "drone-dev-app_AuthState"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T02:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 19,
+        "rowsWritten": 10
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T11:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 5775,
+        "rowsWritten": 45
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T10:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 120699,
+        "rowsWritten": 1038
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T04:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T02:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 12035,
+        "rowsWritten": 6
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T04:00:00Z",
+        "namespaceId": "d1ed078762cc4504b78099565ebc5a51"
+      },
+      "sum": {
+        "rowsRead": 293,
+        "rowsWritten": 2
+      },
+      "name": "ielts-api-dev_IELTSDev"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T09:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 24,
+        "rowsWritten": 15
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T01:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 17,
+        "rowsWritten": 10
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T16:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 396904,
+        "rowsWritten": 394
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T01:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 3103,
+        "rowsWritten": 30
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T20:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 12010,
+        "rowsWritten": 3
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T20:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 2993,
+        "rowsWritten": 15
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T08:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 36211,
+        "rowsWritten": 12
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T20:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 10,
+        "rowsWritten": 5
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T14:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 1568,
+        "rowsWritten": 693
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T19:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 17854,
+        "rowsWritten": 90
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T05:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 42,
+        "rowsWritten": 25
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T19:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T14:00:00Z",
+        "namespaceId": "0d5d00dd55ab48ac94bb11cf1de98224"
+      },
+      "sum": {
+        "rowsRead": 82,
+        "rowsWritten": 27
+      },
+      "name": "drone-dev-app_AuthState"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T20:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T03:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 3144,
+        "rowsWritten": 30
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T15:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T07:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 403,
+        "rowsWritten": 200
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T07:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 67575,
+        "rowsWritten": 594
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T10:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 659,
+        "rowsWritten": 350
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T05:00:00Z",
+        "namespaceId": "7c80a1ae61b647938ec6d4ebe28c05e1"
+      },
+      "sum": {
+        "rowsRead": 48047,
+        "rowsWritten": 15
+      },
+      "name": "drone-dev-app_AppDomain"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T11:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 31,
+        "rowsWritten": 15
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T03:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 18,
+        "rowsWritten": 10
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T09:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 4668,
+        "rowsWritten": 45
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T05:00:00Z",
+        "namespaceId": "bcc88d1dc673467995553e24ae73f1d8"
+      },
+      "sum": {
+        "rowsRead": 4281,
+        "rowsWritten": 403
+      },
+      "name": "ielts-blob-dev_IACBlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T02:00:00Z",
+        "namespaceId": "37f98983a6114a5fb0fcbf77a12f06e7"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      },
+      "name": "ielts-web-dev_IELTSRender"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T17:00:00Z",
+        "namespaceId": "9b150d3df0da4e21a95d7cae3fe2d013"
+      },
+      "sum": {
+        "rowsRead": 41,
+        "rowsWritten": 15
+      },
+      "name": "drone-dev-blobs_BlobChunks"
+    },
+    {
+      "dimensions": {
+        "datetimeHour": "2026-10-29T17:00:00Z",
+        "namespaceId": "dd0e4bfc68bf4b12bfe337ebc87e74f3"
+      },
+      "sum": {
+        "rowsRead": 8859,
+        "rowsWritten": 45
+      },
+      "name": "drone-dev-blobs_BlobIndex"
+    }
+  ]
+}

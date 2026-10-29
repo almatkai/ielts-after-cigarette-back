@@ -1,0 +1,511 @@
+{
+  "source": "Cloudflare GraphQL durableObjectsPeriodicGroups",
+  "namespace": "ielts-api-dev_IELTSDev",
+  "retrievedAt": "2026-10-29T23:09:15.299Z",
+  "rows": [
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:35:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:43:00Z"
+      },
+      "sum": {
+        "rowsRead": 366000,
+        "rowsWritten": 88
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:51:00Z"
+      },
+      "sum": {
+        "rowsRead": 153,
+        "rowsWritten": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:53:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:30:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:01:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:22:00Z"
+      },
+      "sum": {
+        "rowsRead": 79,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:34:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:23:00Z"
+      },
+      "sum": {
+        "rowsRead": 289,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:58:00Z"
+      },
+      "sum": {
+        "rowsRead": 308,
+        "rowsWritten": 2
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:33:00Z"
+      },
+      "sum": {
+        "rowsRead": 640,
+        "rowsWritten": 25
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:25:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:06:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:02:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:21:00Z"
+      },
+      "sum": {
+        "rowsRead": 291,
+        "rowsWritten": 28
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:29:00Z"
+      },
+      "sum": {
+        "rowsRead": 79,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:54:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:15:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T20:44:00Z"
+      },
+      "sum": {
+        "rowsRead": 73,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:36:00Z"
+      },
+      "sum": {
+        "rowsRead": 91609,
+        "rowsWritten": 27
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:05:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:44:00Z"
+      },
+      "sum": {
+        "rowsRead": 274454,
+        "rowsWritten": 59
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:18:00Z"
+      },
+      "sum": {
+        "rowsRead": 141,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:34:00Z"
+      },
+      "sum": {
+        "rowsRead": 155,
+        "rowsWritten": 2
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:57:00Z"
+      },
+      "sum": {
+        "rowsRead": 92138,
+        "rowsWritten": 37
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:16:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T20:45:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:24:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:33:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T04:47:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:39:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:48:00Z"
+      },
+      "sum": {
+        "rowsRead": 91603,
+        "rowsWritten": 11
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:08:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:42:00Z"
+      },
+      "sum": {
+        "rowsRead": 183282,
+        "rowsWritten": 33
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:00:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:40:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:50:00Z"
+      },
+      "sum": {
+        "rowsRead": 364938,
+        "rowsWritten": 58
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:52:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:03:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T04:49:00Z"
+      },
+      "sum": {
+        "rowsRead": 73,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:55:00Z"
+      },
+      "sum": {
+        "rowsRead": 91343,
+        "rowsWritten": 13
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:47:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:49:00Z"
+      },
+      "sum": {
+        "rowsRead": 153,
+        "rowsWritten": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:41:00Z"
+      },
+      "sum": {
+        "rowsRead": 228633,
+        "rowsWritten": 35
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:37:00Z"
+      },
+      "sum": {
+        "rowsRead": 91839,
+        "rowsWritten": 15
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:30:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:45:00Z"
+      },
+      "sum": {
+        "rowsRead": 186116,
+        "rowsWritten": 39
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:59:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:20:00Z"
+      },
+      "sum": {
+        "rowsRead": 600,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:07:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:19:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T04:46:00Z"
+      },
+      "sum": {
+        "rowsRead": 220,
+        "rowsWritten": 2
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:56:00Z"
+      },
+      "sum": {
+        "rowsRead": 153,
+        "rowsWritten": 1
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:46:00Z"
+      },
+      "sum": {
+        "rowsRead": 821918,
+        "rowsWritten": 139
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T22:04:00Z"
+      },
+      "sum": {
+        "rowsRead": 0,
+        "rowsWritten": 0
+      }
+    },
+    {
+      "dimensions": {
+        "datetimeMinute": "2026-10-29T21:38:00Z"
+      },
+      "sum": {
+        "rowsRead": 153,
+        "rowsWritten": 1
+      }
+    }
+  ]
+}

@@ -7,6 +7,10 @@ export class Coordination {
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS cf_coordination(key TEXT PRIMARY KEY,value TEXT NOT NULL,expires INTEGER)`,
     );
+    // Cleanup is scheduled after each request; avoid scanning every cached key.
+    this.sql.exec(
+      "CREATE INDEX IF NOT EXISTS cf_coordination_expires ON cf_coordination(expires) WHERE expires IS NOT NULL",
+    );
   }
   get(key) {
     const r = this.sql
