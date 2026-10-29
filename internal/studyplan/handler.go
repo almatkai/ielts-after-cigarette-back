@@ -8,6 +8,7 @@ import (
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -60,6 +61,10 @@ func (h *Handler) decode(w http.ResponseWriter, r *http.Request, input any) bool
 func (h *Handler) write(w http.ResponseWriter, r *http.Request, value any, err error) {
 	if err == nil {
 		httpx.WriteJSON(w, 200, value)
+		return
+	}
+	// Plan tasks start ordinary attempts, so they share the free allowance.
+	if billing.WritePaymentRequired(w, r, err) {
 		return
 	}
 	switch {
