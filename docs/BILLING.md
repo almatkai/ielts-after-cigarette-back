@@ -20,9 +20,22 @@ Existing migrations are unchanged. Apply migrations before enabling billing.
 
 The base and production Compose manifests pass the three variables to the API.
 The shared development manifest already imports `.env` and `.env.dev`.
-The production manifest currently sets `APP_ENV=development` in the existing
-configuration; operators must use `APP_ENV=production` to activate the production
-configuration guards. This change does not modify that existing environment.
+The production manifest fixes `APP_ENV=production`, activating fake-payment,
+secret, guest Turnstile/secure-cookie and AI-provider telemetry guards. Existing
+production deployments must meet those guards; do not bypass them for billing.
+The production workflow defaults to the approved manual-grant rollout:
+`PAYWALL_ENABLED=true`, `PAYMENT_PROVIDER=none`, and
+`PAYMENT_RETURN_URL=https://ielts.yrys.academy/app/billing/return`.
+Production GitHub environment variables override these defaults and are written
+to `production.env`, then passed into the API by Compose. BCC is unimplemented;
+checkout stays unavailable and administrators grant access through the administrator API below.
+
+The deploy script applies all migrations (including additive `000045`, after
+main's `000044`) before recreating the API or worker. A migration failure stops
+the release before application replacement. Keep a verified database backup;
+do not run the destructive billing down migration after real grants/orders.
+Rollback by disabling `PAYWALL_ENABLED` and redeploying, retaining billing tables
+and audit history. Existing usage before activation is not backfilled.
 
 Plans are seeded as follows; all prices are integer KZT:
 

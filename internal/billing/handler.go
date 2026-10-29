@@ -118,7 +118,7 @@ func (h *Handler) Order(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"id": o.ID, "status": o.Status, "planCode": o.PlanCode, "amount": o.Amount, "listPrice": o.ListPrice, "createdAt": o.CreatedAt, "paidAt": o.PaidAt})
+	httpx.WriteJSON(w, 200, map[string]any{"id": o.ID, "status": o.Status, "planCode": o.PlanCode, "amount": o.Amount, "listPrice": o.ListPrice, "provider": o.Provider, "providerOrderId": o.ProviderOrderID, "createdAt": o.CreatedAt, "paidAt": o.PaidAt})
 }
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, h.maxBody)

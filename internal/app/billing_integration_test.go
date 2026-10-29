@@ -82,7 +82,7 @@ func TestBillingHTTPAuthenticationOwnershipAdministrationAndFakePayment(t *testi
 	if w = request("GET", "/billing/orders/"+checkout.OrderID.String(), "", otherToken); w.Code != 404 {
 		t.Fatalf("foreign order: %d %s", w.Code, w.Body.String())
 	}
-	if w = request("GET", "/billing/orders/"+checkout.OrderID.String(), "", studentToken); w.Code != 200 || !strings.Contains(w.Body.String(), `"status":"PAID"`) || !strings.Contains(w.Body.String(), `"amount":14990`) {
+	if w = request("GET", "/billing/orders/"+checkout.OrderID.String(), "", studentToken); w.Code != 200 || !strings.Contains(w.Body.String(), `"status":"PAID"`) || !strings.Contains(w.Body.String(), `"amount":14990`) || !strings.Contains(w.Body.String(), `"providerOrderId":"fake-`) {
 		t.Fatalf("paid order: %d %s", w.Code, w.Body.String())
 	}
 	if w = request("GET", "/billing/me", "", studentToken); w.Code != 200 || !strings.Contains(w.Body.String(), `"active":true`) || !strings.Contains(w.Body.String(), `"meetingsTotal":4`) {
@@ -146,6 +146,33 @@ func TestBillingHTTPAuthenticationOwnershipAdministrationAndFakePayment(t *testi
 	if w.Code != 403 {
 		t.Fatalf("ordinary CORS bypassed: %d", w.Code)
 	}
+	t.Run("production manual grants without payment provider", func(t *testing.T) {
+		production := cfg
+		production.Environment = "production"
+		production.PaymentProvider = "none"
+		manual := New(production, pool, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		call := func(method, path, body, bearer string) *httptest.ResponseRecorder {
+			r := httptest.NewRequest(method, "/api/v1"+path, strings.NewReader(body))
+			r.Header.Set("Authorization", "Bearer "+bearer)
+			w := httptest.NewRecorder()
+			manual.ServeHTTP(w, r)
+			return w
+		}
+		w := call("POST", "/billing/checkout", `{"planCode":"self","acceptedTerms":true}`, otherToken)
+		if w.Code != 503 || !strings.Contains(w.Body.String(), "PAYMENT_PROVIDER_UNAVAILABLE") {
+			t.Fatalf("manual checkout: %d %s", w.Code, w.Body.String())
+		}
+		var orders int
+		if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM billing_orders WHERE user_id=$1`, other).Scan(&orders); err != nil || orders != 0 {
+			t.Fatalf("unavailable checkout created orders: %d %v", orders, err)
+		}
+		if w = call("POST", "/admin/users/"+other.String()+"/entitlements", `{"planCode":"self","source":"ADMIN","note":"Manual production access"}`, adminToken); w.Code != 201 {
+			t.Fatalf("manual grant: %d %s", w.Code, w.Body.String())
+		}
+		if w = call("GET", "/billing/me", "", otherToken); w.Code != 200 || !strings.Contains(w.Body.String(), `"active":true`) || !strings.Contains(w.Body.String(), `"paywallEnabled":true`) {
+			t.Fatalf("manual access: %d %s", w.Code, w.Body.String())
+		}
+	})
 	// Cookie guests can read billing/me, but still cannot buy or read orders.
 	t.Run("cookie guest", func(t *testing.T) {
 		redisURL := os.Getenv("TEST_REDIS_URL")

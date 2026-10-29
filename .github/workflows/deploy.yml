@@ -11,6 +11,8 @@ name: Test, build, and deploy
 # tag. Deploy gates on both jobs.
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches:
       - dev
@@ -51,7 +53,17 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
     env:
+      TEST_REDIS_URL: redis://localhost:6379/0
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ielts_test?sslmode=disable
     steps:
       - uses: actions/checkout@v7
@@ -117,6 +129,9 @@ jobs:
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
       BACKEND_IMAGE: ${{ needs.build.outputs.image }}
+      PAYWALL_ENABLED: ${{ vars.PAYWALL_ENABLED || 'true' }}
+      PAYMENT_PROVIDER: ${{ vars.PAYMENT_PROVIDER || 'none' }}
+      PAYMENT_RETURN_URL: ${{ vars.PAYMENT_RETURN_URL || 'https://ielts.yrys.academy/app/billing/return' }}
       BACKEND_PORT: ${{ vars.BACKEND_PORT }}
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -186,6 +201,9 @@ jobs:
           umask 077
           {
             printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE"
+            printf 'PAYWALL_ENABLED=%s\n' "$PAYWALL_ENABLED"
+            printf 'PAYMENT_PROVIDER=%s\n' "$PAYMENT_PROVIDER"
+            printf 'PAYMENT_RETURN_URL=%s\n' "$PAYMENT_RETURN_URL"
             printf 'BACKEND_PORT=%s\n' "$BACKEND_PORT"
             printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER"
             printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
