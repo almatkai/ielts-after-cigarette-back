@@ -77,8 +77,8 @@ type Order struct {
 	CreatedAt       time.Time  `json:"createdAt"`
 	PaidAt          *time.Time `json:"paidAt"`
 	Currency        string     `json:"-"`
-	Provider        string     `json:"-"`
-	ProviderOrderID *string    `json:"-"`
+	Provider        string     `json:"provider"`
+	ProviderOrderID *string    `json:"providerOrderId"`
 	AccessDays      int        `json:"-"`
 	MeetingsCount   int        `json:"-"`
 }
