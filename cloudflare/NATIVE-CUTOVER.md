@@ -1,15 +1,29 @@
-# IELTS DEV native cutover — 2026-10-28
+# IELTS DEV native cutover — verified 2026-10-29
 
-**IELTS DEV runtime migration and source retirement are complete; current API availability is quota limited.** https://ielts.woolet.cc/app/ serves the selected DEV application entirely through Cloudflare. The existing public hostname, Google/Turnstile origin authority and host-only secure cookie policy are retained.
+**IELTS DEV migration, source retirement and bounded native recovery checks are complete.**
+https://ielts.woolet.cc/app/ and `/api/v1/guest/config` return 200 after the
+29 October Free SQL quota reset. Sampled JavaScript/CSS bytes match the deployed
+source artifact; an anonymous profile request receives 401. The Workers alias
+retains the canonical hostname, path and query. No paid upgrade, VPS fallback,
+reimport, fixture, provider transaction or deployment was needed for this check.
 
-As checked at 2026-10-28 09:46 UTC, the guest API returns **503** because the
-shared Cloudflare Free SQLite read allowance is exhausted. The frontdoor sends
-`Cache-Control: no-store`, `Retry-After` and a Russian message pointing to the
-reset at **2026-10-29 00:00 UTC (05:00 Almaty)**. The earlier HTML request returned
-200; healthy paths are not forcibly disabled. Recovery after reset remains
-unverified. No paid upgrade or VPS fallback was introduced. The
-[quota boundary receipt](../../ielts-after-cigarette/iac-web/cloudflare/quota-boundary-acceptance.json)
-records the narrow adapter update, current versions and preserved bindings/vars/secrets.
+The 28 October incident temporarily returned 503 on database routes after the
+shared Free read allowance was exhausted. That precise quota boundary remains
+installed; healthy responses are unchanged. The
+[post-reset receipt](../../ielts-after-cigarette/iac-web/cloudflare/post-reset-acceptance.json)
+records current recovery, while
+[quota-boundary-acceptance.json](../../ielts-after-cigarette/iac-web/cloudflare/quota-boundary-acceptance.json)
+retains the historical incident/deployment evidence. All thirteen IELTS source
+DEV/legacy containers remain stopped with restart disabled, rechecked on
+29 October. The same server check confirms all eighteen related Drone/IELTS
+DEV and legacy containers retired.
+
+The account observation at 2026-10-29 04:51:54 UTC reports 65,116 SQL reads and
+2,176 writes so far that UTC day; analytics lag and low-sample flags apply.
+Fresh control-plane Worker settings/deployment reads returned403; previously
+verified immutable receipts remain the version/secret/namespace baseline. Real
+HTTP behavior and sampled asset parity were verified independently. Interactive
+Google/Turnstile/browser hydration checks remain unexecuted, as documented below.
 
 The chain is `ielts-dev` service-binding frontdoor → `ielts-web-dev` frontend/SSR DO → private `ielts-api-dev` service → application SQLite DO, private SQLite blob DOs and private audio DO. There is no VPC/VPS/database/Redis/MinIO fallback in this chain. Production application/deployment paths were unchanged.
 

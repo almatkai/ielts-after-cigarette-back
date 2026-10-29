@@ -1,6 +1,6 @@
 {
   "format": "ielts-native-cutover/v1",
-  "checkedAt": "2026-10-28T05:51:00.004454+00:00",
+  "checkedAt": "2026-10-29T04:55:04.732949Z",
   "publicOrigin": "https://ielts.woolet.cc",
   "backendSourceRevision": "40ed0dc5fca0b9df989a29d421a81476e7df0f50",
   "frontendSourceRevision": "b05d0622b7bfcc44dcddad3544c6e6d565041019",
@@ -109,21 +109,23 @@
         "path": "cloudflare/.sensitive/ielts-cutover-boundary-20261028/legacy-web-restart-policies.json",
         "sha256": "906081840b7d9a30d61bf54d6f32cfcec6e48d7c22f2353b8c7799b0112cc690"
       }
-    ]
+    ],
+    "postResetStoppedAndRestartDisabledVerifiedAt": "2026-10-29T04:49:05.538245+00:00"
   },
   "serviceAvailability": {
-    "checkedAt": "2026-10-28T09:48:36.759637Z",
-    "ready": false,
-    "status": "database_routes_temporarily_quota_limited",
-    "quotaResetAt": "2026-10-29T00:00:00Z",
-    "quotaResetAtAlmaty": "2026-10-29T05:00:00+05:00",
-    "observedGuestConfigStatus": 503,
-    "observedHtmlStatusBeforeBoundaryDeployment": 200,
-    "cacheControl": "no-store",
-    "retryAfterSecondsAtCheck": 51187,
-    "scope": "Exact Cloudflare Free SQLite row read/write quota failures only; successful responses remain unchanged",
+    "checkedAt": "2026-10-29T04:55:04.732949Z",
+    "ready": true,
+    "status": "operational_after_free_quota_reset",
+    "observedGuestConfigStatus": 200,
+    "observedAppStatus": 200,
+    "observedUnauthenticatedProfileStatus": 401,
+    "canonicalAliasRedirectVerified": true,
+    "sampledJavaScriptAndCssMatchArtifact": true,
+    "quotaResetAndAffectedRouteRecoveryVerified": true,
     "nativeDataRetained": true,
-    "quotaResetAndAffectedRouteRecoveryVerified": false,
-    "evidence": "../ielts-after-cigarette/iac-web/cloudflare/quota-boundary-acceptance.json"
-  }
+    "evidence": "../../ielts-after-cigarette/iac-web/cloudflare/post-reset-acceptance.json",
+    "interactiveOAuthLoginPerformed": false,
+    "controlPlaneMetadataRevalidated": false
+  },
+  "ready": true
 }
