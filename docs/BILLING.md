@@ -1,6 +1,6 @@
 # Billing and paid access
 
-`000045_billing` adds plans, settings, orders, entitlements and lifetime usage.
+`000047_billing` adds plans, settings, orders, entitlements and lifetime usage.
 Existing migrations are unchanged. Apply migrations before enabling billing.
 
 ## Configuration

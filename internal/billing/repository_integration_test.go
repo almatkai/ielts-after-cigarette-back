@@ -352,7 +352,7 @@ func TestBillingMigrationRollbackAndUserForeignKeys(t *testing.T) {
 		t.Fatalf("billing user FK cascades=%d error=%v", cascades, err)
 	}
 	for _, direction := range []string{"down", "up"} {
-		sql, err := os.ReadFile("../../migrations/000045_billing." + direction + ".sql")
+		sql, err := os.ReadFile("../../migrations/000047_billing." + direction + ".sql")
 		if err != nil {
 			t.Fatal(err)
 		}

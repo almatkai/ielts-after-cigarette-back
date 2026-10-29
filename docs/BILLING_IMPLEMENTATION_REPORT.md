@@ -152,5 +152,5 @@ XERJ оказался недоступен для индексации из-за
 - `internal/guest/handler_test.go`
 - `internal/guest/repository.go`
 - `internal/httpx/response.go`
-- `migrations/000045_billing.down.sql`
-- `migrations/000045_billing.up.sql`
+- `migrations/000047_billing.down.sql`
+- `migrations/000047_billing.up.sql`
