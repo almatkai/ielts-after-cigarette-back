@@ -15,7 +15,7 @@ Existing migrations are unchanged. Apply migrations before enabling billing.
   transaction as real callbacks. Its public callback rejects all requests;
   there is no unsigned route for granting access.
 - `PAYMENT_RETURN_URL` defaults to the first `CORS_ALLOWED_ORIGINS` entry plus
-  `/billing/return`. It must be an absolute HTTP(S) URL. The fake provider adds
+  `/app/billing/return` (the web app is served under `/app`). It must be an absolute HTTP(S) URL. The fake provider adds
   `orderId` while preserving existing query parameters.
 
 The base and production Compose manifests pass the three variables to the API.
@@ -57,7 +57,7 @@ string-valued validation responses.
   Missing provider: 503 without an order. Provider creation failure: 503 with
   the pending order retained for reconciliation.
 - `GET /billing/orders/{orderID}` returns only the owner's
-  `{id,status,planCode,amount,listPrice,createdAt,paidAt}`; foreign orders are 404.
+  `{id,status,planCode,amount,listPrice,provider,providerOrderId,createdAt,paidAt}`; foreign orders are 404.
 - `POST /billing/callbacks/{provider}` is public and bypasses browser CORS
   filtering for this POST path only. The provider must verify the signature
   before returning a notification. Valid notifications return `200 {ok:true}`;

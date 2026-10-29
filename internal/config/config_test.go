@@ -140,7 +140,7 @@ func TestBillingConfigurationDefaultsAndProductionFakeGuard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.PaywallEnabled || cfg.PaymentProvider != "none" || cfg.PaymentReturnURL != "https://academy.test/billing/return" {
+	if cfg.PaywallEnabled || cfg.PaymentProvider != "none" || cfg.PaymentReturnURL != "https://academy.test/app/billing/return" {
 		t.Fatalf("billing defaults: %+v", cfg)
 	}
 	cfg.PaymentProvider = "fake"
