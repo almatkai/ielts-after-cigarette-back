@@ -157,15 +157,23 @@ func (s *Service) Start(ctx context.Context, userID uuid.UUID, materialType stri
 				}
 			}
 		}
-		attempt, err = s.repository.Create(ctx, Attempt{
+		newAttempt := Attempt{
 			ID:                uuid.New(),
 			UserID:            userID,
 			MaterialType:      materialType,
 			MaterialID:        materialID,
 			MaterialVersionID: versionID,
 			Status:            StatusInProgress,
-		})
-		created = true
+		}
+		if repo, ok := s.repository.(interface {
+			BillingEnabled() bool
+			CreatePractice(context.Context, Attempt) (Attempt, bool, error)
+		}); ok && repo.BillingEnabled() {
+			attempt, created, err = repo.CreatePractice(ctx, newAttempt)
+		} else {
+			attempt, err = s.repository.Create(ctx, newAttempt)
+			created = true
+		}
 	}
 	if err != nil {
 		return Attempt{}, nil, false, err
