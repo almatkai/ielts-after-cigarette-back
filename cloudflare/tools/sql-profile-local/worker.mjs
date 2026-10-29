@@ -1,4 +1,4 @@
-// Operator-only preview bridge. Run `wrangler dev --remote`; never deploy it.
+// Operator-only local bridge. Wrangler authenticates the remote service binding.
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -15,8 +15,7 @@ export default {
     if (request.method !== "GET" || url.pathname !== "/profile") {
       return new Response("Not found", { status: 404 });
     }
-    const stub = env.IAC_STATE.get(env.IAC_STATE.idFromName("ielts-dev-v1"));
-    return Response.json(await stub.getSqlReadProfile(), {
+    return Response.json(await env.DIAGNOSTICS.profile(), {
       headers: { "cache-control": "no-store" },
     });
   },

@@ -3,7 +3,7 @@ import { NativeFetch } from "./fetch.mjs";
 import { storageError } from "./errors.mjs";
 import { migrationStatus, importDatabase, activate } from "./transfer.mjs";
 import { applySchemaUpgrade, applySchemaRevert } from "./schema-upgrade.mjs";
-import { DurableObject } from "cloudflare:workers";
+import { DurableObject, WorkerEntrypoint } from "cloudflare:workers";
 import wasm from "../dist/api.wasm";
 import { Go } from "../dist/wasm_exec.js";
 import schema from "../schema/sqlite.json";
@@ -30,6 +30,18 @@ export default {
     );
   },
 };
+// Service-binding capability only: ordinary HTTP never exposes SQL diagnostics.
+export class SqlProfileBridge extends WorkerEntrypoint {
+  profile() {
+    return this.env.IAC_STATE.get(
+      this.env.IAC_STATE.idFromName("ielts-dev-v1"),
+    ).getSqlReadProfile();
+  }
+  fetch() {
+    return new Response(null, { status: 404 });
+  }
+}
+
 export class IELTSDev extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);

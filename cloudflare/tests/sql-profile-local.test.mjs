@@ -5,18 +5,10 @@ import worker from "../tools/sql-profile-local/worker.mjs";
 test("operator SQL profile bridge accepts only literal loopback reads", async () => {
   let reads = 0;
   const env = {
-    IAC_STATE: {
-      idFromName(name) {
-        assert.equal(name, "ielts-dev-v1");
-        return name;
-      },
-      get() {
-        return {
-          async getSqlReadProfile() {
-            reads++;
-            return { enabled: true, queries: [] };
-          },
-        };
+    DIAGNOSTICS: {
+      async profile() {
+        reads++;
+        return { enabled: true, queries: [] };
       },
     },
   };

@@ -38,12 +38,12 @@ Existing private Prometheus output includes the same counters. Use
 An operator-only read bridge is provided; it must never be deployed publicly:
 
 ```sh
-node node_modules/wrangler/bin/wrangler.js dev --remote \
+node node_modules/wrangler/bin/wrangler.js dev \
   --config tools/sql-profile-local/wrangler.jsonc
 curl http://127.0.0.1:8796/profile
 ```
 
-Wrangler authenticates the remote preview with the existing operator session.
+Wrangler authenticates the remote service binding with the existing operator session.
 The bridge accepts literal loopback GETs only. It does not expose SQL execution,
 imports or user rows. Free quota exhaustion can still prevent the remote object
 constructor from running, so diagnostics may require the midnight UTC reset.
