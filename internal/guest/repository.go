@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,7 +28,10 @@ type Repository interface {
 	Claim(context.Context, []byte, uuid.UUID) (*uuid.UUID, error)
 }
 
-type PostgresRepository struct{ pool *pgxpool.Pool }
+type PostgresRepository struct {
+	pool    *pgxpool.Pool
+	billing *billing.Service
+}
 
 func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{pool: pool}
@@ -87,4 +91,9 @@ func (r *PostgresRepository) OwnsMedia(ctx context.Context, actor uuid.UUID, ski
 	}
 	err := r.pool.QueryRow(ctx, query, actor, id).Scan(&allowed)
 	return allowed, err
+}
+
+func (r *PostgresRepository) WithBilling(service *billing.Service) *PostgresRepository {
+	r.billing = service
+	return r
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -52,7 +53,10 @@ type Repository interface {
 	Submit(context.Context, SubmitResult) error
 }
 
-type PostgresRepository struct{ pool *pgxpool.Pool }
+type PostgresRepository struct {
+	pool    *pgxpool.Pool
+	billing *billing.Service
+}
 
 func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{pool: pool}
@@ -680,4 +684,43 @@ func (r *PostgresRepository) GetSpeakingRecording(ctx context.Context, attemptID
 		item.Transcription = &transcription
 	}
 	return item, nil
+}
+
+func (r *PostgresRepository) WithBilling(service *billing.Service) *PostgresRepository {
+	r.billing = service
+	return r
+}
+func (r *PostgresRepository) BillingEnabled() bool { return r.billing.Enabled() }
+
+// Recheck resume under the same account lock as billing. Concurrent clicks on
+// one material return one attempt and consume one unit; different materials
+// cannot both consume the last unit.
+func (r *PostgresRepository) CreatePractice(ctx context.Context, a Attempt) (Attempt, bool, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return Attempt{}, false, err
+	}
+	defer tx.Rollback(ctx)
+	var user uuid.UUID
+	if err = tx.QueryRow(ctx, `SELECT id FROM users WHERE id=$1 FOR UPDATE`, a.UserID).Scan(&user); err != nil {
+		return Attempt{}, false, err
+	}
+	var existing Attempt
+	err = tx.QueryRow(ctx, `SELECT `+attemptColumns+` FROM attempts WHERE user_id=$1 AND material_type=$2 AND material_id=$3 AND status IN ('IN_PROGRESS','PROCESSING')
+ AND NOT EXISTS (SELECT 1 FROM full_mock_session_sections s WHERE s.attempt_id=attempts.id)
+ ORDER BY started_at DESC LIMIT 1`, a.UserID, a.MaterialType, a.MaterialID).Scan(&existing.ID, &existing.UserID, &existing.MaterialType, &existing.MaterialID, &existing.MaterialVersionID, &existing.Status, &existing.Score, &existing.MaxScore, &existing.Band, &existing.StartedAt, &existing.SubmittedAt)
+	if err == nil {
+		return existing, false, tx.Commit(ctx)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return Attempt{}, false, err
+	}
+	if err = r.billing.ConsumeTx(ctx, tx, a.UserID, "ATTEMPT", a.ID, []string{a.MaterialType}); err != nil {
+		return Attempt{}, false, err
+	}
+	err = tx.QueryRow(ctx, `INSERT INTO attempts(id,user_id,material_type,material_id,material_version_id) VALUES ($1,$2,$3,$4,$5) RETURNING `+attemptColumns, a.ID, a.UserID, a.MaterialType, a.MaterialID, a.MaterialVersionID).Scan(&a.ID, &a.UserID, &a.MaterialType, &a.MaterialID, &a.MaterialVersionID, &a.Status, &a.Score, &a.MaxScore, &a.Band, &a.StartedAt, &a.SubmittedAt)
+	if err != nil {
+		return Attempt{}, false, err
+	}
+	return a, true, tx.Commit(ctx)
 }

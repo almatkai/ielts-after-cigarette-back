@@ -375,7 +375,7 @@ func (h *Handler) Authenticate(tokens *auth.TokenManager) func(http.Handler) htt
 func allowedRoute(r *http.Request) bool {
 	route := chi.RouteContext(r.Context()).RoutePattern()
 	switch route {
-	case "/api/v1/full-mock-sessions/{sessionID}", "/api/v1/full-mock-sessions/{sessionID}/sections/{sectionPosition}",
+	case "/api/v1/billing/me", "/api/v1/full-mock-sessions/{sessionID}", "/api/v1/full-mock-sessions/{sessionID}/sections/{sectionPosition}",
 		"/api/v1/attempts/{attemptID}", "/api/v1/attempts/{attemptID}/status", "/api/v1/attempts/{attemptID}/material",
 		"/api/v1/attempts/{attemptID}/recordings/{partID}", "/api/v1/listening/media/{mediaID}", "/api/v1/writing/media/{mediaID}":
 		return r.Method == http.MethodGet
