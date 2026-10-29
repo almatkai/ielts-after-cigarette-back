@@ -19,6 +19,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/assistant"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/blog"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/cache"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/config"
@@ -171,6 +172,14 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		SpeakingLimit:       cfg.DailyLimitSpeaking,
 	})
 	aiLimitsHandler := ailimits.NewHandler(aiLimitsService, logger)
+	billingService := billing.NewService(billing.NewPostgresRepository(pool), cfg.PaywallEnabled, nil, cfg.PaymentReturnURL, dailyLimiter, aiLimitsService)
+	if cfg.PaymentProvider == "fake" {
+		if err := billingService.WithFakeProvider(cfg.Environment); err != nil {
+			logger.Error("fake payment provider rejected", "error", err)
+		}
+	}
+	billingHandler := billing.NewHandler(billingService, logger, cfg.MaxRequestBody)
+	attemptsRepository.WithBilling(billingService)
 
 	attemptsService := attempts.NewService(attemptsRepository, map[string]attempts.MaterialProvider{
 		attempts.MaterialListening: attempts.NewListeningProvider(listeningService),
@@ -232,7 +241,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		}()
 	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
-	fullMockRepository := fullmock.NewPostgresRepository(pool)
+	fullMockRepository := fullmock.NewPostgresRepository(pool).WithBilling(billingService)
 	if cfg.GuestTrialEnabled {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		if err := fullMockRepository.PrepareGuestMock(ctx); err != nil {
@@ -291,7 +300,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		Hostnames: cfg.TurnstileHostnames, Origins: cfg.CORSAllowedOrigins,
 		IPLimit: cfg.GuestTrialIPLimit, GlobalLimit: cfg.GuestTrialGlobalLimit,
 		ExamTypes: cfg.GuestTrialExamTypes,
-	}, guest.NewPostgresRepository(pool), fullMockService, rateLimiter.Allow, remoteIP, logger)
+	}, guest.NewPostgresRepository(pool).WithBilling(billingService), fullMockService, rateLimiter.Allow, remoteIP, logger)
 
 	router := chi.NewRouter()
 	router.Use(httpx.RequestIDMiddleware)
@@ -300,9 +309,9 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	}
 	router.Use(httpx.Recover(logger))
 	router.Use(httpx.AccessLog(logger))
-	router.Use(httpx.CORS(cfg.CORSAllowedOrigins, httpx.FormPostOrigin{
+	router.Use(billingCallbackCORS(httpx.CORS(cfg.CORSAllowedOrigins, httpx.FormPostOrigin{
 		Path: "/api/v1/auth/google", Origin: "https://accounts.google.com",
-	}))
+	})))
 	router.Use(timeoutByRequest(cfg.RequestTimeout, cfg.MediaUploadTimeout, max(cfg.AITimeout+15*time.Second, aiproviders.ChainTimeout+15*time.Second)))
 	// History endpoints answer with tens of kilobytes to megabytes of JSON
 	// (a mistakes page carries the review of every attempt), so compress the
@@ -314,12 +323,14 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	router.Get("/health/ready", healthHandler.Ready)
 
 	router.Route("/api/v1", func(api chi.Router) {
+		api.Get("/billing/plans", billingHandler.Plans)
+		api.Post("/billing/callbacks/{provider}", billingHandler.Callback)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-send")).Post("/phone-verifications", phoneHandler.Send)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist/check", waitlistHandler.Check)
-		api.With(auth.Authenticate(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat", assistantHandler.Chat)
-		api.With(auth.Authenticate(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), dailyAssistantLimit(aiLimitsService, logger)).Post("/assistant/chat/stream", assistantHandler.Stream)
+		api.With(auth.Authenticate(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), billingHandler.AssistantLimit(dailyAssistantLimit(aiLimitsService, logger))).Post("/assistant/chat", assistantHandler.Chat)
+		api.With(auth.Authenticate(tokens), rateLimit(rateLimiter, logger, cfg, "assistant"), billingHandler.AssistantLimit(dailyAssistantLimit(aiLimitsService, logger))).Post("/assistant/chat/stream", assistantHandler.Stream)
 		api.Get("/guest/config", guestHandler.Config)
 		api.Get("/guest/session", guestHandler.Session)
 		api.Post("/guest/start", guestHandler.Start)
@@ -344,6 +355,9 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		api.Group(func(protected chi.Router) {
 			protected.Use(guestHandler.Authenticate(tokens))
 			protected.Use(analyticsTracker.Middleware)
+			protected.Get("/billing/me", billingHandler.Me)
+			protected.With(auth.RequireAnyRole(auth.RoleStudent, auth.RoleWriter, auth.RoleEditor, auth.RoleAdmin)).Post("/billing/checkout", billingHandler.Checkout)
+			protected.Get("/billing/orders/{orderID}", billingHandler.Order)
 			protected.Get("/full-mocks/overview", fullMockHandler.Overview)
 			protected.Post("/full-mocks/start", fullMockHandler.StartGenerated)
 			protected.Get("/full-mock-sessions/{sessionID}", fullMockHandler.GetSession)
@@ -404,6 +418,17 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Route("/admin", func(adminRouter chi.Router) {
 				adminRouter.Use(auth.RequireAdminWorkspace)
 				studyplan.NewEditorialHandler(pool, cfg.MaxRequestBody).Routes(adminRouter)
+				adminRouter.Group(func(b chi.Router) {
+					b.Use(auth.RequireAnyRole(auth.RoleAdmin))
+					b.Get("/billing/orders", billingHandler.AdminOrders)
+					b.Get("/users/{userID}/billing", billingHandler.UserBilling)
+					b.Post("/users/{userID}/entitlements", billingHandler.Grant)
+					b.Post("/entitlements/{entitlementID}/revoke", billingHandler.Revoke)
+					b.Patch("/entitlements/{entitlementID}/meetings", billingHandler.Meetings)
+					b.Get("/billing/settings", billingHandler.Settings)
+					b.Put("/billing/settings", billingHandler.UpdateSettings)
+					b.Put("/billing/plans/{code}", billingHandler.UpdatePlan)
+				})
 				adminRouter.Get("/access", adminHandler.Access)
 				adminRouter.Group(func(users chi.Router) {
 					users.Use(auth.RequireAnyRole(auth.RoleAdmin))
@@ -733,4 +758,20 @@ func (a *speakingSTTAdapter) Transcribe(ctx context.Context, filename string, au
 		return "", err
 	}
 	return res.Text, nil
+}
+
+// Provider signatures authenticate callbacks. Browser origin rules must not
+// reject a bank's POST before its provider gets a chance to verify it.
+func billingCallbackCORS(cors func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		browser := cors(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/api/v1/billing/callbacks/")
+			if r.Method == http.MethodPost && path != r.URL.Path && path != "" && !strings.Contains(path, "/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			browser.ServeHTTP(w, r)
+		})
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -286,6 +287,9 @@ func (r *PostgresRepository) generateSession(ctx context.Context, userID uuid.UU
 		}
 	}
 	id := uuid.New()
+	if err := r.billing.ConsumeTx(ctx, tx, userID, "FULL_MOCK_SESSION", id, billing.Skills); err != nil {
+		return Session{}, false, err
+	}
 	if _, err := tx.Exec(ctx, `INSERT INTO full_mock_sessions (id,user_id,exam_type,title,duration_minutes)
  VALUES ($1,$2,$3,'Полный пробный IELTS',$4)`, id, userID, examType, generatedDurationMinutes); err != nil {
 		return Session{}, false, err
