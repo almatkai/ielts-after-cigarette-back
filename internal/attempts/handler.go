@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/auth"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -345,6 +346,9 @@ func (h *Handler) id(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 }
 
 func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) {
+	if billing.WritePaymentRequired(w, r, err) {
+		return
+	}
 	switch {
 	case errors.Is(err, ErrNotFound):
 		httpx.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "Attempt was not found", nil)

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -42,7 +43,10 @@ const sessionColumns = `id, COALESCE(mock_test_id, '00000000-0000-0000-0000-0000
 	user_id, status, current_section, started_at, submitted_at,
 	COALESCE(exam_type,''), COALESCE(title,''), COALESCE(duration_minutes,0)`
 
-type PostgresRepository struct{ pool *pgxpool.Pool }
+type PostgresRepository struct {
+	pool    *pgxpool.Pool
+	billing *billing.Service
+}
 
 func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{pool: pool}
@@ -194,35 +198,74 @@ func (r *PostgresRepository) getSession(ctx context.Context, query string, args 
 	return session, nil
 }
 
+func (r *PostgresRepository) WithBilling(service *billing.Service) *PostgresRepository {
+	r.billing = service
+	return r
+}
+func (r *PostgresRepository) BillingEnabled() bool { return r.billing.Enabled() }
+
 func (r *PostgresRepository) CreateSession(ctx context.Context, session Session, sections []SessionSection) error {
+	_, _, err := r.createSession(ctx, session, sections, false, false)
+	return err
+}
+
+// StartBilledSession makes legacy curated starts/restarts atomic as well.
+func (r *PostgresRepository) StartBilledSession(ctx context.Context, session Session, sections []SessionSection, restart bool) (uuid.UUID, bool, error) {
+	return r.createSession(ctx, session, sections, restart, true)
+}
+func (r *PostgresRepository) createSession(ctx context.Context, session Session, sections []SessionSection, restart, billed bool) (uuid.UUID, bool, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return uuid.Nil, false, err
 	}
 	defer tx.Rollback(ctx)
 
+	if billed {
+		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "fullmock:"+session.UserID.String()); err != nil {
+			return uuid.Nil, false, err
+		}
+		var existing uuid.UUID
+		err = tx.QueryRow(ctx, `SELECT id FROM full_mock_sessions WHERE user_id=$1 AND mock_test_id=$2 AND status='IN_PROGRESS' ORDER BY started_at DESC LIMIT 1 FOR UPDATE`, session.UserID, session.MockTestID).Scan(&existing)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, false, err
+		}
+		if existing != uuid.Nil && !restart {
+			return existing, false, tx.Commit(ctx)
+		}
+	}
+	if err = r.billing.ConsumeTx(ctx, tx, session.UserID, "FULL_MOCK_SESSION", session.ID, billing.Skills); err != nil {
+		return uuid.Nil, false, err
+	}
+	if billed && restart {
+		if _, err = tx.Exec(ctx, `UPDATE attempts SET status='ABANDONED',submitted_at=clock_timestamp() WHERE status='IN_PROGRESS' AND id IN (SELECT sec.attempt_id FROM full_mock_session_sections sec JOIN full_mock_sessions fm ON fm.id=sec.session_id WHERE fm.user_id=$1 AND fm.mock_test_id=$2 AND fm.status='IN_PROGRESS')`, session.UserID, session.MockTestID); err != nil {
+			return uuid.Nil, false, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE full_mock_sessions SET status='ABANDONED',submitted_at=clock_timestamp() WHERE user_id=$1 AND mock_test_id=$2 AND status='IN_PROGRESS'`, session.UserID, session.MockTestID); err != nil {
+			return uuid.Nil, false, err
+		}
+	}
 	for _, section := range sections {
 		att := section.Attempt
 		if _, err := tx.Exec(ctx, `INSERT INTO attempts (id, user_id, material_type, material_id, material_version_id, status)
 			VALUES ($1,$2,$3,$4,$5,$6)`,
 			att.ID, att.UserID, att.MaterialType, att.MaterialID, att.MaterialVersionID, att.Status); err != nil {
-			return fmt.Errorf("create attempt for exam section %d: %w", section.Position, err)
+			return uuid.Nil, false, fmt.Errorf("create attempt for exam section %d: %w", section.Position, err)
 		}
 	}
 
 	_, err = tx.Exec(ctx, `INSERT INTO full_mock_sessions (id, mock_test_id, user_id) VALUES ($1,$2,$3)`,
 		session.ID, session.MockTestID, session.UserID)
 	if err != nil {
-		return mapWriteError(err)
+		return uuid.Nil, false, mapWriteError(err)
 	}
 	for _, section := range sections {
 		_, err = tx.Exec(ctx, `INSERT INTO full_mock_session_sections (session_id, position, skill, attempt_id)
 			VALUES ($1,$2,$3,$4)`, session.ID, section.Position, section.Skill, section.Attempt.ID)
 		if err != nil {
-			return fmt.Errorf("add full mock section: %w", err)
+			return uuid.Nil, false, fmt.Errorf("add full mock section: %w", err)
 		}
 	}
-	return tx.Commit(ctx)
+	return session.ID, true, tx.Commit(ctx)
 }
 
 func (r *PostgresRepository) ListSessionSections(ctx context.Context, sessionID uuid.UUID) ([]SessionSection, error) {
