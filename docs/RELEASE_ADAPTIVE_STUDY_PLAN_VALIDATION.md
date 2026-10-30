@@ -20,12 +20,15 @@ limited to `ops/cloudflare-dev` and its dev documentation.
 2. Apply `000046_adaptive_study_plan`, then
    `000047_learning_content_metadata` using the existing deployment migration
    step. Only the two new feature migration pairs were renumbered.
-3. Deploy this backend before the frontend release. Existing production compose
-   uses the API's in-process workers (`WRITING_WORKER_EXTERNAL=false`); retain
-   that topology. In an environment already configured with external workers,
-   use the same release revision for API and worker and shared Speaking storage.
-   Keep the current `PAYWALL_ENABLED=true`, `PAYMENT_PROVIDER=none` configuration;
-   manual grants work without an online payment provider.
+3. Deploy this backend before the frontend release. Read-only verification of
+   the live server confirmed that production uses the operational Compose
+   overlays with `WRITING_WORKER_EXTERNAL=true`, an external worker and shared
+   Speaking storage. Retain that topology and use the same release revision
+   for API and worker; the existing deploy script recreates both. The base
+   Compose without overlays can use in-process workers, but is not the live
+   production topology. Keep the current `PAYWALL_ENABLED=true`,
+   `PAYMENT_PROVIDER=none` configuration; manual grants work without an online
+   payment provider.
 4. Verify `/health/ready`, authenticated study plan/learning routes and durable
    Writing/Speaking job processing, then release the frontend.
 
