@@ -293,6 +293,8 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		httpx.WriteError(w, r, http.StatusUnprocessableEntity, "EXAM_TYPE_REQUIRED", "Выберите Academic или General в профиле", nil)
 	case errors.Is(err, ErrNotFound), errors.Is(err, ErrSessionNotFound), errors.Is(err, attempts.ErrMaterialNotFound):
 		httpx.WriteError(w, r, http.StatusNotFound, "FULL_MOCK_NOT_FOUND", "Full mock resource was not found", nil)
+	case errors.Is(err, ErrAssessmentPending):
+		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_ASSESSMENT_PENDING", "Wait for all submitted answers to finish analysis before opening the report", nil)
 	case errors.Is(err, ErrSectionIncomplete):
 		httpx.WriteError(w, r, http.StatusConflict, "FULL_MOCK_SECTION_INCOMPLETE", "Submit the current section before continuing", nil)
 	case errors.Is(err, ErrSessionCompleted):

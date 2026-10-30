@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestWritingFailurePreservesFinalAnswers(t *testing.T) {
+func TestWritingQueuesFinalAnswersWithoutCallingFailingEvaluator(t *testing.T) {
 	ctx := context.Background()
 	repo := newStubRepository()
 	svc := NewService(repo, map[string]MaterialProvider{MaterialWriting: writingStubProvider()}, mockWritingEvaluator{err: ErrAIEvaluationFailed})
@@ -20,14 +20,14 @@ func TestWritingFailurePreservesFinalAnswers(t *testing.T) {
 		{QuestionID: questionChoiceID, Answer: map[string]any{"value": "Final task one"}},
 		{QuestionID: questionMatchingID, Answer: map[string]any{"value": "Final task two"}},
 	}}
-	if _, err := svc.Submit(ctx, testUserID, att.ID, input); !errors.Is(err, ErrAIEvaluationFailed) {
+	if _, err := svc.Submit(ctx, testUserID, att.ID, input); err != nil {
 		t.Fatalf("got %v", err)
 	}
 	detail, err := svc.Get(ctx, testUserID, att.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if detail.Status != StatusInProgress || len(detail.Answers) != 2 {
+	if detail.Status != StatusProcessing || len(detail.Answers) != 2 {
 		t.Fatalf("lost draft: %+v", detail)
 	}
 	for _, answer := range detail.Answers {

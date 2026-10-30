@@ -739,7 +739,7 @@ func TestDeadlineEnforcement(t *testing.T) {
 	}
 }
 
-func TestOverallBandRounding(t *testing.T) {
+func TestUnvalidatedLegacyBandsNeverProduceOverall(t *testing.T) {
 	mockSvc, fullMockRepo, _, _, testItem := setupTestFullMockService(t)
 	ctx := context.Background()
 	userID := uuid.New()
@@ -764,7 +764,46 @@ func TestOverallBandRounding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get session failed: %v", err)
 	}
-	if decorated.OverallBand == nil || *decorated.OverallBand != 7.0 {
-		t.Fatalf("expected overall band 7.0, got %v", decorated.OverallBand)
+	if decorated.OverallBand != nil {
+		t.Fatalf("unvalidated section bands leaked overall: %v", decorated.OverallBand)
+	}
+}
+
+func TestReportWaitsForAllAssessments(t *testing.T) {
+	for _, action := range []string{"advance", "finish"} {
+		t.Run(action, func(t *testing.T) {
+			svc, repo, _, attemptRepo, item := setupTestFullMockService(t)
+			ctx := context.Background()
+			user := uuid.New()
+			session, _, err := svc.Start(ctx, user, item.ID, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			saved := repo.sessions[session.ID]
+			saved.CurrentSection = 4
+			repo.sessions[session.ID] = saved
+			for i := range repo.sections[session.ID] {
+				section := &repo.sections[session.ID][i]
+				section.Attempt.Status = attempts.StatusSubmitted
+				band := 7.0
+				section.Attempt.Band = &band
+				if section.Skill == attempts.MaterialWriting {
+					section.Attempt.Status = attempts.StatusProcessing
+					section.Attempt.Band = nil
+				}
+				attemptRepo.attempts[section.Attempt.ID] = section.Attempt
+			}
+			if action == "advance" {
+				_, err = svc.Advance(ctx, user, session.ID)
+			} else {
+				_, err = svc.Finish(ctx, user, session.ID)
+			}
+			if err == nil {
+				t.Fatal("report opened while Writing AI was still processing")
+			}
+			if repo.sessions[session.ID].Status != SessionInProgress {
+				t.Fatal("session was closed before analysis finished")
+			}
+		})
 	}
 }

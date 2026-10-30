@@ -35,6 +35,8 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/reading"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/speaking"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/speakingpipeline"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/studyplan"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/user"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/waitlist"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/writing"
@@ -196,11 +198,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	if cfg.SpeechEnabled {
 		attemptsService.WithSpeakingPipeline(jobs.NewSpeakingQueue(redisClient))
 	}
-	if redisClient != nil {
+	{
 		writingQueue := jobs.NewWritingQueue(redisClient)
 		attemptsService.WithWritingPipeline(writingQueue)
 
-		if !cfg.WritingWorkerExternal {
+		if pool != nil && !cfg.WritingWorkerExternal {
 			writingWorker := writingpipeline.NewWorker(
 				attemptsRepository,
 				attempts.NewWritingProvider(writingService),
@@ -219,6 +221,25 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			}()
 		}
 	}
+	// Speech-service deployments already run the external speaking worker.
+	// Legacy deployments also need a worker: never evaluate in the HTTP save.
+	if pool != nil && !cfg.SpeechEnabled && !cfg.WritingWorkerExternal {
+		store := sharedObjectStore
+		if store == nil {
+			store = objectstorage.NewFileStore(cfg.SpeakingMediaDir)
+		}
+		worker := speakingpipeline.NewWorker(attemptsRepository, attempts.NewSpeakingProvider(speakingService), store, nil, aiEvaluator, jobs.NewSpeakingQueue(redisClient), logger).
+			WithLegacyTranscriber(&speakingSTTAdapter{stt: sttService})
+		workerCtx := options.WorkerContext
+		if workerCtx == nil {
+			workerCtx = context.Background()
+		}
+		go func() {
+			if err := worker.Run(workerCtx); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("in-process speaking worker stopped", "error", err)
+			}
+		}()
+	}
 	attemptsHandler := attempts.NewHandler(attemptsService, logger, cfg.MaxRequestBody).WithSpeakingMedia(speakingMediaLimit)
 	fullMockRepository := fullmock.NewPostgresRepository(pool).WithBilling(billingService)
 	if cfg.GuestTrialEnabled {
@@ -231,6 +252,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	fullMockService := fullmock.NewService(fullMockRepository, attemptsService)
 	attemptsService.SetExamGuard(fullMockService)
 	fullMockHandler := fullmock.NewHandler(fullMockService, logger, cfg.MaxRequestBody)
+	studyPlanHandler := studyplan.NewHandler(studyplan.NewService(pool, attemptsService, fullMockRepository), logger, cfg.MaxRequestBody)
 
 	assistantService := assistant.NewService(cfg.AIChatCompletionsURL, cfg.AIAPIKey, cfg.AIModel, &http.Client{Timeout: cfg.AITimeout}).WithProviders(aiProviders)
 	assistantHandler := assistant.NewHandler(assistantService, logger, cfg.MaxRequestBody)
@@ -362,6 +384,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Post("/attempts/{attemptID}/recordings", attemptsHandler.UploadSpeakingRecording)
 			protected.Get("/attempts/{attemptID}/recordings/{partID}", attemptsHandler.SpeakingRecording)
 			protected.Post("/attempts/{attemptID}/submit", attemptsHandler.Submit)
+			protected.Post("/attempts/{attemptID}/assessment/retry", attemptsHandler.RetryAssessment)
 			protected.Get("/attempts/mistakes", attemptsHandler.Mistakes)
 			protected.Get("/attempts/mistakes/attempts", attemptsHandler.MistakeAttempts)
 			protected.Get("/attempts/{attemptID}/mistakes", attemptsHandler.MistakeDetail)
@@ -374,6 +397,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 			protected.Patch("/profile", userHandler.UpdateProfile)
 			protected.Put("/profile/goal", userHandler.UpdateGoal)
 			protected.Get("/dashboard", dashboardHandler.Get)
+			studyPlanHandler.Routes(protected)
 
 			// Writer applications (any authenticated user)
 			protected.Post("/blog/media", blogHandler.UploadMedia)
@@ -404,6 +428,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 					b.Put("/billing/settings", billingHandler.UpdateSettings)
 					b.Put("/billing/plans/{code}", billingHandler.UpdatePlan)
 				})
+				studyplan.NewEditorialHandler(pool, cfg.MaxRequestBody).Routes(adminRouter)
 				adminRouter.Get("/access", adminHandler.Access)
 				adminRouter.Group(func(users chi.Router) {
 					users.Use(auth.RequireAnyRole(auth.RoleAdmin))

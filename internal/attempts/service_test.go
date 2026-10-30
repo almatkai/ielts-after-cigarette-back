@@ -151,7 +151,7 @@ func (s *stubRepository) Submit(_ context.Context, result SubmitResult) error {
 	if !ok {
 		return ErrNotFound
 	}
-	if attempt.Status != StatusInProgress {
+	if attempt.Status != StatusInProgress && attempt.Status != StatusProcessing {
 		return ErrAlreadySubmitted
 	}
 	s.submitted = &result
@@ -187,6 +187,9 @@ func (s *stubRepository) QueueWritingAssessment(_ context.Context, attemptID uui
 	}
 	if att.Status != StatusInProgress {
 		return ErrAlreadySubmitted
+	}
+	if err := s.SaveAnswers(context.Background(), attemptID, answers); err != nil {
+		return err
 	}
 	att.Status = StatusProcessing
 	s.attempts[attemptID] = att
@@ -839,20 +842,12 @@ func TestWritingSubmitWithEvaluator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("submit writing failed: %v", err)
 	}
-	if submitted.Status != StatusSubmitted {
-		t.Fatalf("expected status %s, got %s", StatusSubmitted, submitted.Status)
+	if submitted.Status != StatusProcessing || submitted.Band != nil {
+		t.Fatalf("save must queue evaluation, got %+v", submitted)
 	}
-	if submitted.Band == nil || *submitted.Band != 7.0 {
-		t.Fatalf("expected band 7.0, got %v", submitted.Band)
-	}
-
-	// Verify Get includes writing evaluation
 	detail, err := svc.Get(context.Background(), testUserID, att.ID, "")
-	if err != nil {
-		t.Fatalf("get writing attempt detail failed: %v", err)
-	}
-	if detail.WritingEvaluation == nil || detail.WritingEvaluation.OverallBand != 7.0 {
-		t.Fatalf("expected writing evaluation with overall band 7.0, got %+v", detail.WritingEvaluation)
+	if err != nil || detail.WritingAssessment == nil || detail.WritingAssessment.Status != "QUEUED" {
+		t.Fatalf("missing durable writing job: %+v %v", detail, err)
 	}
 }
 
@@ -889,8 +884,8 @@ func TestWritingSubmitWithAsyncPipeline(t *testing.T) {
 	if submitted.Status != StatusProcessing {
 		t.Fatalf("expected status %s, got %s", StatusProcessing, submitted.Status)
 	}
-	if len(queue.enqueued) != 1 || queue.enqueued[0] != att.ID {
-		t.Fatalf("expected attempt %s enqueued, got %v", att.ID, queue.enqueued)
+	if len(queue.enqueued) != 0 {
+		t.Fatal("save must not wait for Redis; workers poll the durable queue")
 	}
 
 	detail, err := svc.Get(context.Background(), testUserID, att.ID, "")
@@ -942,6 +937,13 @@ func TestSpeakingSubmitWithEvaluator(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("submit speaking failed: %v", err)
+	}
+	if submitted.Status != StatusProcessing {
+		t.Fatalf("save must return before assessment: %+v", submitted)
+	}
+	submitted, err = svc.AssessSpeaking(context.Background(), att.ID)
+	if err != nil {
+		t.Fatalf("background assessment failed: %v", err)
 	}
 	if submitted.Band == nil || *submitted.Band != 6.5 {
 		t.Fatalf("expected band 6.5, got %v", submitted.Band)
@@ -1017,5 +1019,29 @@ func TestPracticeFindInProgressExcludesExamAttempts(t *testing.T) {
 	}
 	if practiceAttempt.ID == examAttempt.ID {
 		t.Fatalf("practice attempt must have different ID than exam attempt")
+	}
+}
+
+func TestGradeAnswerNotGivenDisplayAndStoredAliases(t *testing.T) {
+	for _, key := range []map[string]any{
+		{"value": "NOT GIVEN"}, {"value": "NOT_GIVEN"},
+		{"accepted": []any{"NOT GIVEN"}}, {"accepted": []any{"NOT_GIVEN"}},
+	} {
+		for _, answer := range []string{"NOT GIVEN", "NOT_GIVEN", " not_given ", " not given "} {
+			if !gradeAnswer(key, map[string]any{"value": answer}) {
+				t.Fatalf("reserved answer mismatch: key=%v answer=%q", key, answer)
+			}
+		}
+		for _, wrong := range []string{"TRUE", "FALSE", "", "NOTGIVEN"} {
+			if gradeAnswer(key, map[string]any{"value": wrong}) {
+				t.Fatalf("incorrect answer accepted: key=%v answer=%q", key, wrong)
+			}
+		}
+	}
+	if gradeAnswer(map[string]any{"value": "green_roof"}, map[string]any{"value": "green roof"}) {
+		t.Fatal("reserved-answer alias changed arbitrary free-text spelling")
+	}
+	if gradeAnswer(map[string]any{"optionId": "NOT GIVEN"}, map[string]any{"optionId": "NOT_GIVEN"}) {
+		t.Fatal("reserved-answer alias changed opaque choice IDs")
 	}
 }

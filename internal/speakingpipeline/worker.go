@@ -23,17 +23,23 @@ type Queue interface {
 }
 
 type Worker struct {
-	repository *attempts.PostgresRepository
-	provider   attempts.MaterialProvider
-	store      objectstorage.Store
-	speech     *speech.Client
-	evaluator  attempts.SpeakingEvaluator
-	queue      Queue
-	logger     *slog.Logger
+	repository        *attempts.PostgresRepository
+	provider          attempts.MaterialProvider
+	store             objectstorage.Store
+	speech            *speech.Client
+	legacyTranscriber attempts.SpeakingTranscriber
+	evaluator         attempts.SpeakingEvaluator
+	queue             Queue
+	logger            *slog.Logger
 }
 
 func NewWorker(repository *attempts.PostgresRepository, provider attempts.MaterialProvider, store objectstorage.Store, speechClient *speech.Client, evaluator attempts.SpeakingEvaluator, queue Queue, logger *slog.Logger) *Worker {
 	return &Worker{repository: repository, provider: provider, store: store, speech: speechClient, evaluator: evaluator, queue: queue, logger: logger}
+}
+
+func (w *Worker) WithLegacyTranscriber(t attempts.SpeakingTranscriber) *Worker {
+	w.legacyTranscriber = t
+	return w
 }
 
 func (w *Worker) Run(ctx context.Context) error {
@@ -41,7 +47,9 @@ func (w *Worker) Run(ctx context.Context) error {
 	defer ticker.Stop()
 	transcriptionEvents := make(chan uuid.UUID, 8)
 	assessmentEvents := make(chan uuid.UUID, 8)
-	go w.consume(ctx, w.queue.PopTranscription, transcriptionEvents)
+	if w.speech != nil {
+		go w.consume(ctx, w.queue.PopTranscription, transcriptionEvents)
+	}
 	go w.consume(ctx, w.queue.PopAssessment, assessmentEvents)
 	for {
 		select {
@@ -80,15 +88,19 @@ func (w *Worker) recoverPending(ctx context.Context) {
 		w.logger.Error("recover speaking jobs", "error", err)
 		return
 	}
-	ids, err := w.repository.PendingTranscriptionIDs(ctx, 1)
-	if err != nil {
-		w.logger.Error("list pending transcriptions", "error", err)
-	} else {
-		for _, id := range ids {
-			if ctx.Err() != nil {
-				return
+	var ids []uuid.UUID
+	var err error
+	if w.speech != nil {
+		ids, err = w.repository.PendingTranscriptionIDs(ctx, 1)
+		if err != nil {
+			w.logger.Error("list pending transcriptions", "error", err)
+		} else {
+			for _, id := range ids {
+				if ctx.Err() != nil {
+					return
+				}
+				w.processTranscription(ctx, id)
 			}
-			w.processTranscription(ctx, id)
 		}
 	}
 	ids, err = w.repository.PendingAssessmentIDs(ctx, 1)
@@ -175,6 +187,16 @@ func (w *Worker) processAssessment(ctx context.Context, attemptID uuid.UUID) {
 		return w.repository.RenewAssessment(ctx, attemptID)
 	})
 	defer stopHeartbeat()
+	if w.speech == nil {
+		service := attempts.NewService(w.repository, map[string]attempts.MaterialProvider{attempts.MaterialSpeaking: w.provider}).
+			WithSpeakingObjectStore(w.store, 12<<20, w.evaluator).WithSpeakingTranscriber(w.legacyTranscriber)
+		if _, err := service.AssessSpeaking(ctx, attemptID); err != nil {
+			w.failAssessment(ctx, attemptID, err)
+			return
+		}
+		_ = w.repository.CompleteAssessment(ctx, attemptID)
+		return
+	}
 	attempt, err := w.repository.Get(ctx, attemptID)
 	if err != nil {
 		w.failAssessment(ctx, attemptID, err)

@@ -1,0 +1,973 @@
+{
+  "metadata": {
+    "title": "IELTS Academic Micro-Skills Original Content Draft Bank",
+    "version": "2.0 (Editorial Review Round 2)",
+    "totalUnits": 24,
+    "countsByComponent": {
+      "listening": 6,
+      "reading": 6,
+      "writing": 6,
+      "speaking": 6
+    },
+    "editorialAdjudicationNotice": "All content is original editorial material authored for IELTS After Cigarette deliberate practice. Listening exercises use modality: 'script' and unavailableForAssessment: true pending professional studio voice recordings. Speaking exercises use assessmentMode: 'recording_practice_unscored_pronunciation' and unavailableForPronunciationScoring: true because acoustic pronunciation scoring is unconfirmed in automated pipeline. Writing Task 1 items include full structured numeric tables and mathematically synchronized inline SVG specifications. Reading passages are structured as original hypothetical case studies and educational pilot models. All units maintain editorialStatus: 'DRAFT'."
+  },
+  "units": [
+    {
+      "id": "drill-l-01a",
+      "skill": "listening",
+      "microSkillId": "ms-l-distractor",
+      "familyId": "fam-l-distractor",
+      "variant": "A",
+      "title": "Accommodation Booking: Room Deposit and Lease Dates",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "modality": "script",
+      "unavailableForAssessment": true,
+      "instruction": "Listen to the conversation between an international student and an accommodation officer. Choose the correct letter, A, B, or C. Notice how the speaker corrects details during the conversation. [ВНИМАНИЕ: Аудиофайл в разработке; для ознакомления используется сценарий. Скрипт не может служить валидным доказательством навыка аудирования].",
+      "stimulus": {
+        "transcript": "OFFICER: Good morning, Student Housing Services, how can I help you?\nSTUDENT: Hello, I'm calling to finalize my room reservation for the autumn semester. My reference number is HL-4092.\nOFFICER: Ah yes, let me pull up your record... Right, you originally requested a room in Cairns Hall from September 12th, is that correct?\nSTUDENT: Well, my flight was rescheduled, so I initially thought I'd need to arrive on the 14th, but I managed to rebook for the 16th of September. So please start the tenancy from the 16th.\nOFFICER: Understood: tenancy commences September 16th. Now, regarding the security deposit: the standard undergraduate deposit is 350 pounds, but postgraduate en-suite rooms require a 420 pound deposit. However, because you submitted your tenancy confirmation before the early deadline, we apply a promotional discount, bringing your actual payable deposit down to 380 pounds.\nSTUDENT: Excellent, that's 380 pounds then. And how should I pay?\nOFFICER: You can transfer it directly through the portal, or pay at the desk upon arrival."
+      },
+      "questions": [
+        {
+          "id": "q-l-01a-1",
+          "prompt": "What is the confirmed starting date of the student's tenancy? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) September 12th",
+            "B) September 14th",
+            "C) September 16th"
+          ],
+          "answer": "C",
+          "explanation": "The student corrects the initial dates: September 12th was the original request, September 14th was an intermediate thought after flight rescheduling, but the confirmed date is September 16th ('start the tenancy from the 16th').",
+          "evidence": "I managed to rebook for the 16th of September. So please start the tenancy from the 16th."
+        },
+        {
+          "id": "q-l-01a-2",
+          "prompt": "What is the final deposit amount payable by the student? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) £350",
+            "B) £380",
+            "C) £420"
+          ],
+          "answer": "B",
+          "explanation": "Standard undergraduate deposit is £350, postgraduate is £420, but the officer applies an early confirmation discount to make the actual payable total £380.",
+          "evidence": "we apply a promotional discount, bringing your actual payable deposit down to 380 pounds."
+        }
+      ]
+    },
+    {
+      "id": "drill-l-01b",
+      "skill": "listening",
+      "microSkillId": "ms-l-distractor",
+      "familyId": "fam-l-distractor",
+      "variant": "B",
+      "title": "Conference Registration: Workshop Selection and Timing",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "modality": "script",
+      "unavailableForAssessment": true,
+      "instruction": "Listen to the dialogue between a conference organizer and an attendee. Choose the correct letter, A, B, or C. Pay attention to how the speaker changes choices and confirms times. [ВНИМАНИЕ: Аудиофайл в разработке; режим сценария не оценивается как аудирование].",
+      "stimulus": {
+        "transcript": "ORGANIZER: Welcome to the registration desk, Dr. Aris. You have access to one complimentary afternoon masterclass.\nATTENDEE: Yes, I was initially tempted by the Climate Modeling workshop in Hall B, but my colleague warned me it overlaps with the panel on carbon capture. So I'd like to switch to the Remote Sensing seminar instead.\nORGANIZER: Let's see... Remote Sensing in Room 4A. That starts at 2:15 pm, not 2:45 pm as printed in the provisional handbook. Please take note of that time adjustment.\nATTENDEE: Noted, 2:15 pm in Room 4A. And does the conference dinner require a separate ticket?\nORGANIZER: The banquet ticket is 65 pounds at the door, but since you registered as an early-career researcher, the subsidized rate of 45 pounds applies.\nATTENDEE: Wonderful, please add that to my badge."
+      },
+      "questions": [
+        {
+          "id": "q-l-01b-1",
+          "prompt": "Which masterclass did the attendee ultimately choose? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Climate Modeling",
+            "B) Carbon Capture",
+            "C) Remote Sensing"
+          ],
+          "answer": "C",
+          "explanation": "The speaker was initially interested in Climate Modeling, mentioned an overlap with Carbon Capture, and finally decided to switch to Remote Sensing.",
+          "evidence": "So I'd like to switch to the Remote Sensing seminar instead."
+        },
+        {
+          "id": "q-l-01b-2",
+          "prompt": "At what time does the chosen seminar actually begin? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) 2:15 pm",
+            "B) 2:30 pm",
+            "C) 2:45 pm"
+          ],
+          "answer": "A",
+          "explanation": "The handbook listed 2:45 pm, but the organizer explicitly corrects this to 2:15 pm.",
+          "evidence": "That starts at 2:15 pm, not 2:45 pm as printed in the provisional handbook."
+        }
+      ]
+    },
+    {
+      "id": "drill-l-02a",
+      "skill": "listening",
+      "microSkillId": "ms-l-signpost",
+      "familyId": "fam-l-signpost",
+      "variant": "A",
+      "title": "Lecture on Coastal Mangroves: Transition Markers",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "modality": "script",
+      "unavailableForAssessment": true,
+      "instruction": "Listen to the university lecture excerpt on coastal wetlands. Choose the correct letter, A, B, or C. Notice the signposting phrases that indicate changes of topic. [ВНИМАНИЕ: Скрипт требует студийной озвучки; не засчитывается как экзаменационное аудирование].",
+      "stimulus": {
+        "transcript": "PROFESSOR: In our previous session, we reviewed the geographic distribution of tropical estuaries. Today, I want to focus on the key adaptations of coastal mangrove trees. Now, the main challenge in coastal marshes is waterlogged soil lacking oxygen. How do mangroves manage this? The central feature is their stilt roots, which contain tiny breathing pores called lenticels. These pores take in oxygen directly from the air when the tide goes out.\n\nTurning now to our secondary theme—and this is where earlier ecological views have changed—is the vital role of burrowing crabs. Researchers previously assumed these small crabs harmed coastal trees by eating leaves, but field studies demonstrate that crabs help cycle nutrients by burying fallen leaves under the soil."
+      },
+      "questions": [
+        {
+          "id": "q-l-02a-1",
+          "prompt": "According to the lecturer, what anatomical feature enables mangroves to obtain atmospheric oxygen? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Waterlogged sediments",
+            "B) Porous lenticels",
+            "C) Submerged leaf blades"
+          ],
+          "answer": "B",
+          "explanation": "The lecturer notes that stilt roots possess tiny external pores called lenticels that permit gas exchange.",
+          "evidence": "The central feature is their stilt roots, which contain tiny breathing pores called lenticels."
+        },
+        {
+          "id": "q-l-02a-2",
+          "prompt": "What signposting phrase introduces the revised scientific view of burrowing crabs? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) 'In our previous session...'",
+            "B) 'Today, I want to focus...'",
+            "C) 'Turning now to our secondary theme...'"
+          ],
+          "answer": "C",
+          "explanation": "The transition phrase 'Turning now to our secondary theme...' explicitly flags the shift to the second topic and the revised ecological view.",
+          "evidence": "Turning now to our secondary theme—and this is where earlier ecological views have changed—is the vital role of burrowing crabs."
+        }
+      ]
+    },
+    {
+      "id": "drill-l-02b",
+      "skill": "listening",
+      "microSkillId": "ms-l-signpost",
+      "familyId": "fam-l-signpost",
+      "variant": "B",
+      "title": "Lecture on Medieval Urban Planning: Transition Markers",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "modality": "script",
+      "unavailableForAssessment": true,
+      "instruction": "Listen to the architectural history lecture. Choose the correct letter, A, B, or C. Listen for phrases that show when the lecturer moves to a new point. [ВНИМАНИЕ: Скрипт требует озвучки диктором].",
+      "stimulus": {
+        "transcript": "LECTURER: Good afternoon. Having reviewed the economic background of medieval market towns, let us turn our attention to the spatial layout of 13th-century planned settlements in southwestern France. An earlier misconception among nineteenth-century historians was that these towns grew randomly without any formal plan. However, historical maps disprove this idea.\n\nThese settlements were, in fact, laid out on a clear grid system around a central market square. This brings me to the decisive architectural innovation of the period: the deliberate separation of civic and church zones. Unlike older Romanesque towns where the main church stood in the center, parish churches in these planned towns were positioned on outer residential blocks, leaving the central square entirely for trade."
+      },
+      "questions": [
+        {
+          "id": "q-l-02b-1",
+          "prompt": "What phrase did the lecturer use to introduce the central architectural innovation? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) 'Having reviewed the economic background...'",
+            "B) 'This brings me to the decisive architectural innovation...'",
+            "C) 'An earlier misconception among nineteenth-century historians...'"
+          ],
+          "answer": "B",
+          "explanation": "'This brings me to the decisive architectural innovation...' is the direct discourse signpost introducing the key design feature.",
+          "evidence": "This brings me to the decisive architectural innovation of the period: the deliberate separation of civic and church zones."
+        },
+        {
+          "id": "q-l-02b-2",
+          "prompt": "Where were parish churches positioned in the planned settlements? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) In the central market square",
+            "B) On peripheral urban blocks",
+            "C) Outside the defensive town walls"
+          ],
+          "answer": "B",
+          "explanation": "Churches were placed on peripheral (outer) blocks to reserve the central square for commerce.",
+          "evidence": "parish churches in these planned towns were positioned on outer residential blocks, leaving the central square entirely for trade."
+        }
+      ]
+    },
+    {
+      "id": "drill-l-03a",
+      "skill": "listening",
+      "microSkillId": "ms-l-numspelling",
+      "familyId": "fam-l-numspelling",
+      "variant": "A",
+      "title": "Student Visa Application: Reference Code & Fees",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "modality": "script",
+      "unavailableForAssessment": true,
+      "instruction": "Listen to the consultation and write down the reference code and the total fee. Write NO MORE THAN ONE WORD AND/OR A NUMBER for each answer. [ВНИМАНИЕ: Скрипт в режиме предварительного текста; требует студийной аудиозаписи].",
+      "stimulus": {
+        "transcript": "ADVISOR: Alright, Mr. Vane, to track your Confirmation of Acceptance for Studies, CAS, I need to log your passport details alongside your institutional tracking code. Your tracking ID is CAS-8815-JX. Let me repeat that: CAS, hyphen, eight eight one five, hyphen, J for Juliet, X for X-ray.\nSTUDENT: Got it: CAS-8815-JX. And how much is the health surcharge?\nADVISOR: The annual Immigration Health Surcharge for students is 776 pounds per academic year. Because your program runs for three full years, the total surcharge payable today is 2328 pounds."
+      },
+      "questions": [
+        {
+          "id": "q-l-03a-1",
+          "prompt": "What is the student's institutional tracking code?",
+          "answer": "CAS-8815-JX",
+          "explanation": "The code is spelled out phonetically: CAS, hyphen, 8815, hyphen, JX.",
+          "evidence": "Your tracking ID is CAS-8815-JX. Let me repeat that: CAS, hyphen, eight eight one five, hyphen, J for Juliet, X for X-ray."
+        },
+        {
+          "id": "q-l-03a-2",
+          "prompt": "What is the total three-year health surcharge payable in pounds?",
+          "answer": "2328",
+          "explanation": "776 multiplied by 3 gives 2328 pounds.",
+          "evidence": "the total surcharge payable today is 2328 pounds."
+        }
+      ]
+    },
+    {
+      "id": "drill-l-03b",
+      "skill": "listening",
+      "microSkillId": "ms-l-numspelling",
+      "familyId": "fam-l-numspelling",
+      "variant": "B",
+      "title": "Laboratory Equipment Order: Product Code & Price",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "modality": "script",
+      "unavailableForAssessment": true,
+      "instruction": "Listen to the procurement call and write down the catalog product code and net price. Write NO MORE THAN TWO WORDS AND/OR A NUMBER for each answer. [ВНИМАНИЕ: Скрипт ожидает дикторской записи].",
+      "stimulus": {
+        "transcript": "DISPATCH: Scientific Supplies Direct, dispatch team. What item are you ordering today?\nRESEARCHER: Hello, we need to replace a high-precision refrigerated centrifuge. The product code in your autumn catalog is CEN-904-BK. That is C-E-N, hyphen, nine zero four, hyphen, B for Bravo, K for Kilo.\nDISPATCH: Let me confirm stock... Yes, CEN-904-BK is in our regional warehouse. The unit price is 1450 pounds, but with institutional educational discount applied, your net invoiced total is 1275 pounds, excluding VAT."
+      },
+      "questions": [
+        {
+          "id": "q-l-03b-1",
+          "prompt": "What is the catalog product code for the centrifuge?",
+          "answer": "CEN-904-BK",
+          "explanation": "The product code is CEN-904-BK as spelled by the researcher.",
+          "evidence": "The product code in your autumn catalog is CEN-904-BK."
+        },
+        {
+          "id": "q-l-03b-2",
+          "prompt": "What is the discounted net unit price in pounds?",
+          "answer": "1275",
+          "explanation": "List price is 1450, but the net invoiced total after educational discount is 1275 pounds.",
+          "evidence": "your net invoiced total is 1275 pounds, excluding VAT."
+        }
+      ]
+    },
+    {
+      "id": "drill-r-01a",
+      "skill": "reading",
+      "microSkillId": "ms-r-tfng",
+      "familyId": "fam-r-tfng",
+      "variant": "A",
+      "title": "Case Study: Geothermal Energy in Volcanic Zones",
+      "durationMinutes": 7,
+      "editorialStatus": "DRAFT",
+      "instruction": "Read the case study below and answer the True / False / Not Given questions. Choose TRUE if the statement agrees with the information, FALSE if it contradicts the information, or NOT GIVEN if there is no information on this.",
+      "stimulus": {
+        "passage": "Case Study: The Eldfell Geothermal Pilot Plant\nIn volcanic regions with high subterranean heat, geothermal stations tap deep underground reservoirs to produce clean municipal energy. Deep wells drilled several kilometers into basalt rock draw up pressurized hot steam at temperatures over 250 degrees Celsius. This steam drives turbines to generate electricity. After passing through the turbines, the residual warm water is not discarded; instead, it is channeled into district heating pipes to supply hot water to nearby towns.\n\nAn ongoing engineering challenge is mineral deposits (scaling). When hot underground water rises, sudden pressure drops cause dissolved silica and calcite minerals to crystallize on pipe walls. In this pilot facility, engineers continuously inject chemical scale inhibitors into the wellhead to keep pipes from narrowing and restricting steam flow. Although local ground tremors occasionally occur, engineering stations monitor seismic activity to ensure pipelines meet regional geotechnical safety standards."
+      },
+      "questions": [
+        {
+          "id": "q-r-01a-1",
+          "prompt": "Residual geothermal effluent is completely discarded after passing through turbines.",
+          "options": [
+            "TRUE",
+            "FALSE",
+            "NOT GIVEN"
+          ],
+          "answer": "FALSE",
+          "explanation": "The passage contradicts this: residual warm water is not discarded, but channeled into district heating networks.",
+          "evidence": "After passing through the turbines, the residual warm water is not discarded; instead, it is channeled into district heating pipes to supply hot water to nearby towns."
+        },
+        {
+          "id": "q-r-01a-2",
+          "prompt": "Chemical inhibitors are required to prevent mineral deposits from narrowing extraction pipes.",
+          "options": [
+            "TRUE",
+            "FALSE",
+            "NOT GIVEN"
+          ],
+          "answer": "TRUE",
+          "explanation": "The passage explicitly states that engineers inject chemical scale inhibitors into the wellhead to prevent pipes from narrowing.",
+          "evidence": "In this pilot facility, engineers continuously inject chemical scale inhibitors into the wellhead to keep pipes from narrowing and restricting steam flow."
+        },
+        {
+          "id": "q-r-01a-3",
+          "prompt": "The facility exports geothermal drilling machinery to other countries.",
+          "options": [
+            "TRUE",
+            "FALSE",
+            "NOT GIVEN"
+          ],
+          "answer": "NOT GIVEN",
+          "explanation": "The passage discusses domestic power and district heating, but gives no information about exporting drilling equipment.",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "drill-r-01b",
+      "skill": "reading",
+      "microSkillId": "ms-r-tfng",
+      "familyId": "fam-r-tfng",
+      "variant": "B",
+      "title": "Case Study: Temperate Agroforestry and Soil Biology",
+      "durationMinutes": 7,
+      "editorialStatus": "DRAFT",
+      "instruction": "Read the case study and determine whether the statements are TRUE, FALSE, or NOT GIVEN according to the textual evidence.",
+      "stimulus": {
+        "passage": "Case Study: The Oak-Wheat Experimental Trial\nAgroforestry is the practice of planting rows of trees alongside agricultural crops on the same land. In temperate farming areas, planting rows of deciduous trees such as walnut or poplar between wheat fields creates a sheltered microclimate. The trees reduce wind erosion and protect the topsoil during hot summers and cold winters.\n\nIn a ten-year experimental trial comparing agroforestry fields with standard wheat monoculture, soil biologists found forty percent higher biomass of beneficial soil fungi (mycorrhiza) in the tree-crop fields. The roots of mature trees release organic nutrients into the ground, sustaining soil organisms even during winter months when fields lie fallow. However, shade cast by full tree canopies can reduce wheat grain yields by eight to twelve percent directly next to the tree rows. Agricultural analysts note that income from timber and lower fertilizer costs help balance out this localized loss of grain."
+      },
+      "questions": [
+        {
+          "id": "q-r-01b-1",
+          "prompt": "The experimental agroforestry plots showed lower fungal biomass than standard wheat fields.",
+          "options": [
+            "TRUE",
+            "FALSE",
+            "NOT GIVEN"
+          ],
+          "answer": "FALSE",
+          "explanation": "The passage states the opposite: the trial found forty percent higher biomass of beneficial soil fungi in the agroforestry plots.",
+          "evidence": "soil biologists found forty percent higher biomass of beneficial soil fungi (mycorrhiza) in the tree-crop fields."
+        },
+        {
+          "id": "q-r-01b-2",
+          "prompt": "Tree shading can reduce wheat grain yields immediately beside tree rows.",
+          "options": [
+            "TRUE",
+            "FALSE",
+            "NOT GIVEN"
+          ],
+          "answer": "TRUE",
+          "explanation": "The text confirms that shading from canopies reduces wheat grain yields by 8 to 12 percent directly next to the tree rows.",
+          "evidence": "shade cast by full tree canopies can reduce wheat grain yields by eight to twelve percent directly next to the tree rows."
+        },
+        {
+          "id": "q-r-01b-3",
+          "prompt": "Farmers receive direct government subsidies for every hectare converted to agroforestry.",
+          "options": [
+            "TRUE",
+            "FALSE",
+            "NOT GIVEN"
+          ],
+          "answer": "NOT GIVEN",
+          "explanation": "The passage mentions economic factors (timber income, fertilizer savings) but makes no mention of government subsidies.",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "drill-r-02a",
+      "skill": "reading",
+      "microSkillId": "ms-r-headings",
+      "familyId": "fam-r-headings",
+      "variant": "A",
+      "title": "Case Study: Urban Microclimates and Reflective Roofs",
+      "durationMinutes": 7,
+      "editorialStatus": "DRAFT",
+      "instruction": "Read the two paragraphs below and choose the most appropriate heading (i, ii, or iii) for each paragraph. Distinguish the central topic from subsidiary details.",
+      "stimulus": {
+        "passage": "Paragraph A: Large cities often experience ambient temperatures two to six degrees Celsius higher than surrounding rural areas. This urban heat effect occurs because asphalt roads and concrete buildings absorb and retain solar energy. Reflective 'cool roof' installations offer one practical solution. By coating roofs with light-colored reflective membranes that bounce up to eighty percent of sunlight back into the atmosphere, buildings absorb far less heat. This keeps indoor temperatures lower and reduces the demand for air conditioning during summer months.\n\nParagraph B: However, adopting reflective roofs on a wider scale involves practical and regulatory challenges. In historical preservation zones, municipal building rules often prohibit bright white roofs that alter the traditional appearance of historic neighborhoods. In addition, atmospheric dust, soot, and industrial pollution in urban air gradually coat roof surfaces, reducing their solar reflectivity within two years unless building managers invest in periodic cleaning."
+      },
+      "questions": [
+        {
+          "id": "q-r-02a-1",
+          "prompt": "Which heading best summarizes Paragraph A? Choose the correct heading (i, ii, or iii).",
+          "options": [
+            "i. Historical heritage protection policies",
+            "ii. The mechanism and cooling benefits of reflective roofs",
+            "iii. The maintenance costs of industrial pressure washing"
+          ],
+          "answer": "ii",
+          "explanation": "Paragraph A focuses on how reflective roofs work and how they cool buildings and lower air conditioning needs.",
+          "evidence": "By coating roofs with light-colored reflective membranes that bounce up to eighty percent of sunlight back into the atmosphere, buildings absorb far less heat. This keeps indoor temperatures lower and reduces the demand for air conditioning during summer months."
+        },
+        {
+          "id": "q-r-02a-2",
+          "prompt": "Which heading best summarizes Paragraph B? Choose the correct heading (i, ii, or iii).",
+          "options": [
+            "i. Practical and regulatory obstacles to reflective roof adoption",
+            "ii. Energy savings achieved in municipal office complexes",
+            "iii. Metropolitan temperature comparisons with rural zones"
+          ],
+          "answer": "i",
+          "explanation": "Paragraph B outlines municipal preservation rules and soot accumulation that complicate reflective roof adoption.",
+          "evidence": "adopting reflective roofs on a wider scale involves practical and regulatory challenges. In historical preservation zones, municipal building rules often prohibit bright white roofs..."
+        }
+      ]
+    },
+    {
+      "id": "drill-r-02b",
+      "skill": "reading",
+      "microSkillId": "ms-r-headings",
+      "familyId": "fam-r-headings",
+      "variant": "B",
+      "title": "Case Study: Membrane Technology in Seawater Desalination",
+      "durationMinutes": 7,
+      "editorialStatus": "DRAFT",
+      "instruction": "Read the paragraphs and select the correct heading (i, ii, or iii) for each paragraph.",
+      "stimulus": {
+        "passage": "Paragraph A: Traditional reverse osmosis plants produce freshwater by forcing seawater under high pressure through polymer membranes. These conventional filters have tiny sub-nanometer pores that block salt ions while letting water molecules pass. In laboratory testing, materials scientists have explored ultra-thin graphene sheets as potential filtration membranes. Because water molecules can flow through atomically thin graphene pores with very little resistance, experimental prototypes have demonstrated substantially higher water flow rates than standard polymer filters while retaining dissolved sodium and chloride ions.\n\nParagraph B: However, moving this technology from small laboratory samples to commercial scale remains an engineering challenge. Producing large sheets of graphene without microscopic tears or pinhole leaks is technically difficult. If even a single microscopic defect larger than one nanometer appears, salt water leaks through without being filtered. Such defects can ruin an entire filtration unit, making commercial mass manufacturing costly and difficult to scale."
+      },
+      "questions": [
+        {
+          "id": "q-r-02b-1",
+          "prompt": "Which heading best summarizes Paragraph A? Choose the correct heading (i, ii, or iii).",
+          "options": [
+            "i. Manufacturing defects in sheet production",
+            "ii. Nanoscale properties and efficiency potential of graphene filters",
+            "iii. Municipal water pricing structures in coastal cities"
+          ],
+          "answer": "ii",
+          "explanation": "Paragraph A explains how atomically thin graphene sheets function as molecular filters and allow higher flow rates.",
+          "evidence": "Because water molecules can flow through atomically thin graphene pores with very little resistance, experimental prototypes have demonstrated substantially higher water flow rates than standard polymer filters..."
+        },
+        {
+          "id": "q-r-02b-2",
+          "prompt": "Which heading best summarizes Paragraph B? Choose the correct heading (i, ii, or iii).",
+          "options": [
+            "i. Engineering challenges and quality control hurdles in scaling up production",
+            "ii. Comparison of desalination energy costs across continents",
+            "iii. The chemical properties of sodium and chlorine ions"
+          ],
+          "answer": "i",
+          "explanation": "Paragraph B details the difficulties of producing large graphene sheets without microscopic leaks.",
+          "evidence": "moving this technology from small laboratory samples to commercial scale remains an engineering challenge. Producing large sheets of graphene without microscopic tears or pinhole leaks is technically difficult."
+        }
+      ]
+    },
+    {
+      "id": "drill-r-03a",
+      "skill": "reading",
+      "microSkillId": "ms-r-paraphrase",
+      "familyId": "fam-r-paraphrase",
+      "variant": "A",
+      "title": "Case Study: Marine Mammal Echolocation and Underwater Noise",
+      "durationMinutes": 7,
+      "editorialStatus": "DRAFT",
+      "instruction": "Complete the sentences below using NO MORE THAN TWO WORDS from the passage for each answer.",
+      "stimulus": {
+        "passage": "Toothed marine mammals, such as dolphins and beaked whales, navigate dark underwater depths using high-frequency echolocation clicks. These acoustic signals are produced in nasal passages before being focused into a sound beam by the melon, a specialized fatty organ located in the forehead. However, expanding commercial maritime traffic and naval sonar systems generate persistent underwater noise that can mask these biological signals. Observational studies indicate that intense acoustic disruption can trigger severe spatial disorientation, sometimes causing disoriented deep-diving whales to strand on coastal beaches."
+      },
+      "questions": [
+        {
+          "id": "q-r-03a-1",
+          "prompt": "The acoustic sound beam used for echolocation is shaped and focused by the whale's ________ located in the forehead.",
+          "answer": "melon",
+          "explanation": "The passage explicitly names the 'melon' as the organ in the forehead that focuses the sound beam.",
+          "evidence": "focused into a sound beam by the melon, a specialized fatty organ located in the forehead."
+        },
+        {
+          "id": "q-r-03a-2",
+          "prompt": "Persistent underwater noise generated by human activity can trigger acute ________ among certain marine mammal species.",
+          "answer": "spatial disorientation",
+          "explanation": "The text states that acoustic disruption produces 'spatial disorientation'.",
+          "evidence": "Observational studies indicate that intense acoustic disruption can trigger severe spatial disorientation"
+        }
+      ]
+    },
+    {
+      "id": "drill-r-03b",
+      "skill": "reading",
+      "microSkillId": "ms-r-paraphrase",
+      "familyId": "fam-r-paraphrase",
+      "variant": "B",
+      "title": "Case Study: Peatland Ecosystems and Carbon Storage",
+      "durationMinutes": 7,
+      "editorialStatus": "DRAFT",
+      "instruction": "Complete the sentences below using NO MORE THAN TWO WORDS from the passage for each answer.",
+      "stimulus": {
+        "passage": "Although natural peatlands cover only about three percent of the earth's land surface, they store approximately thirty percent of all soil carbon—more than all global forests combined. The long-term preservation of organic plant matter in peat bogs occurs because waterlogged, anoxic conditions severely slow down natural decomposition. In addition, dominant peat moss species produce natural biochemical preservatives known as polyphenolic compounds, which inhibit the action of microbial enzymes. However, when peatlands are drained for commercial forestry or agriculture, the peat is exposed to oxygen, accelerating decomposition and releasing stored carbon into the atmosphere."
+      },
+      "questions": [
+        {
+          "id": "q-r-03b-1",
+          "prompt": "Decomposition in peat bogs is primarily slowed down by waterlogged and ________ soil environments.",
+          "answer": "anoxic",
+          "explanation": "The text states that 'waterlogged, anoxic conditions' slow down decomposition.",
+          "evidence": "waterlogged, anoxic conditions severely slow down natural decomposition."
+        },
+        {
+          "id": "q-r-03b-2",
+          "prompt": "Peat mosses produce ________ that inhibit the activity of microbial enzymes.",
+          "answer": "polyphenolic compounds",
+          "explanation": "The text mentions that moss species release 'polyphenolic compounds' to inhibit enzymes.",
+          "evidence": "produce natural biochemical preservatives known as polyphenolic compounds, which inhibit the action of microbial enzymes."
+        }
+      ]
+    },
+    {
+      "id": "drill-w1-01a",
+      "skill": "writing",
+      "microSkillId": "ms-w1-overview",
+      "familyId": "fam-w1-table",
+      "variant": "A",
+      "title": "Renewable Electricity Output by Source (2015 vs 2025)",
+      "durationMinutes": 8,
+      "editorialStatus": "DRAFT",
+      "instruction": "Review the table and column chart below. Choose the best academic Overview summarizing the data for an IELTS Task 1 report. A good Task 1 overview describes overarching trends and key contrasts without listing individual data points.",
+      "stimulus": {
+        "visualType": "table_and_svg_chart",
+        "title": "Renewable Electricity Output by Energy Source in Four European Nations (Terawatt-hours, TWh)",
+        "tableData": {
+          "headers": [
+            "Country",
+            "Solar (2015)",
+            "Solar (2025)",
+            "Wind (2015)",
+            "Wind (2025)",
+            "Hydro (2015)",
+            "Hydro (2025)"
+          ],
+          "rows": [
+            [
+              "Germany",
+              38,
+              72,
+              79,
+              145,
+              25,
+              24
+            ],
+            [
+              "Spain",
+              14,
+              39,
+              48,
+              71,
+              31,
+              28
+            ],
+            [
+              "United Kingdom",
+              8,
+              21,
+              40,
+              92,
+              6,
+              7
+            ],
+            [
+              "Norway",
+              0.1,
+              0.5,
+              3,
+              16,
+              138,
+              141
+            ]
+          ]
+        },
+        "svgSpec": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 600 320\" width=\"100%\" height=\"100%\"><rect width=\"600\" height=\"320\" fill=\"#f8fafc\" rx=\"8\"/><text x=\"300\" y=\"28\" font-family=\"sans-serif\" font-size=\"14\" font-weight=\"bold\" text-anchor=\"middle\" fill=\"#0f172a\">Total Renewable Electricity Output (2015 vs 2025) in TWh</text><line x1=\"80\" y1=\"250\" x2=\"560\" y2=\"250\" stroke=\"#94a3b8\" stroke-width=\"2\"/><line x1=\"80\" y1=\"50\" x2=\"80\" y2=\"250\" stroke=\"#94a3b8\" stroke-width=\"2\"/><text x=\"65\" y=\"254\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">0</text><line x1=\"75\" y1=\"250\" x2=\"80\" y2=\"250\" stroke=\"#94a3b8\"/><text x=\"65\" y=\"214\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">50</text><line x1=\"75\" y1=\"210\" x2=\"560\" y2=\"210\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><text x=\"65\" y=\"174\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">100</text><line x1=\"75\" y1=\"170\" x2=\"560\" y2=\"170\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><text x=\"65\" y=\"134\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">150</text><line x1=\"75\" y1=\"130\" x2=\"560\" y2=\"130\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><text x=\"65\" y=\"94\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">200</text><line x1=\"75\" y1=\"90\" x2=\"560\" y2=\"90\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><text x=\"65\" y=\"54\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">250</text><line x1=\"75\" y1=\"50\" x2=\"560\" y2=\"50\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><!-- Germany Bars (2015: 142, 2025: 241) --><rect x=\"115\" y=\"136.4\" width=\"22\" height=\"113.6\" fill=\"#3b82f6\" rx=\"2\"><title>Germany 2015: 142 TWh</title></rect><text x=\"126\" y=\"130\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e40af\">142</text><rect x=\"141\" y=\"57.2\" width=\"22\" height=\"192.8\" fill=\"#1d4ed8\" rx=\"2\"><title>Germany 2025: 241 TWh</title></rect><text x=\"152\" y=\"51\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e3a8a\">241</text><text x=\"139\" y=\"268\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"500\" text-anchor=\"middle\" fill=\"#334155\">Germany</text><!-- Spain Bars (2015: 93, 2025: 138) --><rect x=\"225\" y=\"175.6\" width=\"22\" height=\"74.4\" fill=\"#3b82f6\" rx=\"2\"><title>Spain 2015: 93 TWh</title></rect><text x=\"236\" y=\"169\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e40af\">93</text><rect x=\"251\" y=\"139.6\" width=\"22\" height=\"110.4\" fill=\"#1d4ed8\" rx=\"2\"><title>Spain 2025: 138 TWh</title></rect><text x=\"262\" y=\"133\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e3a8a\">138</text><text x=\"249\" y=\"268\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"500\" text-anchor=\"middle\" fill=\"#334155\">Spain</text><!-- UK Bars (2015: 54, 2025: 120) --><rect x=\"335\" y=\"206.8\" width=\"22\" height=\"43.2\" fill=\"#3b82f6\" rx=\"2\"><title>UK 2015: 54 TWh</title></rect><text x=\"346\" y=\"200\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e40af\">54</text><rect x=\"361\" y=\"154.0\" width=\"22\" height=\"96.0\" fill=\"#1d4ed8\" rx=\"2\"><title>UK 2025: 120 TWh</title></rect><text x=\"372\" y=\"148\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e3a8a\">120</text><text x=\"359\" y=\"268\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"500\" text-anchor=\"middle\" fill=\"#334155\">UK</text><!-- Norway Bars (2015: 141.1, 2025: 157.5) --><rect x=\"445\" y=\"137.1\" width=\"22\" height=\"112.9\" fill=\"#3b82f6\" rx=\"2\"><title>Norway 2015: 141.1 TWh</title></rect><text x=\"456\" y=\"131\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e40af\">141</text><rect x=\"471\" y=\"124.0\" width=\"22\" height=\"126.0\" fill=\"#1d4ed8\" rx=\"2\"><title>Norway 2025: 157.5 TWh</title></rect><text x=\"482\" y=\"118\" font-family=\"sans-serif\" font-size=\"9\" text-anchor=\"middle\" fill=\"#1e3a8a\">158</text><text x=\"469\" y=\"268\" font-family=\"sans-serif\" font-size=\"11\" font-weight=\"500\" text-anchor=\"middle\" fill=\"#334155\">Norway</text><!-- Legend --><rect x=\"180\" y=\"295\" width=\"12\" height=\"12\" fill=\"#3b82f6\" rx=\"1\"/><text x=\"198\" y=\"305\" font-family=\"sans-serif\" font-size=\"10\" fill=\"#475569\">2015 Total Output</text><rect x=\"330\" y=\"295\" width=\"12\" height=\"12\" fill=\"#1d4ed8\" rx=\"1\"/><text x=\"348\" y=\"305\" font-family=\"sans-serif\" font-size=\"10\" fill=\"#475569\">2025 Total Output</text></svg>"
+      },
+      "questions": [
+        {
+          "id": "q-w1-01a-1",
+          "prompt": "Evaluate the following candidate Overview paragraph: 'Overall, solar and wind power experienced substantial increases across all four nations over the decade, with wind emerging as the primary driver of growth in Germany and the UK. Conversely, hydroelectricity remained virtually static, though Norway maintained its position as overwhelmingly reliant on hydro generation throughout the period.' Does this overview satisfy the Task Achievement criteria for a clear academic overview? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) No, because it does not state exact figures such as 145 TWh or 38 TWh.",
+            "B) Yes, because it summarizes the overall upward trajectories of wind and solar, highlights the static trend of hydro, and identifies Norway's distinct profile without cluttering the text with data points.",
+            "C) No, because it fails to mention Spain."
+          ],
+          "answer": "B",
+          "explanation": "An effective overview identifies major trajectories and contrasts without reciting individual numerical values.",
+          "evidence": "Overall trend: wind and solar grew dramatically in Germany, Spain, and UK; hydro remained flat across all nations (Germany 25->24, Spain 31->28, Norway 138->141)."
+        }
+      ]
+    },
+    {
+      "id": "drill-w1-01b",
+      "skill": "writing",
+      "microSkillId": "ms-w1-overview",
+      "familyId": "fam-w1-table",
+      "variant": "B",
+      "title": "National R&D Expenditure Across Four Industrial Sectors (2012 vs 2022)",
+      "durationMinutes": 8,
+      "editorialStatus": "DRAFT",
+      "instruction": "Review the data table and chart below. Choose the most effective academic Overview comparing sector trends over the decade. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "visualType": "table_and_svg_chart",
+        "title": "Corporate Research and Development Spending by Industrial Sector ($ Billions USD)",
+        "tableData": {
+          "headers": [
+            "Industrial Sector",
+            "2012 ()",
+            "2017 ()",
+            "2022 ()",
+            "10-Year Change (%)"
+          ],
+          "rows": [
+            [
+              "Information & Cloud Computing",
+              42.5,
+              78.1,
+              134,
+              "+215.3%"
+            ],
+            [
+              "Pharmaceuticals & Biotech",
+              65,
+              82.4,
+              112.5,
+              "+73.1%"
+            ],
+            [
+              "Automotive & Heavy Industry",
+              58.2,
+              61,
+              64.3,
+              "+10.5%"
+            ],
+            [
+              "Fossil Fuel Extraction",
+              28,
+              21.5,
+              14.2,
+              "-49.3%"
+            ]
+          ]
+        },
+        "svgSpec": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 600 300\" width=\"100%\" height=\"100%\"><rect width=\"600\" height=\"300\" fill=\"#f8fafc\" rx=\"8\"/><text x=\"300\" y=\"26\" font-family=\"sans-serif\" font-size=\"14\" font-weight=\"bold\" text-anchor=\"middle\" fill=\"#0f172a\">R&amp;D Expenditure (2012 vs 2022) in $ Billions</text><line x1=\"110\" y1=\"240\" x2=\"560\" y2=\"240\" stroke=\"#94a3b8\" stroke-width=\"2\"/><line x1=\"110\" y1=\"60\" x2=\"110\" y2=\"240\" stroke=\"#94a3b8\" stroke-width=\"2\"/><text x=\"100\" y=\"244\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">0</text><line x1=\"105\" y1=\"240\" x2=\"110\" y2=\"240\" stroke=\"#94a3b8\"/><text x=\"100\" y=\"184\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">50</text><line x1=\"105\" y1=\"180\" x2=\"560\" y2=\"180\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><text x=\"100\" y=\"124\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">100</text><line x1=\"105\" y1=\"120\" x2=\"560\" y2=\"120\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><text x=\"100\" y=\"64\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"end\" fill=\"#64748b\">150</text><line x1=\"105\" y1=\"60\" x2=\"560\" y2=\"60\" stroke=\"#e2e8f0\" stroke-dasharray=\"3,3\"/><!-- IT (2012: 42.5, 2022: 134) --><rect x=\"140\" y=\"189.0\" width=\"24\" height=\"51.0\" fill=\"#0ea5e9\" rx=\"2\"><title>IT 2012: .5bn</title></rect><text x=\"152\" y=\"183\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#0369a1\">42.5</text><rect x=\"168\" y=\"79.2\" width=\"24\" height=\"160.8\" fill=\"#0284c7\" rx=\"2\"><title>IT 2022: bn</title></rect><text x=\"180\" y=\"73\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#075985\">134</text><text x=\"166\" y=\"256\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"middle\" fill=\"#334155\">IT &amp; Cloud</text><!-- Pharma (2012: 65, 2022: 112.5) --><rect x=\"245\" y=\"162.0\" width=\"24\" height=\"78.0\" fill=\"#0ea5e9\" rx=\"2\"><title>Pharma 2012: bn</title></rect><text x=\"257\" y=\"156\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#0369a1\">65</text><rect x=\"273\" y=\"105.0\" width=\"24\" height=\"135.0\" fill=\"#0284c7\" rx=\"2\"><title>Pharma 2022: .5bn</title></rect><text x=\"285\" y=\"99\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#075985\">112.5</text><text x=\"271\" y=\"256\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"middle\" fill=\"#334155\">Pharma</text><!-- Auto (2012: 58.2, 2022: 64.3) --><rect x=\"350\" y=\"170.2\" width=\"24\" height=\"69.8\" fill=\"#0ea5e9\" rx=\"2\"><title>Auto 2012: .2bn</title></rect><text x=\"362\" y=\"164\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#0369a1\">58.2</text><rect x=\"378\" y=\"162.8\" width=\"24\" height=\"77.2\" fill=\"#0284c7\" rx=\"2\"><title>Auto 2022: .3bn</title></rect><text x=\"390\" y=\"157\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#075985\">64.3</text><text x=\"376\" y=\"256\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"middle\" fill=\"#334155\">Automotive</text><!-- Fossil (2012: 28, 2022: 14.2) --><rect x=\"455\" y=\"206.4\" width=\"24\" height=\"33.6\" fill=\"#0ea5e9\" rx=\"2\"><title>Fossil 2012: bn</title></rect><text x=\"467\" y=\"200\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#0369a1\">28</text><rect x=\"483\" y=\"223.0\" width=\"24\" height=\"17.0\" fill=\"#0284c7\" rx=\"2\"><title>Fossil 2022: .2bn</title></rect><text x=\"495\" y=\"217\" font-family=\"sans-serif\" font-size=\"8.5\" text-anchor=\"middle\" fill=\"#075985\">14.2</text><text x=\"481\" y=\"256\" font-family=\"sans-serif\" font-size=\"10\" text-anchor=\"middle\" fill=\"#334155\">Fossil Fuels</text><!-- Legend --><rect x=\"210\" y=\"278\" width=\"12\" height=\"12\" fill=\"#0ea5e9\" rx=\"1\"/><text x=\"228\" y=\"288\" font-family=\"sans-serif\" font-size=\"10\" fill=\"#475569\">2012 Spending</text><rect x=\"340\" y=\"278\" width=\"12\" height=\"12\" fill=\"#0284c7\" rx=\"1\"/><text x=\"358\" y=\"288\" font-family=\"sans-serif\" font-size=\"10\" fill=\"#475569\">2022 Spending</text></svg>"
+      },
+      "questions": [
+        {
+          "id": "q-w1-01b-1",
+          "prompt": "Which of the following sentences constitutes the strongest academic Overview for this dataset? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Overall, spending on Information Technology and Pharmaceuticals grew substantially, with IT overtaking Pharmaceuticals to become the dominant sector, whereas fossil fuel R&D experienced a precipitous decline.",
+            "B) In 2012, IT was 42.5 billion and in 2022 it was 134 billion, while Automotive barely moved from 58.2 to 64.3 billion.",
+            "C) Total spending in all four sectors was very high and companies should invest more in green alternatives."
+          ],
+          "answer": "A",
+          "explanation": "Option A synthesizes the two major growth trajectories (IT and Pharma), notes the structural shift (IT overtaking Pharma), and highlights the contrasting contraction in fossil fuel R&D without listing raw numbers.",
+          "evidence": "IT increased +215% overtaking Pharma; Fossil fuels dropped -49.3%; Automotive stagnated at +10.5%."
+        }
+      ]
+    },
+    {
+      "id": "drill-w1-02a",
+      "skill": "writing",
+      "microSkillId": "ms-w1-precision",
+      "familyId": "fam-w1-table",
+      "variant": "A",
+      "title": "Comparative Ratio and Percentage Grammar in Visual Reporting",
+      "durationMinutes": 8,
+      "editorialStatus": "DRAFT",
+      "instruction": "Review the table showing container throughput at major regional ports. Choose the sentence that expresses the comparative relationship with grammatical and numerical accuracy. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "visualType": "numeric_table",
+        "title": "Annual Container Throughput at Selected Regional Hub Ports (Million TEU)",
+        "tableData": {
+          "headers": [
+            "Port",
+            "2010 (M TEU)",
+            "2015 (M TEU)",
+            "2020 (M TEU)"
+          ],
+          "rows": [
+            [
+              "Port of Shanghai",
+              29,
+              36.5,
+              43.5
+            ],
+            [
+              "Port of Singapore",
+              28.4,
+              30.9,
+              36.9
+            ],
+            [
+              "Port of Rotterdam",
+              11.1,
+              12.2,
+              14.5
+            ],
+            [
+              "Port of Los Angeles",
+              7.8,
+              8.2,
+              9.2
+            ]
+          ]
+        }
+      },
+      "questions": [
+        {
+          "id": "q-w1-02a-1",
+          "prompt": "Which sentence correctly expresses the comparative relationship between Shanghai and Rotterdam in 2020? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Port of Shanghai handled approximately threefold the volume of Port of Rotterdam, recording 43.5 and 14.5 million TEU respectively.",
+            "B) Port of Shanghai handled three times less containers than Rotterdam in 2020.",
+            "C) Port of Rotterdam increased by 43.5 million TEU respectively to Shanghai."
+          ],
+          "answer": "A",
+          "explanation": "Shanghai (43.5) divided by Rotterdam (14.5) equals exactly 3.0 (threefold), and 'respectively' is correctly paired with the corresponding figures.",
+          "evidence": "Shanghai 2020 = 43.5; Rotterdam 2020 = 14.5. 43.5 / 14.5 = 3.0."
+        }
+      ]
+    },
+    {
+      "id": "drill-w2-01a",
+      "skill": "writing",
+      "microSkillId": "ms-w2-position",
+      "familyId": "fam-w2-argument",
+      "variant": "A",
+      "title": "Universal Basic Income and Workforce Automation",
+      "durationMinutes": 8,
+      "editorialStatus": "DRAFT",
+      "instruction": "Read the IELTS Task 2 prompt below. Compare the two candidate introductions and choose the option that establishes a clear position from the beginning. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "prompt": "Some economists argue that governments should introduce an unconditional universal basic income to protect citizens against technological unemployment caused by automation. To what extent do you agree or disagree?"
+      },
+      "questions": [
+        {
+          "id": "q-w2-01a-1",
+          "prompt": "Candidate A: 'Automation is a major issue today. There are advantages and disadvantages to universal basic income. In this essay, I will discuss both sides before giving my conclusion.'\n\nCandidate B: 'While critics highlight the fiscal burden and work disincentives of unconditional cash transfers, I argue that a phased universal basic income is necessary to support workers displaced by automation.'\n\nWhy is Candidate B more effective according to Task Response criteria? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Because Candidate B uses more complex vocabulary without stating an opinion.",
+            "B) Because Candidate B presents a clear thesis from the start while acknowledging the counter-perspective, satisfying the Task Response criterion for a 'clear position throughout'.",
+            "C) Candidate A is superior because an introduction should not reveal the writer's opinion before the conclusion."
+          ],
+          "answer": "B",
+          "explanation": "Under Task Response descriptors, higher-scoring responses establish a clear position throughout rather than hiding the thesis until the conclusion.",
+          "evidence": "IELTS Writing Band Descriptors TR: 'presents a clear position throughout the response'."
+        }
+      ]
+    },
+    {
+      "id": "drill-w2-01b",
+      "skill": "writing",
+      "microSkillId": "ms-w2-position",
+      "familyId": "fam-w2-argument",
+      "variant": "B",
+      "title": "Public Subsidies for Space Exploration vs Domestic Infrastructure",
+      "durationMinutes": 8,
+      "editorialStatus": "DRAFT",
+      "instruction": "Analyze the essay prompt and thesis statement. Determine where the author's position must be developed to maintain a clear line of argument throughout the essay. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "prompt": "National governments spend billions of dollars on space exploration programs. Many citizens argue that these public resources should instead be invested in domestic infrastructure and healthcare. Discuss both views and give your own opinion."
+      },
+      "questions": [
+        {
+          "id": "q-w2-01b-1",
+          "prompt": "If a writer adopts the stance that space funding drives technological spin-offs that ultimately enhance terrestrial infrastructure, where must this position be explicitly traceable? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Exclusively in the final conclusion sentence.",
+            "B) In the introduction roadmap, in the topic sentence and extension of Body Paragraph 2, and reaffirmed in the conclusion.",
+            "C) Only in the title of the essay."
+          ],
+          "answer": "B",
+          "explanation": "Maintaining a clear position throughout requires tracing the thesis in the introduction, body topic sentences, and concluding synthesis.",
+          "evidence": "Task Response descriptor: 'presents a clear position throughout the response'."
+        }
+      ]
+    },
+    {
+      "id": "drill-w2-02a",
+      "skill": "writing",
+      "microSkillId": "ms-w2-argument",
+      "familyId": "fam-w2-argument",
+      "variant": "A",
+      "title": "Causal Extension of Academic Body Paragraphs",
+      "durationMinutes": 8,
+      "editorialStatus": "DRAFT",
+      "instruction": "Read the draft paragraph on urban congestion pricing. Identify the structural element needed to develop and support the central claim effectively. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "draftParagraph": "First, charging private drivers to enter central business districts helps to alleviate chronic traffic gridlock. Many cities suffer from severe peak-hour delays that harm economic productivity and air quality. For instance, London operates a congestion charge zone. Therefore, municipal councils should adopt similar pricing policies."
+      },
+      "questions": [
+        {
+          "id": "q-w2-02a-1",
+          "prompt": "Why does this paragraph fall short of effective Task Response argument development? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) It fails to explain the causal mechanism (how revenue is reinvested in transit and why traffic drops) and provides only an undeveloped one-sentence example.",
+            "B) It is too long and contains redundant technical terminology.",
+            "C) The example of London is fictitious."
+          ],
+          "answer": "A",
+          "explanation": "The paragraph asserts a conclusion and drops a one-sentence example without explaining how road fees alter driver behavior or generate funds for public transport.",
+          "evidence": "Task Response criteria require ideas to be 'extended and supported', avoiding superficial assertions."
+        }
+      ]
+    },
+    {
+      "id": "drill-s-01a",
+      "skill": "speaking",
+      "microSkillId": "ms-s-part2-turn",
+      "familyId": "fam-s-part2",
+      "variant": "A",
+      "title": "Part 2 Long Turn: A Crucial Technological Innovation in Daily Life",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "assessmentMode": "recording_practice_unscored_pronunciation",
+      "unavailableForPronunciationScoring": true,
+      "instruction": "Use the 1-minute planning timer to make brief notes, then record your spoken response for 1:45 to 2:00 minutes. Cover all bullet points on the task card. [ВНИМАНИЕ: Автоматический скоринг произношения по напечатанному тексту отключен; аудиозапись сохраняется для самоконтроля и соблюдения хронометража].",
+      "stimulus": {
+        "taskCard": "Describe an electronic device or technology that is essential to your daily routine.\nYou should say:\n- what the device or technology is\n- how frequently you use it\n- what specific tasks you complete with it\nand explain why your daily routine would be significantly impacted without it."
+      },
+      "questions": [
+        {
+          "id": "q-s-01a-1",
+          "prompt": "Self-Monitoring Checklist: Did your monologue reach at least 1 minute 45 seconds without long pauses exceeding 3 seconds, and did you devote at least 30 seconds to the final evaluative bullet ('And explain why...')? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Yes, fully met the duration requirement and thoroughly expanded the final rationale.",
+            "B) Partially: stopped before 1:40 or rushed through the final bullet point.",
+            "C) No: paused significantly or ran out of things to say before 1:20."
+          ],
+          "answer": "A",
+          "explanation": "In IELTS Speaking Part 2, sustained monologue length (1:45–2:00) and deep coverage of the final prompt bullet are essential for fluency and topic development.",
+          "evidence": "IELTS Speaking Part 2 official timing: 1-2 minutes continuous individual long turn."
+        }
+      ]
+    },
+    {
+      "id": "drill-s-01b",
+      "skill": "speaking",
+      "microSkillId": "ms-s-part2-turn",
+      "familyId": "fam-s-part2",
+      "variant": "B",
+      "title": "Part 2 Long Turn: An Environmental Initiative in Your Region",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "assessmentMode": "recording_practice_unscored_pronunciation",
+      "unavailableForPronunciationScoring": true,
+      "instruction": "Use the 1-minute preparation window to note down key ideas and transition words. Deliver a 2-minute spoken response covering all prompt requirements. [ВНИМАНИЕ: Практика записи речи без автоматического скоринга произношения].",
+      "stimulus": {
+        "taskCard": "Describe an environmental initiative or project implemented in your local area or city.\nYou should say:\n- what the initiative involves\n- who organized or funded it\n- what visible changes it has produced\nand explain whether you think this project will have a lasting long-term impact."
+      },
+      "questions": [
+        {
+          "id": "q-s-01b-1",
+          "prompt": "Which preparation strategy during the 1-minute planning time yields the best Fluency & Coherence performance? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Writing full sentences and trying to read them aloud during the test.",
+            "B) Noting 2-3 key thematic collocations and transition markers per bullet point to maintain continuous unscripted flow.",
+            "C) Sitting silently without writing anything."
+          ],
+          "answer": "B",
+          "explanation": "Bullet-point notes with collocations and transitions support spontaneous, coherent delivery without the unnatural cadence of reading.",
+          "evidence": "Official recommendation: use notes as an outline, speak spontaneously without reading."
+        }
+      ]
+    },
+    {
+      "id": "drill-s-02a",
+      "skill": "speaking",
+      "microSkillId": "ms-s-part3-abstract",
+      "familyId": "fam-s-part3",
+      "variant": "A",
+      "title": "Part 3 Abstract Discussion: State Regulation of Emerging Technologies",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "assessmentMode": "recording_practice_unscored_pronunciation",
+      "unavailableForPronunciationScoring": true,
+      "instruction": "Respond to the Part 3 discussion questions. Frame your answers around broader societal and institutional perspectives rather than personal domestic anecdotes. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "examinerQuestions": [
+          "To what extent should national governments regulate the deployment of artificial intelligence in public administration?",
+          "What ethical concerns arise when automated algorithms make decisions regarding social welfare or justice?"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q-s-02a-1",
+          "prompt": "Consider response opening A: 'Well, my brother works in IT and he says his company uses AI every day to write code...'\nvs response opening B: 'From an institutional and ethical standpoint, government oversight is essential because automated decisions in public services directly affect citizen welfare...'\nWhy is opening B more effective for Part 3 Lexical Resource and Fluency? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) Because Part 3 focuses on discussing broader societal concepts and abstract issues rather than purely personal domestic anecdotes.",
+            "B) Because opening B is shorter.",
+            "C) Because candidates are strictly penalized for mentioning family members in any section."
+          ],
+          "answer": "A",
+          "explanation": "Speaking Part 3 shifts from personal description (Part 1) to abstract societal analysis and institutional evaluation.",
+          "evidence": "IELTS Speaking Part 3 descriptor: discussion of abstract concepts and societal issues."
+        }
+      ]
+    },
+    {
+      "id": "drill-s-02b",
+      "skill": "speaking",
+      "microSkillId": "ms-s-part3-abstract",
+      "familyId": "fam-s-part3",
+      "variant": "B",
+      "title": "Part 3 Abstract Discussion: Corporate vs Individual Ecological Responsibility",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "assessmentMode": "recording_practice_unscored_pronunciation",
+      "unavailableForPronunciationScoring": true,
+      "instruction": "Answer the Part 3 questions using balanced societal framing and natural spoken discourse markers. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "examinerQuestions": [
+          "Should large corporations or individual consumers bear greater accountability for industrial carbon footprints?",
+          "How can municipal authorities encourage citizens to adopt sustainable waste reduction behaviors?"
+        ]
+      },
+      "questions": [
+        {
+          "id": "q-s-02b-1",
+          "prompt": "Which framing phrase demonstrates the most appropriate academic tone for expressing a balanced viewpoint in Part 3? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) 'While consumer habits certainly contribute to aggregated waste, the structural reality is that industrial supply chains dictate available choices...'",
+            "B) 'I think factories are totally bad and people are good.'",
+            "C) 'To recapitulate the foregoing discourse, my position is solid.'"
+          ],
+          "answer": "A",
+          "explanation": "Option A balances both perspectives using nuanced, natural academic phrasing without overly rigid or conversational extremes.",
+          "evidence": "Speaking FC & LR descriptors: natural discourse markers, avoidance of artificial bookish idioms in speech."
+        }
+      ]
+    },
+    {
+      "id": "drill-s-03a",
+      "skill": "speaking",
+      "microSkillId": "ms-s-discourse",
+      "familyId": "fam-s-discourse",
+      "variant": "A",
+      "title": "Part 1 & 3 Spoken Fillers and Thought-Organizing Connectives",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "assessmentMode": "recording_practice_unscored_pronunciation",
+      "unavailableForPronunciationScoring": true,
+      "instruction": "Listen to the prompt. Practice using natural hesitation phrases to gain thinking time without disrupting your fluency. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "examinerQuestion": "Do you believe modern architectural designs preserve regional cultural heritage?"
+      },
+      "questions": [
+        {
+          "id": "q-s-03a-1",
+          "prompt": "What is the primary pedagogical objective of employing spoken hesitation phrases like 'That's a nuanced issue...' in IELTS Speaking? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) To memorize a 30-second speech to avoid answering the prompt.",
+            "B) To buy 2-3 seconds of cognitive processing time to formulate an argument without producing silent pauses or vocalic hesitations ('uhh/umm').",
+            "C) To impress the examiner with vocabulary that has nothing to do with the question."
+          ],
+          "answer": "B",
+          "explanation": "Natural conversational fillers provide brief processing windows without breaking fluency or coherence.",
+          "evidence": "Speaking FC descriptor: 'speaks without noticeable effort or loss of coherence; minimal hesitation'."
+        }
+      ]
+    },
+    {
+      "id": "drill-s-03b",
+      "skill": "speaking",
+      "microSkillId": "ms-s-hypothetical",
+      "familyId": "fam-s-hypothetical",
+      "variant": "B",
+      "title": "Part 3 Hypothetical & Conditional Discourse Formulations",
+      "durationMinutes": 5,
+      "editorialStatus": "DRAFT",
+      "assessmentMode": "recording_practice_unscored_pronunciation",
+      "unavailableForPronunciationScoring": true,
+      "instruction": "Practice answering the speculative question using conditional structures and modal hedging (could, might, arguably) to discuss hypothetical scenarios. Choose the correct letter, A, B, or C.",
+      "stimulus": {
+        "examinerQuestion": "How might urban commuting patterns change if autonomous shared transport became ubiquitous?"
+      },
+      "questions": [
+        {
+          "id": "q-s-03b-1",
+          "prompt": "Which formulation accurately demonstrates effective Grammatical Range and Accuracy (GRA) for hypothetical conjecture? Choose the correct letter, A, B, or C.",
+          "options": [
+            "A) 'If municipal authorities were to deploy synchronized autonomous fleets, the incentive for private vehicle ownership would arguably diminish substantially.'",
+            "B) 'If cities will make robot cars, everybody is happy and drives them.'",
+            "C) 'In 1990 cars was very slow and polluting.'"
+          ],
+          "answer": "A",
+          "explanation": "Option A correctly uses a subjunctive/hypothetical conditional ('were to deploy... would arguably diminish') with appropriate academic modal hedging.",
+          "evidence": "Speaking GRA descriptor: 'uses a range of complex structures with flexibility and accuracy'."
+        }
+      ]
+    }
+  ]
+}
