@@ -16,6 +16,13 @@ import (
 
 func Open(t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	return OpenThrough(t, "")
+}
+
+// OpenThrough creates an isolated schema through the inclusive migration
+// version. An empty version applies every migration, as Open does.
+func OpenThrough(t *testing.T, version string) *pgxpool.Pool {
+	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("TEST_DATABASE_URL is not set")
@@ -48,6 +55,9 @@ func Open(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("migrations missing: %v", err)
 	}
 	for _, name := range files {
+		if version != "" && filepath.Base(name)[:6] > version {
+			continue
+		}
 		sql, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)

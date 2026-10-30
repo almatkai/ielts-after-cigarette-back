@@ -1,7 +1,7 @@
 # Таксономия академических микронавыков IELTS Academic (ACADEMIC_MICROSKILLS)
 
-**Версия:** 1.1 (Editorial Review Round 2 — Product Hypotheses & Descriptors Alignment)  
-**Дата:** 24 октября 2026 г.  
+**Версия:** 1.1 (Editorial Review Round 2 — Product Hypotheses & Descriptors Alignment)
+**Дата:** 24 октября 2026 г.
 **Контекст арбитража:** Документ составлен в соответствии с выводами [source-adjudication.md](file:///Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/docs/academic-readiness/source-adjudication.md). Инвентарь боевой контентной БД зафиксирован как исследуемый в рамках текущей ревизии. В документе не используются вымышленные «официальные» нормативные пороги (вроде псевдоофициального диапазона Lexile или обязательного каппа-коэффициента >=0.80 для сертификации экзаменатора); терминология и критериальные ориентиры опираются исключительно на [официальные дескрипторы и формат IELTS.org](https://ielts.org/take-a-test/test-types/ielts-academic-test). Все правила микронавыков, пороговые значения учебных циклов и модели переноса зафиксированы как **внутренние продуктовые гипотезы платформы** для осознанной практики (deliberate practice), а не официальные нормативные стандарты экзаменационных центров.
 
 ---

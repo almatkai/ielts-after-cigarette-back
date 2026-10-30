@@ -1,4 +1,4 @@
-**Независимый аудит IELTS Academic: adversarial learning design**  
+**Независимый аудит IELTS Academic: adversarial learning design**
 24 октября 2026 · Автор: исследовательский sub-agent Astra · Только чтение кода и анализ; исправлений нет.
 
 **Вердикт для координатора.** Как ограниченный **планировщик практики** с сохранением попыток, просмотров и расписания — допустим контролируемый запуск при выполнении гейта G0 ниже. Как автономный адаптивный план, обеспечивающий сбалансированную подготовку к цели, — пока не принят: выявлено вытеснение разделов. Как **полноценный курс IELTS Academic — запуск не обоснован**. Функционально работающий календарь не подтверждает обучение. `band`, `practiceBand`, `overallBand = null` в новом API — правильное ограничение; требовать выдуманные числа для выпуска нельзя.
@@ -160,7 +160,7 @@
 [B-refresh]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/internal/studyplan/service.go:215
 [B-ack]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/internal/studyplan/service.go:321
 [B-persist]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/internal/studyplan/service.go:419
-[B-schema]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/migrations/000045_adaptive_study_plan.up.sql:3
+[B-schema]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/migrations/000046_adaptive_study_plan.up.sql:3
 [B-mock]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/internal/studyplan/service.go:498
 [B-mock-replace]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/internal/studyplan/service.go:542
 [B-history]: /Users/almat/Desktop/code/ielts/ielts-after-cigarette-back-adaptive-plan/internal/studyplan/README.md:11
