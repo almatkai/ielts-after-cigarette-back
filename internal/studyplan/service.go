@@ -93,16 +93,46 @@ func (s *Service) Mock(ctx context.Context, user uuid.UUID, week int, revision i
 	return r, e
 }
 
+// beginLocked serializes each user's aggregate, including absent-row creates.
+// A lock waiter must release its connection: the owner can call repositories
+// that need another pool connection for mock availability or attempt starts.
+// Blocking advisory-lock waiters would otherwise exhaust the pool and prevent
+// the owner from completing. The database lock remains authoritative across
+// service instances; cancellation also interrupts the retry delay.
+func (s *Service) beginLocked(ctx context.Context, user uuid.UUID) (pgx.Tx, error) {
+	for {
+		tx, err := s.pool.Begin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var locked bool
+		err = tx.QueryRow(ctx, `SELECT pg_try_advisory_xact_lock(hashtextextended($1,43))`, user.String()).Scan(&locked)
+		if err == nil && locked {
+			return tx, nil
+		}
+		rollbackErr := tx.Rollback(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if rollbackErr != nil {
+			return nil, rollbackErr
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
 func (s *Service) execute(ctx context.Context, user uuid.UUID, c command) (response Response, start StartResponse, err error) {
-	tx, err := s.pool.Begin(ctx)
+	tx, err := s.beginLocked(ctx, user)
 	if err != nil {
 		return response, start, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	// Also protects the absent-row create case; no process-local mutexes needed.
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,43))`, user.String()); err != nil {
-		return response, start, err
-	}
 	in, err := loadInputs(ctx, tx, user)
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound

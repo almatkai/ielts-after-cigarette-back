@@ -87,3 +87,44 @@ required schema evolution; the fresh prefix was blocked by the local server's
 
 No merge, deployment, production configuration change or live-data action was
 performed. GitHub checks/review remain required on the release PR.
+
+
+## CI follow-up: bounded-pool plan lock contention
+
+CI run `41049963448` timed out in `TestConcurrentCreateHasOnePersistedCycle`.
+The runner's default pool has four connections. The lock owner needed another
+connection to read Full Mock availability while competing plan transactions
+occupied every connection waiting on the same blocking advisory lock. The
+same wait pattern can occur when starting an assignment.
+
+Reproduced locally before the fix with `pool_max_conns=4`: the original HTTP
+concurrency test timed out, and the added regression returned its context
+deadline after five seconds. Plan transactions now try the same PostgreSQL
+transaction-scoped advisory lock without blocking. An unsuccessful waiter
+rolls back and releases its connection before a cancellable 10 ms retry delay.
+The database lock continues to enforce serialization across service instances.
+Neither pool sizes nor CI timeouts were increased.
+
+The new real-database regression forces four connections and ten concurrent
+callers, verifies all creates return one cycle, then verifies competing starts
+produce exactly one persisted attempt claim and revision conflicts for losers.
+
+Validation after the fix:
+
+```sh
+TEST_DATABASE_URL='postgres://release_test@127.0.0.1:55483/release_test?sslmode=disable&pool_max_conns=4' \
+  go test -race ./internal/studyplan \
+  -run 'TestConcurrent(CreateHasOnePersistedCycle|PlanMutationsWithSmallPool)$' \
+  -count=5 -timeout=40s
+TEST_DATABASE_URL='postgres://release_test@127.0.0.1:55483/release_test?sslmode=disable&pool_max_conns=4' \
+TEST_REDIS_URL='redis://127.0.0.1:56483/0' \
+  go test -race -count=1 -timeout=3m -json ./...
+go vet ./...
+go build ./...
+```
+
+All five focused repetitions passed. Full suite: **704 passed, zero failed or
+skipped tests**, with PostgreSQL/Redis and the four-connection pool. Vet/build
+passed. Evidence: `/tmp/ielts-release-validation/go-race-pool4.json`,
+`go-vet-pool4.log`, `go-build-pool4.log`, `ci-repro-small-pool.log` and the
+captured failing CI log. Production data and configuration were untouched.
