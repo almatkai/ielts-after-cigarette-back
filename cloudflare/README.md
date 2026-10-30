@@ -49,6 +49,16 @@ imports or user rows. Free quota exhaustion can still prevent the remote object
 constructor from running, so diagnostics may require the midnight UTC reset.
 Changing code or adding indexes cannot reset the account's consumed daily quota.
 
+The one-time post-reset check on 30 October at 00:04–00:06 UTC still received
+the exact free-tier rows-read exception through the private bridge. DEV
+`guest/config` and `billing/plans` remained 503; production `guest/config` was
+200. A controlled redeployment of the identical API artifact did not clear it.
+The new-day GraphQL query returned no minute groups, which is not evidence
+that quota was usable. Live request-cost measurements therefore remain blocked;
+the historical expensive SQL has not been identified. See
+`schema/sql-read-postreset-20261030.json`. The local helper is stopped and the
+single-continuation schedule is disabled, with no next run.
+
 Validation: all 84 Cloudflare tests passed, including actual workerd rowsRead
 bounds, profile privacy/retention and blob lifecycle. API/blob and operator bridge
 Wrangler dry-runs passed. Production and Drone application code are unchanged.

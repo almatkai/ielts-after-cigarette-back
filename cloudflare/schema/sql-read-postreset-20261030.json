@@ -1,0 +1,40 @@
+{
+  "scope": "IELTS DEV only; production health check read-only",
+  "scheduledContinuation": { "enabled": false, "nextRunAt": null },
+  "checkedAtUTC": "2026-10-30T00:03:55Z/2026-10-30T00:05:47Z",
+  "initialHealth": [
+    { "environment": "dev", "path": "/api/v1/guest/config", "status": 503 },
+    { "environment": "dev", "path": "/api/v1/billing/plans", "status": 503 },
+    { "environment": "production", "path": "/api/v1/guest/config", "status": 200 }
+  ],
+  "privateProfile": {
+    "initialStatus": 500,
+    "afterRedeployStatus": 500,
+    "lastCheckedAtUTC": "2026-10-30T00:05:46.913Z",
+    "actualException": "Exceeded allowed rows read in Durable Objects free tier.",
+    "profileAvailable": false,
+    "helperStopped": true
+  },
+  "controlledIntervention": {
+    "description": "Redeployed the identical API artifact with --keep-vars and IAC_SQL_PROFILE=true, to test whether a fresh deployment clears the failed state; no application data operations.",
+    "previousVersion": "bd1ee41b-07ea-4d55-960d-2eef029121a5",
+    "currentVersion": "89ba75d0-d612-43be-b2b3-a7726a02479e",
+    "adapterGitHead": "c6dd8bb373c5a48115c5f720656ea3170f24a22d",
+    "applicationRevision": "6a7bca673cc24d57ce1d2a4bb3f96fc255f27206",
+    "wasmSHA256": "52677416da6fffab9d06812648e41a587409207313e2648960460a0fa7c54c89",
+    "guestConfigStatus": 503,
+    "billingPlansStatus": 503,
+    "result": "Quota exception persisted after redeployment. No evidence that the quota had become usable."
+  },
+  "newDayMetrics": {
+    "source": "Cloudflare GraphQL durableObjectsPeriodicGroups",
+    "dateUTC": "2026-10-30",
+    "observedMinuteGroups": 0,
+    "interpretation": "No groups returned at query time. Eventual analytics visibility does not prove zero actual reads or quota availability."
+  },
+  "limitations": [
+    "No live per-request read-cost deltas could be measured because the object fails before diagnostics become available.",
+    "The historical approximately 91600-read signature and its underlying SQL remain unproven.",
+    "No AI/STT calls, imports, activation, user modifications, paid upgrades, D1 migration, production deployment or Drone changes were performed."
+  ]
+}
