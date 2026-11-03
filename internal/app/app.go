@@ -30,6 +30,7 @@ import (
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/jobs"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/listening"
+	"github.com/almatkai/ielts-after-cigarette-back/internal/mcpkeys"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/objectstorage"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/observability"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/phoneverification"
@@ -116,8 +117,12 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		speakingObjectStore = objectstorage.NewFileStore(cfg.SpeakingMediaDir)
 	}
 	usersHandler := adminapi.NewUsersHandler(pool, map[string]objectstorage.Store{"blog": blogObjectStore, "speaking": speakingObjectStore}, redisClient, logger, cfg.SuperAdminEmails)
+	mcpKeysRepository := mcpkeys.NewPostgresRepository(pool)
+	mcpKeysService := mcpkeys.NewService(mcpKeysRepository, authRepository)
+	mcpKeysHandler := mcpkeys.NewHandler(mcpKeysService, logger, cfg.MaxRequestBody)
 	if pool != nil {
 		tokens.WithAccountState(usersHandler.AccountState)
+		tokens.WithAPIKeyValidator(mcpKeysService)
 		cleanupContext := options.WorkerContext
 		if cleanupContext == nil {
 			cleanupContext = context.Background()
@@ -512,6 +517,9 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/super-admins", waitlistHandler.AdminListAdmins)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/super-admins", waitlistHandler.AdminAddAdmin)
 				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Delete("/super-admins/{email}", waitlistHandler.AdminRemoveAdmin)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Get("/mcp-keys", mcpKeysHandler.List)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Post("/mcp-keys", mcpKeysHandler.Create)
+				adminRouter.With(auth.RequireAnyRole(auth.RoleAdmin)).Delete("/mcp-keys/{keyID}", mcpKeysHandler.Revoke)
 
 				// Blog moderation and writer applications review.
 				adminRouter.Group(func(blogModeration chi.Router) {

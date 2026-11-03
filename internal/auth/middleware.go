@@ -90,16 +90,40 @@ func RequireAdminWorkspace(next http.Handler) http.Handler {
 	})
 }
 
+func extractBearerOrAPIKey(r *http.Request) string {
+	header := strings.TrimSpace(r.Header.Get("Authorization"))
+	parts := strings.Fields(header)
+	if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+		return parts[1]
+	}
+	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); key != "" {
+		return key
+	}
+	return ""
+}
+
 func Authenticate(tokens *TokenManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := strings.TrimSpace(r.Header.Get("Authorization"))
-			parts := strings.Fields(header)
-			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			tokenStr := extractBearerOrAPIKey(r)
+			if tokenStr == "" {
 				httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "A valid Bearer token is required", nil)
 				return
 			}
-			claims, err := tokens.ParseAccessToken(parts[1])
+			if strings.HasPrefix(tokenStr, "iac_mcp_") {
+				if tokens.apiKeyValidator == nil {
+					httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "API key authentication is not configured", nil)
+					return
+				}
+				userID, role, permissions, err := tokens.apiKeyValidator.ValidateAPIKey(r.Context(), tokenStr)
+				if err != nil {
+					httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "Invalid or revoked API key", nil)
+					return
+				}
+				next.ServeHTTP(w, r.WithContext(withUserPermissions(r.Context(), userID, role, permissions)))
+				return
+			}
+			claims, err := tokens.ParseAccessToken(tokenStr)
 			if err != nil {
 				httpx.WriteError(w, r, http.StatusUnauthorized, "UNAUTHENTICATED", "A valid Bearer token is required", nil)
 				return
@@ -113,10 +137,13 @@ func Authenticate(tokens *TokenManager) func(http.Handler) http.Handler {
 func AuthenticateOptional(tokens *TokenManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			header := strings.TrimSpace(r.Header.Get("Authorization"))
-			parts := strings.Fields(header)
-			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
-				if claims, err := tokens.ParseAccessToken(parts[1]); err == nil {
+			tokenStr := extractBearerOrAPIKey(r)
+			if tokenStr != "" {
+				if strings.HasPrefix(tokenStr, "iac_mcp_") && tokens.apiKeyValidator != nil {
+					if userID, role, permissions, err := tokens.apiKeyValidator.ValidateAPIKey(r.Context(), tokenStr); err == nil {
+						r = r.WithContext(withUserPermissions(r.Context(), userID, role, permissions))
+					}
+				} else if claims, err := tokens.ParseAccessToken(tokenStr); err == nil {
 					userID, _ := uuid.Parse(claims.Subject)
 					r = r.WithContext(withUserPermissions(r.Context(), userID, claims.Role, claims.Permissions))
 				}

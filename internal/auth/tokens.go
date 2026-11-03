@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -25,14 +26,19 @@ type AccountState struct {
 	Permissions []string
 }
 
+type APIKeyValidator interface {
+	ValidateAPIKey(ctx context.Context, apiKey string) (uuid.UUID, string, []string, error)
+}
+
 type TokenManager struct {
-	accountState func(uuid.UUID) (AccountState, error)
-	secret       []byte
-	issuer       string
-	audience     string
-	accessTTL    time.Duration
-	refreshTTL   time.Duration
-	now          func() time.Time
+	accountState    func(uuid.UUID) (AccountState, error)
+	apiKeyValidator APIKeyValidator
+	secret          []byte
+	issuer          string
+	audience        string
+	accessTTL       time.Duration
+	refreshTTL      time.Duration
+	now             func() time.Time
 }
 
 func NewTokenManager(secret, issuer, audience string, accessTTL, refreshTTL time.Duration) *TokenManager {
@@ -211,5 +217,11 @@ func (m *TokenManager) AccessTTL() time.Duration {
 // WithAccountState makes account changes effective for already issued access tokens.
 func (m *TokenManager) WithAccountState(lookup func(uuid.UUID) (AccountState, error)) *TokenManager {
 	m.accountState = lookup
+	return m
+}
+
+// WithAPIKeyValidator enables authenticating requests using issued MCP API keys.
+func (m *TokenManager) WithAPIKeyValidator(validator APIKeyValidator) *TokenManager {
+	m.apiKeyValidator = validator
 	return m
 }

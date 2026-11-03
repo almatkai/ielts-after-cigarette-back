@@ -47,6 +47,7 @@ func TestStaffRoutesEnforceIndependentCapabilities(t *testing.T) {
 				{"GET", "/admin/users"}, {"PUT", "/admin/users/invalid"}, {"GET", "/admin/analytics/overview"},
 				{"GET", "/admin/ai-providers"}, {"PUT", "/admin/ai-limits"}, {"GET", "/admin/waitlist"},
 				{"GET", "/admin/super-admins"}, {"POST", "/admin/super-admins"},
+				{"GET", "/admin/mcp-keys"}, {"POST", "/admin/mcp-keys"},
 			} {
 				if status := request(entry.method, entry.path); status != http.StatusForbidden {
 					t.Errorf("system %s %s: %d", entry.method, entry.path, status)
