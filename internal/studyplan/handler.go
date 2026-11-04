@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
@@ -88,7 +89,17 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	out, e := h.service.Get(r.Context(), user)
+	params, e := url.ParseQuery(r.URL.RawQuery)
+	if e != nil {
+		h.write(w, r, nil, ErrValidation)
+		return
+	}
+	scope, e := parseScope(params)
+	if e != nil {
+		h.write(w, r, nil, e)
+		return
+	}
+	out, _, e := h.service.execute(r.Context(), user, command{action: "get", scope: scope})
 	h.write(w, r, out, e)
 }
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {

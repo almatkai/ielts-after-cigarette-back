@@ -36,6 +36,7 @@ func NewService(pool *pgxpool.Pool, starter AttemptStarter, mocks MockOverview) 
 }
 
 type command struct {
+	scope         *Scope
 	learning      *learningCommand
 	action        string
 	settings      Settings
@@ -552,9 +553,18 @@ func (s *Service) execute(ctx context.Context, user uuid.UUID, c command) (respo
 	response.Today = today
 	response.Timezone = in.Zone
 	response.Goal = in.Goal
-	response.Evidence = evidence(in.Results, now)
-	response.Recommendations = recommendations(in.Results)
-	response.Progress = learningProgress(progress(response.Plan, in.Results, zone), st.Learning, zone)
+	fullPlan := response.Plan
+	if c.scope != nil {
+		response.Plan, response.Scope = projectPlan(fullPlan, c.scope, today)
+		response.LearningSummary = compactLearning(&st, in.Goal, today)
+	}
+	response.Evidence = []Evidence{}
+	response.Recommendations = []Recommendation{}
+	if c.scope == nil || c.scope.Details {
+		response.Evidence = evidence(in.Results, now)
+		response.Recommendations = recommendations(in.Results)
+	}
+	response.Progress = learningProgress(progressDays(fullPlan, response.Plan, in.Results, zone), st.Learning, zone)
 	response.Limitations = []string{
 		"Только учебный результат практики: шкала пересчета не подтверждена; итоговый ориентировочный балл IELTS недоступен",
 		"Фактическое время занятий недоступно; запланированное время не означает активность. Для Reading без таймера выделяется 20 минут практики",
@@ -565,9 +575,11 @@ func (s *Service) execute(ctx context.Context, user uuid.UUID, c command) (respo
 	if in.Goal.ExamDate != nil {
 		response.Limitations = append(response.Limitations, "Дата экзамена "+*in.Goal.ExamDate+": с этой даты новые задания и пробные экзамены недоступны; завершение календаря не подтверждает готовность.")
 	}
-	for _, section := range learningInventory(response.Settings, in.Materials, in.Drills).Sections {
-		if !section.Available {
-			response.Limitations = append(response.Limitations, section.Section+": минимальное покрытие недоступно в выбранном бюджете и текущем банке.")
+	if c.scope == nil || c.scope.Details {
+		for _, section := range learningInventory(response.Settings, in.Materials, in.Drills).Sections {
+			if !section.Available {
+				response.Limitations = append(response.Limitations, section.Section+": минимальное покрытие недоступно в выбранном бюджете и текущем банке.")
+			}
 		}
 	}
 	if zoneErr != nil {

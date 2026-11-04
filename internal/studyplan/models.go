@@ -26,6 +26,8 @@ type Goal struct {
 	ExamType   *string  `json:"examType"`
 }
 type Response struct {
+	Scope           *Scope           `json:"scope,omitempty"`
+	LearningSummary *LearningSummary `json:"learningSummary,omitempty"`
 	Today           string           `json:"today"`
 	Timezone        string           `json:"timezone"`
 	Settings        Settings         `json:"settings"`

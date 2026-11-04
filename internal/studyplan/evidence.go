@@ -136,10 +136,14 @@ func recommendations(results []result) []Recommendation {
 	return out
 }
 func progress(p *Plan, results []result, zone *time.Location) []Progress {
+	return progressDays(p, p, results, zone)
+}
+
+func progressDays(p, selected *Plan, results []result, zone *time.Location) []Progress {
 	out := []Progress{}
 	byDate := map[string]*Progress{}
-	if p != nil {
-		for _, d := range p.Days {
+	if selected != nil {
+		for _, d := range selected.Days {
 			out = append(out, Progress{Date: d.Date, PlannedMinutes: d.PlannedMinutes})
 		}
 		for i := range out {
@@ -160,7 +164,9 @@ func progress(p *Plan, results []result, zone *time.Location) []Progress {
 		for _, d := range p.Days {
 			for _, a := range d.Assignments {
 				if a.Status == "SKIPPED" && (a.SkipReason == nil || *a.SkipReason != "superseded_by_optional_mock") {
-					byDate[d.Date].SkippedAssignments++
+					if row := byDate[d.Date]; row != nil {
+						row.SkippedAssignments++
+					}
 				}
 				if a.Kind == "REVIEW" && a.Status == "COMPLETED" && a.CompletedAt != nil {
 					at, err := time.Parse(time.RFC3339, *a.CompletedAt)
