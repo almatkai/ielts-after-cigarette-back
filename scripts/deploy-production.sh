@@ -77,6 +77,10 @@ for _ in $(seq 1 30); do
 				"${compose[@]}" logs --tail=50 worker
 				exit 1
 			fi
+			# Alertbridge is built from the uploaded source. Prometheus reads
+			# its bind-mounted rules at startup; recreate both so this release's
+			# notification code and alert rules become active together.
+			"${compose[@]}" up -d --no-deps --build --force-recreate prometheus alertbridge
 		fi
 		exit 0
 	fi

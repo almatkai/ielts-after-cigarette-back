@@ -124,6 +124,9 @@ Production, DNS и внешние аккаунты не изменялись. Gl
    могут быть отправлены повторно: dedup хранится в памяти.
    Первое подключение чата освобождает recipient lock перед отправкой
    подтверждения, чтобы не заблокировать оба poller при настройке получателя.
+   При operational deploy после готовности API/worker пересобирается Alertbridge
+   и пересоздаются Alertbridge/Prometheus с сохранением volumes: новые правила
+   и код доставки активируются в этом же выпуске.
    До объявления monitoring рабочим настроить получателя, отправить test alert
    и проверить доставку. FAILED jobs не исчезают сами
    из БД; они требуют разбора/повтора, поэтому соответствующий alert сохраняется.
@@ -134,6 +137,7 @@ Production, DNS и внешние аккаунты не изменялись. Gl
    python3.12 -B -m unittest discover -s ops/alertbridge -p 'test_*.py'
    promtool check rules ops/monitoring/alerts.yml
    promtool test rules ops/monitoring/alerts.test.yml
+   go test -race ./scripts
    ```
 8. pg_stat_statements требует согласованного PostgreSQL restart. Добавить
    `docker-compose.pgstats.yml` только в maintenance window; сохранить другие
