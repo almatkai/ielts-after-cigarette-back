@@ -29,7 +29,8 @@ POLL_SECONDS = int(os.environ.get("POLL_SECONDS", "30"))
 token = os.environ["TELEGRAM_BOT_TOKEN"].strip()
 _lock = threading.Lock()
 _chat_id = None
-# Alerts already announced: key -> "firing"|"resolved"
+# Successfully delivered alerts, keyed by their complete Prometheus label set.
+# Keeping only active alerts also bounds memory as route/instance labels change.
 _announced: dict[str, str] = {}
 _last_update_id = 0
 
@@ -90,16 +91,20 @@ def discover_chat() -> None:
         message = update.get("message") or update.get("my_chat_member", {})
         chat = message.get("chat", {})
         if chat.get("type") == "private":
+            configured = False
             with _lock:
                 if _chat_id is None:
                     _chat_id = chat["id"]
                     save_state()
                     print("chat_id discovered:", _chat_id, flush=True)
-                    announce(
-                        "✅ IELTS alerting connected.\n"
-                        "Сюда будут приходить алерты мониторинга (Prometheus) "
-                        "и новые ошибки из GlitchTip. Это тестовое сообщение."
-                    )
+                    configured = True
+            # announce reads the recipient under the same non-reentrant lock.
+            if configured:
+                announce(
+                    "✅ IELTS alerting connected.\n"
+                    "Сюда будут приходить алерты мониторинга (Prometheus) "
+                    "и новые ошибки из GlitchTip. Это тестовое сообщение."
+                )
 
 
 def poll_prometheus() -> None:
@@ -109,32 +114,34 @@ def poll_prometheus() -> None:
     except Exception as error:
         print("prometheus poll failed:", error, flush=True)
         return
+    # A failed/error response must not be mistaken for an empty active-alert set.
+    if payload.get("status") != "success":
+        print("prometheus returned unsuccessful response", flush=True)
+        return
     current: dict[str, str] = {}
     for alert in payload.get("data", {}).get("alerts", []):
         # Pending alerts have not yet satisfied the rule's `for:` duration.
         if alert["state"] != "firing":
             continue
-        current[alert["labels"]["alertname"]] = "firing"
+        labels = alert["labels"]
+        key = json.dumps(labels, sort_keys=True, separators=(",", ":"))
+        name = labels["alertname"]
+        # Include labels in resolved messages too, so simultaneous routes are clear.
+        context = ", ".join(f"{key}={value}" for key, value in sorted(labels.items())
+                            if key not in ("alertname", "severity"))
+        title = name + (f" ({context})" if context else "")
+        summary = alert.get("annotations", {}).get("summary", "")
+        current[key] = title + (f"\n{summary}" if summary else "")
     with _lock:
         announced = dict(_announced)
-    for name, state in current.items():
-        if announced.get(name) != "firing":
+    for key, description in current.items():
+        if key not in announced and announce(f"🔴 FIRING: {description}"):
             with _lock:
-                _announced[name] = "firing"
-            announce(f"🔴 FIRING: {name}\n{describe(payload, name)}")
-    for name, state in announced.items():
-        if state == "firing" and name not in current:
+                _announced[key] = description
+    for key, description in announced.items():
+        if key not in current and announce(f"🟢 RESOLVED: {description.splitlines()[0]}"):
             with _lock:
-                _announced[name] = "resolved"
-            announce(f"🟢 RESOLVED: {name}")
-
-
-def describe(payload: dict, name: str) -> str:
-    for alert in payload.get("data", {}).get("alerts", []):
-        if alert["labels"].get("alertname") == name and alert["state"] == "firing":
-            annotations = alert.get("annotations", {})
-            return annotations.get("summary", "")
-    return ""
+                _announced.pop(key, None)
 
 
 def poll_forever(target, seconds: int, name: str) -> None:

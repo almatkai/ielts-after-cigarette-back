@@ -78,6 +78,11 @@ jobs:
           go vet ./... & vet_pid=$!
           go test -race ./...
           wait "$vet_pid"
+      - name: Alerting regressions
+        run: |
+          python3 -B -m unittest discover -s ops/alertbridge -p 'test_*.py'
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/ops/monitoring:/rules:ro" prom/prometheus:v3.5.0 check rules /rules/alerts.yml
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/ops/monitoring:/rules:ro" prom/prometheus:v3.5.0 test rules /rules/alerts.test.yml
 
   build:
     if: github.ref == 'refs/heads/main'

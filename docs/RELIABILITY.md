@@ -107,10 +107,34 @@ Production, DNS и внешние аккаунты не изменялись. Gl
    Request/user/attempt IDs не становятся Loki/Prometheus labels: иначе растёт
    cardinality. Не добавлять логирование тел запросов, JWT, essays или аудио.
 7. Правила проверяют 5xx, latency, пул, зависшие/FAILED jobs и возраст бэкапа.
-   **Правила не равны уведомлениям:** Alertmanager/contact point/канал доставки
-   не подключён. До объявления monitoring рабочим настроить получателя,
-   отправить test alert и проверить доставку. FAILED jobs не исчезают сами
+   `APISlow` требует p95 выше 1 секунды непрерывно 10 минут; одиночный
+   медленный запрос может его не вызвать. `APISlowRequest` дополнительно
+   срабатывает после любого запроса дольше 2.5 секунд на обычном API route
+   (media/recordings/assistant/submit исключены, как в `APISlow`). Метрика
+   `iac_http_last_slow_request_timestamp_seconds` сохраняет время последнего
+   такого запроса, включая первый запрос нового route. Alert остаётся активным
+   пять минут после последнего события; быстрые запросы не стирают событие.
+   Это серверная длительность, а не полное время запроса в браузере.
+   При scrape/evaluation/poll интервалах 30 секунд доставка обычно занимает
+   до трёх интервалов плюс время отправки, без дополнительного `for:`.
+   Alertbridge опрашивает Prometheus и отправляет firing/resolved в Telegram.
+   Идентичность alert — полный набор labels: разные route не подавляют друг
+   друга. Неудачная отправка повторяется в следующем poll, пока alert актуален;
+   неудачный resolved также повторяется. После перезапуска активные alerts
+   могут быть отправлены повторно: dedup хранится в памяти.
+   Первое подключение чата освобождает recipient lock перед отправкой
+   подтверждения, чтобы не заблокировать оба poller при настройке получателя.
+   До объявления monitoring рабочим настроить получателя, отправить test alert
+   и проверить доставку. FAILED jobs не исчезают сами
    из БД; они требуют разбора/повтора, поэтому соответствующий alert сохраняется.
+
+   Проверки без отправки сообщений и обращения к production:
+
+   ```sh
+   python3.12 -B -m unittest discover -s ops/alertbridge -p 'test_*.py'
+   promtool check rules ops/monitoring/alerts.yml
+   promtool test rules ops/monitoring/alerts.test.yml
+   ```
 8. pg_stat_statements требует согласованного PostgreSQL restart. Добавить
    `docker-compose.pgstats.yml` только в maintenance window; сохранить другие
    preload libraries при наличии. После restart выполнить `ops/postgres-stats.sql`

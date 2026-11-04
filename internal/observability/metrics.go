@@ -20,6 +20,7 @@ type Metrics struct {
 	registry *prometheus.Registry
 	requests *prometheus.CounterVec
 	latency  *prometheus.HistogramVec
+	lastSlow *prometheus.GaugeVec
 }
 
 // New registers durable job metrics when pool is set. speechPipeline reports
@@ -30,8 +31,9 @@ func New(pool *pgxpool.Pool, speechPipeline bool) *Metrics {
 		registry: prometheus.NewRegistry(),
 		requests: prometheus.NewCounterVec(prometheus.CounterOpts{Name: "iac_http_requests_total", Help: "Completed API requests."}, []string{"method", "route", "status"}),
 		latency:  prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "iac_http_duration_seconds", Help: "API request duration.", Buckets: []float64{.01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 30, 60, 300}}, []string{"method", "route"}),
+		lastSlow: prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "iac_http_last_slow_request_timestamp_seconds", Help: "Completion time of the latest API request exceeding 2.5 seconds."}, []string{"method", "route"}),
 	}
-	m.registry.MustRegister(m.requests, m.latency, collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	m.registry.MustRegister(m.requests, m.latency, m.lastSlow, collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	if pool != nil {
 		m.registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "iac_db_connections", Help: "Total pgx connections."}, func() float64 { return float64(pool.Stat().TotalConns()) }))
 		m.registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{Name: "iac_db_connections_acquired", Help: "Busy pgx connections."}, func() float64 { return float64(pool.Stat().AcquiredConns()) }))
@@ -70,9 +72,17 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 		if status == 0 {
 			status = http.StatusOK
 		}
-		m.requests.WithLabelValues(method, route, strconv.Itoa(status)).Inc()
-		m.latency.WithLabelValues(method, route).Observe(time.Since(started).Seconds())
+		finished := time.Now()
+		m.observeRequest(method, route, status, finished.Sub(started), finished)
 	})
+}
+
+func (m *Metrics) observeRequest(method, route string, status int, elapsed time.Duration, finished time.Time) {
+	m.requests.WithLabelValues(method, route, strconv.Itoa(status)).Inc()
+	m.latency.WithLabelValues(method, route).Observe(elapsed.Seconds())
+	if elapsed > 2500*time.Millisecond {
+		m.lastSlow.WithLabelValues(method, route).Set(float64(finished.Unix()))
+	}
 }
 
 var (

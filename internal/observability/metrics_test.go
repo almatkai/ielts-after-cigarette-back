@@ -6,11 +6,35 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/httpx"
 	"github.com/almatkai/ielts-after-cigarette-back/internal/testdb"
 	"github.com/go-chi/chi/v5"
 )
+
+func TestIsolatedSlowRequestIsVisibleOnFirstScrape(t *testing.T) {
+	metrics := New(nil, false)
+	finished := time.Unix(1_800_000_000, 0)
+	metrics.observeRequest("GET", "/api/v1/study-plan", 200, 3700*time.Millisecond, finished)
+	// A later fast request must not erase the slow event before it is scraped.
+	metrics.observeRequest("GET", "/api/v1/study-plan", 200, 20*time.Millisecond, finished.Add(time.Second))
+	metrics.observeRequest("GET", "/fast", 200, 2500*time.Millisecond, finished)
+	families, err := metrics.registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, family := range families {
+		if family.GetName() != "iac_http_last_slow_request_timestamp_seconds" {
+			continue
+		}
+		if len(family.Metric) != 1 || family.Metric[0].GetGauge().GetValue() != float64(finished.Unix()) {
+			t.Fatalf("slow event was erased or fast request recorded: %v", family.Metric)
+		}
+		return
+	}
+	t.Fatal("isolated slow request was not exported")
+}
 
 func TestMetricsUseTemplatesAndCountRecoveredPanics(t *testing.T) {
 	metrics := New(nil, false)
