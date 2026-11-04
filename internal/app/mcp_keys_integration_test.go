@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,11 +16,14 @@ import (
 )
 
 type mockAppMCPRepo struct {
+	mu     sync.Mutex
 	keys   map[uuid.UUID]mcpkeys.MCPKey
 	hashes map[string]uuid.UUID
 }
 
 func (m *mockAppMCPRepo) Create(ctx context.Context, key mcpkeys.MCPKey, keyHash string) (*mcpkeys.MCPKey, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.keys[key.ID] = key
 	m.hashes[keyHash] = key.ID
 	k := key
@@ -27,6 +31,8 @@ func (m *mockAppMCPRepo) Create(ctx context.Context, key mcpkeys.MCPKey, keyHash
 }
 
 func (m *mockAppMCPRepo) List(ctx context.Context) ([]mcpkeys.MCPKey, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var list []mcpkeys.MCPKey
 	for _, k := range m.keys {
 		list = append(list, k)
@@ -35,6 +41,8 @@ func (m *mockAppMCPRepo) List(ctx context.Context) ([]mcpkeys.MCPKey, error) {
 }
 
 func (m *mockAppMCPRepo) Revoke(ctx context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	k, ok := m.keys[id]
 	if !ok || k.RevokedAt != nil {
 		return mcpkeys.ErrKeyNotFound
@@ -46,6 +54,8 @@ func (m *mockAppMCPRepo) Revoke(ctx context.Context, id uuid.UUID) error {
 }
 
 func (m *mockAppMCPRepo) FindByHash(ctx context.Context, keyHash string) (*mcpkeys.MCPKey, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	id, ok := m.hashes[keyHash]
 	if !ok {
 		return nil, mcpkeys.ErrKeyNotFound
@@ -58,6 +68,8 @@ func (m *mockAppMCPRepo) FindByHash(ctx context.Context, keyHash string) (*mcpke
 }
 
 func (m *mockAppMCPRepo) TouchLastUsed(ctx context.Context, id uuid.UUID, lastUsed time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	k, ok := m.keys[id]
 	if !ok {
 		return mcpkeys.ErrKeyNotFound
