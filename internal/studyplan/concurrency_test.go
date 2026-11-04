@@ -6,8 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/attempts"
 	"github.com/google/uuid"
@@ -167,4 +170,77 @@ func TestNewPublishedResultsAdaptFutureOnlyAndMissingMaterialStartFails(t *testi
 	h.sql(`UPDATE reading_materials SET status='ARCHIVED' WHERE id=$1`, material)
 	r = h.call("GET", "/study-plan", nil, 200)
 	h.call("POST", fmt.Sprintf("/study-plan/assignments/%s/start", r.Plan.Days[0].Assignments[0].ID), mutationInput{ExpectedRevision: r.Plan.Revision}, 409)
+}
+
+// A saturated pool must still let the lock owner query full-mock availability
+// and start an attempt. Waiters must not reserve every remaining connection.
+func TestConcurrentPlanMutationsWithSmallPool(t *testing.T) {
+	raw := os.Getenv("TEST_DATABASE_URL")
+	if raw == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := parsed.Query()
+	query.Set("pool_max_conns", "4")
+	parsed.RawQuery = query.Encode()
+	t.Setenv("TEST_DATABASE_URL", parsed.String())
+	h := setup(t)
+	h.seedReading(20)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	const callers = 10
+	var wg sync.WaitGroup
+	responses := make(chan Response, callers)
+	failures := make(chan error, callers)
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			response, err := h.service.Create(ctx, h.user, allDays(30))
+			responses <- response
+			failures <- err
+		}()
+	}
+	wg.Wait()
+	for i := 0; i < callers; i++ {
+		if err := <-failures; err != nil {
+			t.Fatalf("concurrent create: %v", err)
+		}
+	}
+	response := <-responses
+	for i := 1; i < callers; i++ {
+		other := <-responses
+		if other.Plan.ID != response.Plan.ID || other.Plan.Revision != 1 {
+			t.Fatal("concurrent creates persisted competing cycles")
+		}
+	}
+	assignment := assignmentOn(t, response, response.Today, "PRACTICE")
+	for i := 0; i < callers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := h.service.Start(ctx, h.user, assignment.ID, response.Plan.Revision)
+			failures <- err
+		}()
+	}
+	wg.Wait()
+	started := 0
+	for i := 0; i < callers; i++ {
+		err := <-failures
+		if err == nil {
+			started++
+		} else if !errors.Is(err, ErrConflict) {
+			t.Fatalf("concurrent start: %v", err)
+		}
+	}
+	if started != 1 {
+		t.Fatalf("started %d attempts; want exactly one", started)
+	}
+	var count int
+	if err := h.pool.QueryRow(t.Context(), `SELECT count(*) FROM study_plan_attempts`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("attempt claims: %d, error %v", count, err)
+	}
 }
