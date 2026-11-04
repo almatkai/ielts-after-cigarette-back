@@ -1,0 +1,34 @@
+rule_files:
+  - alerts.yml
+evaluation_interval: 30s
+tests:
+  # No baseline sample is needed: even the first request on a route is visible.
+  - interval: 30s
+    input_series:
+      - series: 'iac_http_last_slow_request_timestamp_seconds{method="GET",route="/api/v1/study-plan"}'
+        values: '_ _ 60+0x12'
+      - series: 'iac_http_last_slow_request_timestamp_seconds{method="POST",route="/api/v1/assistant"}'
+        values: '_ _ 60+0x12'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: APISlowRequest
+        exp_alerts:
+          - exp_labels: {method: GET, route: /api/v1/study-plan, severity: warning}
+            exp_annotations: {summary: 'An API request exceeded 2.5s for GET /api/v1/study-plan in the last 5 minutes'}
+      - eval_time: 1m
+        alertname: APISlow
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: APISlowRequest
+        exp_alerts: []
+  # A fresh slow request extends the route's existing alert window.
+  - interval: 30s
+    input_series:
+      - series: 'iac_http_last_slow_request_timestamp_seconds{method="GET",route="/api/v1/study-plan"}'
+        values: '_ _ 60+0x5 240+0x6'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: APISlowRequest
+        exp_alerts:
+          - exp_labels: {method: GET, route: /api/v1/study-plan, severity: warning}
+            exp_annotations: {summary: 'An API request exceeded 2.5s for GET /api/v1/study-plan in the last 5 minutes'}

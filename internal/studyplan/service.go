@@ -103,7 +103,7 @@ func (s *Service) execute(ctx context.Context, user uuid.UUID, c command) (respo
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,43))`, user.String()); err != nil {
 		return response, start, err
 	}
-	in, err := loadInputs(ctx, tx, user)
+	in, err := loadInputsWithPerformance(ctx, tx, user, c.action == "learning" && c.learning.Action == "get")
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = ErrNotFound
 	}
@@ -455,7 +455,7 @@ func (s *Service) execute(ctx context.Context, user uuid.UUID, c command) (respo
 				dirty = true
 				// Include the just-created draft in the snapshot fingerprint, avoiding a
 				// spurious second GET revision merely because Start inserted a row.
-				fresh, e := loadInputs(ctx, tx, user)
+				fresh, e := loadInputsWithPerformance(ctx, tx, user, false)
 				if e != nil {
 					return response, start, e
 				}
