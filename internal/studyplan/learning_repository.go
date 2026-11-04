@@ -60,27 +60,58 @@ func loadLearningSources(ctx context.Context, tx pgx.Tx, user uuid.UUID, results
 	if err != nil {
 		return nil, err
 	}
+	// Fetch answer/prompt/provenance data once for all eligible attempts. Iterate
+	// results below to retain the existing source order and late-feedback behavior.
+	ids := []string{}
+	for _, r := range results {
+		if r.Status == "SUBMITTED" && r.Reviewable && (r.Skill == "writing" || r.Skill == "speaking") {
+			ids = append(ids, r.ID)
+		}
+	}
+	type attemptSource struct {
+		version, model, prompt string
+		answers                []byte
+		hasAudio               bool
+	}
+	attemptSources := make(map[string]attemptSource, len(ids))
+	if len(ids) > 0 {
+		rows, err = tx.Query(ctx, `SELECT a.id::text,a.material_version_id::text,COALESCE(w.model,s.model,''),COALESCE((SELECT jsonb_object_agg(aa.question_id::text,aa.answer) FROM attempt_answers aa WHERE aa.attempt_id=a.id),'{}'),
+ COALESCE((SELECT tasks::text FROM writing_material_versions v WHERE a.material_type='writing' AND v.id=a.material_version_id),(SELECT parts::text FROM speaking_material_versions v WHERE a.material_type='speaking' AND v.id=a.material_version_id),''),EXISTS(SELECT 1 FROM speaking_recordings sr WHERE sr.attempt_id=a.id)
+ FROM attempts a LEFT JOIN writing_evaluations w ON w.attempt_id=a.id LEFT JOIN speaking_evaluations s ON s.attempt_id=a.id WHERE a.id=ANY($1::uuid[]) AND a.user_id=$2`, ids, user)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id string
+			var data attemptSource
+			if err = rows.Scan(&id, &data.version, &data.model, &data.answers, &data.prompt, &data.hasAudio); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			attemptSources[id] = data
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return nil, err
+		}
+	}
 	for _, r := range results {
 		if r.Status != "SUBMITTED" || !r.Reviewable || (r.Skill != "writing" && r.Skill != "speaking") {
 			continue
 		}
-		var version, model, prompt string
-		var hasAudio bool
-		var answersRaw []byte
-		err = tx.QueryRow(ctx, `SELECT a.material_version_id::text,COALESCE(w.model,s.model,''),COALESCE((SELECT jsonb_object_agg(aa.question_id::text,aa.answer) FROM attempt_answers aa WHERE aa.attempt_id=a.id),'{}'),
- COALESCE((SELECT tasks::text FROM writing_material_versions v WHERE a.material_type='writing' AND v.id=a.material_version_id),(SELECT parts::text FROM speaking_material_versions v WHERE a.material_type='speaking' AND v.id=a.material_version_id),''),EXISTS(SELECT 1 FROM speaking_recordings sr WHERE sr.attempt_id=a.id)
- FROM attempts a LEFT JOIN writing_evaluations w ON w.attempt_id=a.id LEFT JOIN speaking_evaluations s ON s.attempt_id=a.id WHERE a.id=$1 AND a.user_id=$2`, r.ID, user).Scan(&version, &model, &answersRaw, &prompt, &hasAudio)
-		if err != nil {
-			return nil, err
+		data, ok := attemptSources[r.ID]
+		if !ok {
+			return nil, pgx.ErrNoRows
 		}
 		var answers map[string]json.RawMessage
-		_ = json.Unmarshal(answersRaw, &answers)
+		_ = json.Unmarshal(data.answers, &answers)
 		var tasks []struct {
 			ID           string `json:"id"`
 			Prompt       string `json:"prompt"`
 			Instructions string `json:"instructions"`
 		}
-		_ = json.Unmarshal([]byte(prompt), &tasks)
+		_ = json.Unmarshal([]byte(data.prompt), &tasks)
 		prompts := map[string]string{}
 		for _, t := range tasks {
 			prompts[t.ID] = t.Prompt + " " + t.Instructions
@@ -110,16 +141,16 @@ func loadLearningSources(ctx context.Context, tx pgx.Tx, user uuid.UUID, results
 			when = *r.SubmittedAt
 		}
 		modality := "typed"
-		if hasAudio {
+		if data.hasAudio {
 			modality = "audio"
 		}
 		add := func(id, skill, typ, original, fragment, note, identity string) {
 			if strings.TrimSpace(note) == "" {
 				return
 			}
-			e := SourceEvidence{AttemptID: r.ID, QuestionID: ptr(id), MaterialID: r.MaterialID, VersionID: version, QuestionType: typ, Prompt: prompts[id], Stimulus: fragment, OriginalAnswer: original, Feedback: "Непроверенная рекомендация ИИ: " + note, OccurredAt: when.UTC().Format(time.RFC3339), Modality: modality}
-			if model != "" {
-				e.Provenance.Model = ptr(model)
+			e := SourceEvidence{AttemptID: r.ID, QuestionID: ptr(id), MaterialID: r.MaterialID, VersionID: data.version, QuestionType: typ, Prompt: prompts[id], Stimulus: fragment, OriginalAnswer: original, Feedback: "Непроверенная рекомендация ИИ: " + note, OccurredAt: when.UTC().Format(time.RFC3339), Modality: modality}
+			if data.model != "" {
+				e.Provenance.Model = ptr(data.model)
 			}
 			out = append(out, sourceMistake{Source: e, SkillID: skill, Identity: r.ID + ":" + id + ":" + identity})
 		}

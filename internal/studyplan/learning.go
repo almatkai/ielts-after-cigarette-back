@@ -78,11 +78,74 @@ func familySeen(st *state, family *string) bool {
 	return false
 }
 
+// Request-local lookups. Rebuild after mutations: session novelty, editorial
+// provenance and correction generations must never be cached across actions.
+type cycleRefreshIndex struct {
+	units        map[string]*drillUnit
+	sessions     map[string]*learningSession
+	seenFamilies map[string]bool
+	candidates   map[string][]*drillUnit
+}
+
+func newCycleRefreshIndex(st *state, units []drillUnit) *cycleRefreshIndex {
+	x := &cycleRefreshIndex{units: make(map[string]*drillUnit, len(units)), sessions: make(map[string]*learningSession, len(st.Learning.Sessions))}
+	for i := range units {
+		if _, exists := x.units[units[i].Drill.ID]; !exists {
+			x.units[units[i].Drill.ID] = &units[i]
+		}
+	}
+	for i := range st.Learning.Sessions {
+		if _, exists := x.sessions[st.Learning.Sessions[i].Session.ID]; !exists {
+			x.sessions[st.Learning.Sessions[i].Session.ID] = &st.Learning.Sessions[i]
+		}
+	}
+	return x
+}
+
+func (x *cycleRefreshIndex) familySeen(family *string) bool {
+	return family == nil || x.seenFamilies[*family]
+}
+
+func (x *cycleRefreshIndex) prepareCandidates(st *state, units []drillUnit) {
+	x.seenFamilies = map[string]bool{}
+	for _, s := range st.Learning.Sessions {
+		if s.Session.Drill.FamilyID != nil {
+			x.seenFamilies[*s.Session.Drill.FamilyID] = true
+		}
+	}
+	for _, c := range st.Learning.Cycles {
+		if c.Cycle.Source.FamilyID != nil {
+			x.seenFamilies[*c.Cycle.Source.FamilyID] = true
+		}
+	}
+	x.candidates = map[string][]*drillUnit{}
+	for i := range units {
+		d := units[i].Drill
+		// These were sorted but always skipped by remedial selection.
+		if !d.MasteryEligible && d.Modality != "script" {
+			x.candidates[d.SkillID] = append(x.candidates[d.SkillID], &units[i])
+		}
+	}
+	for _, candidates := range x.candidates {
+		sort.SliceStable(candidates, func(i, j int) bool {
+			a, b := candidates[i].Drill, candidates[j].Drill
+			if x.familySeen(a.FamilyID) != x.familySeen(b.FamilyID) {
+				return !x.familySeen(a.FamilyID)
+			}
+			return a.ID < b.ID
+		})
+	}
+}
+
 func syncLearning(st *state, sources []sourceMistake, units []drillUnit, today string) {
 	previous := map[string][]byte{}
-	for _, c := range st.Learning.Cycles {
+	sourceCycles := make(map[string]int, len(st.Learning.Cycles)+len(sources))
+	for i, c := range st.Learning.Cycles {
 		raw, _ := json.Marshal(c.Cycle)
 		previous[c.Cycle.ID] = raw
+		if _, exists := sourceCycles[c.SourceKey]; !exists {
+			sourceCycles[c.SourceKey] = i
+		}
 	}
 	if st.Learning.Cycles == nil {
 		st.Learning.Cycles = []learningCycle{}
@@ -94,30 +157,28 @@ func syncLearning(st *state, sources []sourceMistake, units []drillUnit, today s
 		st.Learning.Receipts = map[string]learningReceipt{}
 	}
 	for _, src := range sources {
-		found := false
-		for i := range st.Learning.Cycles {
+		if i, found := sourceCycles[src.Identity]; found {
 			c := &st.Learning.Cycles[i]
-			if c.SourceKey == src.Identity {
-				found = true
-				// Editorial provenance may be corrected/withdrawn after the mistake occurred.
-				c.Cycle.Source.FamilyID = src.Source.FamilyID
-				c.Cycle.Source.FamilyKnown = src.Source.FamilyKnown
-				break
-			}
-		}
-		if found {
+			// Editorial provenance may be corrected/withdrawn after the mistake occurred.
+			c.Cycle.Source.FamilyID = src.Source.FamilyID
+			c.Cycle.Source.FamilyKnown = src.Source.FamilyKnown
 			continue
 		}
+		sourceCycles[src.Identity] = len(st.Learning.Cycles)
 		st.Learning.Cycles = append(st.Learning.Cycles, learningCycle{Cycle: Cycle{ID: uuid.NewString(), Revision: 1, SkillID: src.SkillID, Section: sectionForSkill(src.SkillID), Status: "needs-practice", Source: src.Source, Checks: []TransferCheck{}, RemainingChecks: 2, Limitations: []string{"Внутреннее правило практики, а не подтверждённый балл IELTS. Неизвестное семейство не подтверждает независимость."}}, Key: src.Key, SourceKey: src.Identity})
 	}
+	if len(st.Learning.Cycles) == 0 && len(st.Learning.Sessions) == 0 {
+		return
+	}
+	index := newCycleRefreshIndex(st, units)
 	for i := range st.Learning.Cycles {
 		c := &st.Learning.Cycles[i].Cycle
 		if c.Source.SessionID != nil {
-			saved := sessionByID(st, *c.Source.SessionID)
+			saved := index.sessions[*c.Source.SessionID]
 			c.Source.FamilyKnown = false
 			c.Source.FamilyID = nil
 			if saved != nil {
-				u := unitByID(units, saved.Session.Drill.ID)
+				u := index.units[saved.Session.Drill.ID]
 				if u != nil && u.Drill.MasteryEligible && drillContentHash(*u) == drillContentHash(drillUnit{saved.Session.Drill, saved.Key, saved.TeacherFeedback}) {
 					c.Source.FamilyKnown = true
 					c.Source.FamilyID = u.Drill.FamilyID
@@ -130,15 +191,19 @@ func syncLearning(st *state, sources []sourceMistake, units []drillUnit, today s
 		if ss.Session.Status != "submitted" || !ss.Session.Independent {
 			continue
 		}
-		u := unitByID(units, ss.Session.Drill.ID)
+		u := index.units[ss.Session.Drill.ID]
 		if u == nil || !u.Drill.MasteryEligible || !sameUnit(*u, *ss) {
 			ss.Session.Independent = false
 			ss.Session.IndependenceReason = "Редакторское подтверждение материала изменилось; результат сохранён как практика."
 			ss.Session.Revision++
 		}
 	}
+	// Source families above may have changed with editorial publication/withdrawal.
+	if len(st.Learning.Cycles) > 0 {
+		index.prepareCandidates(st, units)
+	}
 	for i := range st.Learning.Cycles {
-		refreshCycle(st, &st.Learning.Cycles[i], units, today)
+		refreshCycleIndexed(st, &st.Learning.Cycles[i], index, today)
 	}
 	for i := range st.Learning.Cycles {
 		c := &st.Learning.Cycles[i].Cycle
@@ -153,6 +218,12 @@ func syncLearning(st *state, sources []sourceMistake, units []drillUnit, today s
 }
 
 func refreshCycle(st *state, lc *learningCycle, units []drillUnit, today string) {
+	index := newCycleRefreshIndex(st, units)
+	index.prepareCandidates(st, units)
+	refreshCycleIndexed(st, lc, index, today)
+}
+
+func refreshCycleIndexed(st *state, lc *learningCycle, index *cycleRefreshIndex, today string) {
 	c := &lc.Cycle
 	previousNext := c.NextDrillID
 	c.NextDrillID = nil
@@ -161,10 +232,10 @@ func refreshCycle(st *state, lc *learningCycle, units []drillUnit, today string)
 	delayed := false
 	for i := range c.Checks {
 		check := &c.Checks[i]
-		session := sessionByID(st, check.SessionID)
+		session := index.sessions[check.SessionID]
 		check.Independent = false
 		if session != nil {
-			u := unitByID(units, session.Session.Drill.ID)
+			u := index.units[session.Session.Drill.ID]
 			check.Independent = u != nil && sameUnit(*u, *session) && u.Drill.MasteryEligible && session.Session.Independent && c.Source.FamilyKnown && !sourceOriginMatches(*c, session.Session.Drill) && c.Source.FamilyID != nil && check.FamilyID != nil && *check.FamilyID != *c.Source.FamilyID
 			if !check.Independent {
 				check.Reason = "Только практика: недостаточно действующих редакторских подтверждений, данных о семействе или независимости."
@@ -201,31 +272,16 @@ func refreshCycle(st *state, lc *learningCycle, units []drillUnit, today string)
 	}
 	if c.Status == "awaiting-transfer" {
 		if previousNext != nil {
-			u := unitByID(units, *previousNext)
-			if u != nil && u.Drill.MasteryEligible && !familySeen(st, u.Drill.FamilyID) && !knownSessionOrigin(st, u.Drill) && !sourceOriginMatches(*c, u.Drill) {
+			u := index.units[*previousNext]
+			if u != nil && u.Drill.MasteryEligible && !index.familySeen(u.Drill.FamilyID) && !knownSessionOrigin(st, u.Drill) && !sourceOriginMatches(*c, u.Drill) {
 				c.NextDrillID = previousNext
 			}
 		}
 		return
 	}
-	candidates := append([]drillUnit{}, units...)
-	sort.SliceStable(candidates, func(i, j int) bool {
-		a, b := candidates[i].Drill, candidates[j].Drill
-		if a.MasteryEligible != b.MasteryEligible {
-			return !a.MasteryEligible
-		}
-		if familySeen(st, a.FamilyID) != familySeen(st, b.FamilyID) {
-			return !familySeen(st, a.FamilyID)
-		}
-		return a.ID < b.ID
-	})
-	for _, u := range candidates {
+	for _, u := range index.candidates[c.SkillID] {
 		d := u.Drill
-		// Reserved checks are not remedial practice before an own correct correction.
-		if d.MasteryEligible {
-			continue
-		}
-		if d.SkillID == c.SkillID && d.Modality != "script" && !sourceOriginMatches(*c, d) && (c.Source.FamilyID == nil || d.FamilyID == nil || *c.Source.FamilyID != *d.FamilyID) {
+		if !sourceOriginMatches(*c, d) && (c.Source.FamilyID == nil || d.FamilyID == nil || *c.Source.FamilyID != *d.FamilyID) {
 			c.NextDrillID = ptr(d.ID)
 			break
 		}

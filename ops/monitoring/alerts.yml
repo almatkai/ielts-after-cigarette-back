@@ -16,6 +16,13 @@ groups:
         for: 10m
         labels: {severity: warning}
         annotations: {summary: 'API p95 exceeds 1s for {{ $labels.route }}'}
+      # The timestamp catches even the first request for a new route, for which
+      # rate/increase has no earlier sample. Repeated slow calls keep one alert
+      # active until five minutes after the last occurrence.
+      - alert: APISlowRequest
+        expr: time() - iac_http_last_slow_request_timestamp_seconds{route!~".*(media|recordings|assistant|submit).*"} < 300
+        labels: {severity: warning}
+        annotations: {summary: 'An API request exceeded 2.5s for {{ $labels.method }} {{ $labels.route }} in the last 5 minutes'}
       - alert: DatabasePoolSaturated
         expr: iac_db_connections_acquired / iac_db_connections_max > 0.9
         for: 5m

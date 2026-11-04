@@ -35,6 +35,31 @@ git diff --check
 
 The package tests cover planner budgets/rest days/whole materials, repeated-material spacing, deterministic choices, score gating, pending/stale evidence, real authenticated HTTP ownership, concurrent create/start/skip, failed dependency/foreign attempt/unique-claim rollback, actual reading submission and wrong-answer recommendations, review acknowledgement, settings/replanning/history, day reconciliation, pauses 6/7/14, New York DST, rest-day/empty-bank reentry, GT limitations, mock date/window/overview timing/decline/scheduling/idempotency/no sessions, and explicit next-cycle history retention. Without TEST_DATABASE_URL, integration tests explicitly skip via testdb.Open.
 
+## Request work and performance regressions
+
+Writing/Speaking source answers, prompts, model and audio provenance are fetched in
+one batch for all submitted reviewable attempts. There is no history limit; the
+existing result order, ownership and Full Mock review gates still apply. Missing
+feedback creates no source, and subsequent requests discover late evaluations.
+
+Only `GET /study-plan/learning` computes TaskPerformance. Calendar GET and mutations,
+inventory, cycle and session actions omit that private input projection. Direct
+repository `loadInputs` callers retain the complete snapshot for compatibility.
+All calendar response arrays and persisted histories retain their existing shape.
+
+Learning reconciliation indexes source identities, sessions, drills and seen
+families within each request. Remedial candidates are stably ordered once per
+skill after source editorial provenance is refreshed. Mutation refreshes build new
+indexes so saved corrections, novelty and editorial withdrawal remain authoritative.
+There is no shared content cache. Full catalog hydration, aggregate JSON work and
+the existing per-user lock remain; these changes do not establish a production SLO.
+
+`performance_regression_test.go` exercises the authenticated HTTP handler with
+0/20/100 Writing and Speaking attempts and bounds SQL growth, without CI timing
+thresholds. It also checks action-specific TaskPerformance loading and the draft
+reload after start. `learning_sources_test.go` covers older-than-100 feedback,
+late evaluations, source provenance, ownership and hidden Mock review gates.
+
 
 ## Academic learning extension
 

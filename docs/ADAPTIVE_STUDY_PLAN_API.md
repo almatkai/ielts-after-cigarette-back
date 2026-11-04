@@ -96,3 +96,65 @@ Weekly Full Mock offer always optional. Use actual existing overview duration (c
 Unit tests for planner/calendar/score gating; real Postgres integration tests through handler and authenticated ownership, concurrency/idempotency, revision and rollback, 30-day budgets, no content, goals/settings, skipped days, pause 6/7/14, timezone/DST, pending grading, repeated materials, mock accept/decline/long-window. TEST_DATABASE_URL only with isolated testdb schemas. Browser tests for real user navigation/interactions and fake-API states; separately real API browser smoke for actual attempts/reviews. Unknown API routes in mocks must not silently succeed. No public production test-clock.
 
 Frontend design brief is in parent delegated result, supplied in implementation prompt. Existing style, day/week/month URL navigation, no decorative card grid/gradients/side stripes, mobile >=360px, visible reasons and errors. Include summary in overview and progress using new API without breaking guest/practice.
+
+## Progressive calendar projections (2026-11)
+
+`GET /api/v1/study-plan?view=day|week|month&date=YYYY-MM-DD&details=1`
+is additive. `view` is optional: omitting it preserves the complete legacy DTO
+and all existing mutation responses. A valid legacy `date` without `view` is
+still ignored. With `view`, omitted `date` selects the authenticated user's
+server-local `today`. Dates never replace the private reconciliation clock.
+Repeated/empty/unsupported views, repeated/empty/invalid calendar dates, and
+`details` values other than a single `1` return 422. `details` requires `view`.
+
+Scoped responses retain the existing settings, goal and plan identity/revision,
+start/end dates and array types. `plan.days` and `progress` cover only:
+
+- `day`: the selected date (zero days outside the current plan).
+- `week`: the containing plan-aligned week, including the final partial week.
+- `month`: the 30-day window aligned to `plan.startDate`, intersected with the
+  current plan; this is not a civil calendar month.
+
+After expiry, week/month dates beyond the plan end continue to show the last
+week/current completed cycle. GET never creates a new cycle. Out-of-range day
+requests remain empty. No-plan responses keep `plan:null` and empty arrays.
+Day includes the small complete `weeks` metadata array, including earlier offers
+scheduled on the selected date; week/month include overlapping week metadata.
+These metadata contain no additional days or assignments.
+
+Every scoped response includes:
+
+```ts
+scope: {
+  view: 'day'|'week'|'month'; date: string;
+  startDate: string; endDate: string; details: boolean;
+  nextStudyDate: string|null;
+}
+learningSummary: {pendingCorrections:number;readOnly:boolean}
+```
+
+`scope.startDate/endDate` describe the complete requested coverage, including an
+empty range. `nextStudyDate` is the first non-rest day after the covered range: a compact
+navigation hint, not a loaded day.
+`pendingCorrections` counts unskipped cycles whose status is `needs-practice`
+or whose current correction verdict is `incorrect`, matching full Learning.
+It does not construct Learning profiles, drills, answer payloads or task performance.
+Without `details=1`, evidence/recommendations/plan.changes are empty arrays and
+inventory-derived limitations are omitted. Details return complete evidence,
+recommendations and current cycle change history while keeping calendar days
+scoped. Persisted history and legacy full responses remain complete.
+
+The web calendar first requests its selected view. A default Day commits before
+prefetching its containing week; Week joins that cache/in-flight request. Month
+is requested only on opening. Explicit week/month deep links directly request
+that view. Details load on disclosure. User/scope/canonical-period query keys
+separate incomplete and complete projections; mutations cancel old requests and
+invalidate all scopes. No partial response is stored under the legacy full key.
+
+Projection happens before progress-row allocation and response serialization;
+initial scoped requests skip evidence/recommendation/inventory projections.
+Authoritative input SQL, catalog hydration, whole-aggregate JSON decoding,
+learning/attempt/editorial reconciliation, persistence and per-user locks still
+run on every request. Global/TTL backend snapshots have not been introduced.
+This change reduces payload and response projection work; it does not promise a
+particular server latency or eliminate history-dependent reconciliation costs.

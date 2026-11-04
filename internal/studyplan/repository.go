@@ -23,6 +23,12 @@ type inputs struct {
 }
 
 func loadInputs(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (inputs, error) {
+	// Preserve the complete repository snapshot for direct callers/tests. HTTP
+	// actions explicitly opt into the read-only learning performance projection.
+	return loadInputsWithPerformance(ctx, tx, userID, true)
+}
+
+func loadInputsWithPerformance(ctx context.Context, tx pgx.Tx, userID uuid.UUID, includeTaskPerformance bool) (inputs, error) {
 	in := inputs{Zone: "UTC", Materials: []material{}, Results: []result{}}
 	var examDate *time.Time
 	if err := tx.QueryRow(ctx, `SELECT COALESCE(p.timezone,'UTC'),p.target_band::float8,p.exam_date,p.exam_type
@@ -112,9 +118,11 @@ func loadInputs(ctx context.Context, tx pgx.Tx, userID uuid.UUID) (inputs, error
 	if err != nil {
 		return in, err
 	}
-	in.TaskPerformance, err = loadTaskPerformance(ctx, tx, userID)
-	if err != nil {
-		return in, err
+	if includeTaskPerformance {
+		in.TaskPerformance, err = loadTaskPerformance(ctx, tx, userID)
+		if err != nil {
+			return in, err
+		}
 	}
 	in.Drills = builtinDrills()
 	if examType != "academic" {
