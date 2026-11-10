@@ -14,6 +14,8 @@ Existing migrations are unchanged. Apply migrations before enabling billing.
   (case-insensitive). Fake checkout settles through the same notification
   transaction as real callbacks. Its public callback rejects all requests;
   there is no unsigned route for granting access.
+- `PAYMENT_PROVIDER=bcc` enables BCC WEBVIEW purchases with strict configuration
+  validation. See [BCC setup, notification contract and bank acceptance](BCC_ACQUIRING.md).
 - `PAYMENT_RETURN_URL` defaults to the first `CORS_ALLOWED_ORIGINS` entry plus
   `/app/billing/return` (the web app is served under `/app`). It must be an absolute HTTP(S) URL. The fake provider adds
   `orderId` while preserving existing query parameters.
@@ -27,8 +29,8 @@ The production workflow defaults to the approved manual-grant rollout:
 `PAYWALL_ENABLED=true`, `PAYMENT_PROVIDER=none`, and
 `PAYMENT_RETURN_URL=https://ielts.yrys.academy/app/billing/return`.
 Production GitHub environment variables override these defaults and are written
-to `production.env`, then passed into the API by Compose. BCC is unimplemented;
-checkout stays unavailable and administrators grant access through the administrator API below.
+to `production.env`, then passed into the API by Compose. BCC stays disabled
+unless explicitly selected and configured; administrators can continue manual grants.
 
 The deploy script applies all migrations (including additive `000045`, after
 main's `000044`) before recreating the API or worker. A migration failure stops
@@ -72,8 +74,8 @@ string-valued validation responses.
 - `GET /billing/orders/{orderID}` returns only the owner's
   `{id,status,planCode,amount,listPrice,provider,providerOrderId,createdAt,paidAt}`; foreign orders are 404.
 - `POST /billing/callbacks/{provider}` is public and bypasses browser CORS
-  filtering for this POST path only. The provider must verify the signature
-  before returning a notification. Valid notifications return `200 {ok:true}`;
+  filtering for notification POSTs. The provider must authenticate the bank
+  before returning a notification (BCC uses HTTPS Basic Auth, not a result signature). Valid notifications return `200 {ok:true}`;
   invalid callbacks return `400 INVALID_PAYMENT_CALLBACK`; missing providers
   return 503. Fake payments reject public callbacks.
 
@@ -136,7 +138,9 @@ ID, exact amount and currency, and atomically mark paid and insert one
 entitlement. `order_id UNIQUE` is a second guard against double grants. Duplicate
 notifications succeed without changes. Pending orders may become PAID, FAILED
 or CANCELLED; PAID may become REFUNDED, which revokes its entitlement. A refunded
-order cannot be replayed into PAID.
+order cannot be replayed into PAID. These are **local state transitions**, not
+bank commands: setting REFUNDED or revoking access does not perform a bank refund.
+The BCC adapter does not implement bank refunds/cancellations.
 
 Access has no cache: payment, grants, revocation and meeting/settings edits are
 visible immediately across API instances. Lifetime skill limits default to 3.
@@ -170,9 +174,12 @@ resume, atomic restart failure, guest claim, callback replay, concurrent queued
 grants, refund/revoke, meetings, settings, discounts, ownership/admin routes,
 callback CORS, and separate shared assistant counters.
 
-BCC is deliberately unimplemented until its API/signature documentation is
-available. Implement the `billing.Provider` boundary and authenticate callbacks
-before returning a `Notification`; browser return URLs never confer access.
+BCC implements the `billing.Provider` boundary plus a short-lived public
+preparation form and navigation-only BACKREF. Its bridge/return POSTs have their
+own CORS handling; the bridge enforces same-origin submissions. Browser return
+URLs never confer access. See [BCC acquiring](BCC_ACQUIRING.md) for configuration,
+exact accepted result fields, non-success/reconciliation limitations and the
+mandatory external acceptance test before activation.
 `internal/analytics` currently tracks presence/activity and derives conversion
 statistics; it exposes no generic product-event mechanism. The optional
 `paywall_blocked`, `checkout_started` and `payment_succeeded` events are therefore

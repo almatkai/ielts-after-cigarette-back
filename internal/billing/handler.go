@@ -88,6 +88,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, 200, a)
 }
 func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	var input struct {
 		PlanCode      string `json:"planCode"`
 		AcceptedTerms bool   `json:"acceptedTerms"`
