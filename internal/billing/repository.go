@@ -310,6 +310,33 @@ func (r *PostgresRepository) Grant(ctx context.Context, user, actor uuid.UUID, i
 	}
 	return e, tx.Commit(ctx)
 }
+
+// notifyTransition decides how an authenticated provider notification moves an
+// order. apply=false with a nil error is an idempotent acknowledgement: the
+// provider gets 2xx (no retry storm) and the order is left as is.
+//   - A captured payment always wins: PAID is accepted from PENDING and also
+//     from FAILED/CANCELLED (a retry on the bank page or out-of-order delivery).
+//   - A late decline/cancel never revokes a PAID order; only REFUNDED does.
+//   - Repeated or conflicting non-success results after a terminal failure are
+//     acknowledged without change.
+func notifyTransition(from, to string) (apply bool, err error) {
+	failed := func(s string) bool { return s == "FAILED" || s == "CANCELLED" }
+	switch {
+	case from == to:
+		return false, nil
+	case from == "PENDING" && (to == "PAID" || failed(to)):
+		return true, nil
+	case failed(from) && to == "PAID":
+		return true, nil
+	case failed(from) && failed(to):
+		return false, nil
+	case from == "PAID" && to == "REFUNDED":
+		return true, nil
+	case from == "PAID" && failed(to):
+		return false, nil
+	}
+	return false, ErrInvalidCallback
+}
 func (r *PostgresRepository) Notify(ctx context.Context, provider string, n Notification) (Order, bool, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -326,12 +353,12 @@ func (r *PostgresRepository) Notify(ctx context.Context, provider string, n Noti
 	if err := lockUser(ctx, tx, o.UserID); err != nil {
 		return o, false, err
 	}
-	if n.Status == o.Status {
-		return o, false, tx.Commit(ctx)
+	apply, err := notifyTransition(o.Status, n.Status)
+	if err != nil {
+		return o, false, err
 	}
-	valid := o.Status == "PENDING" && (n.Status == "PAID" || n.Status == "FAILED" || n.Status == "CANCELLED") || o.Status == "PAID" && n.Status == "REFUNDED"
-	if !valid {
-		return o, false, ErrInvalidCallback
+	if !apply {
+		return o, false, tx.Commit(ctx)
 	}
 	payload, err := json.Marshal(n.Payload)
 	if err != nil {

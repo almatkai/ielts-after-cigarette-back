@@ -104,13 +104,17 @@ func (r *bccMemoryRepository) Notify(_ context.Context, provider string, n Notif
 	if o.Provider != provider || o.ProviderOrderID == nil || *o.ProviderOrderID != n.ProviderOrderID || o.Amount != n.Amount || o.Currency != n.Currency {
 		return o, false, ErrInvalidCallback
 	}
-	if o.Status == "PAID" {
-		return o, false, nil
+	apply, err := notifyTransition(o.Status, n.Status)
+	if err != nil || !apply {
+		return o, false, err
 	}
-	o.Status = "PAID"
+	o.Status = n.Status
 	r.orders[o.ID] = o
-	r.grants++
-	return o, true, nil
+	paid := n.Status == "PAID"
+	if paid {
+		r.grants++
+	}
+	return o, paid, nil
 }
 func bccFixture(t *testing.T) (*BCCProvider, *bccMemoryRepository, *Service, http.Handler) {
 	t.Helper()
@@ -322,7 +326,7 @@ func TestBCCNotificationRejectsForgedAndAmbiguousResults(t *testing.T) {
 	if err != nil || n.OrderID != o.ID || n.Status != "PAID" {
 		t.Fatalf("valid: %+v %v", n, err)
 	}
-	for _, tc := range []struct{ key, value string }{{"ORDER", uuid.NewString()}, {"ORDER", "1234567890123456"}, {"MERCH_RN_ID", "1111111111111111"}, {"MERCHANT", "wrong"}, {"TERMINAL", "88888888"}, {"AMOUNT", "4990.01"}, {"AMOUNT", "4991.00"}, {"CURRENCY", "KZT"}, {"CURRENCY", "840"}, {"TRTYPE", "14"}, {"TRTYPE", "90"}, {"ACTION", "1"}, {"ACTION", "2"}, {"ACTION", "4"}, {"ACTION", ""}, {"RC", "0"}, {"RC", "10"}, {"RC", "05"}, {"RC", ""}} {
+	for _, tc := range []struct{ key, value string }{{"ORDER", uuid.NewString()}, {"ORDER", "1234567890123456"}, {"MERCH_RN_ID", "1111111111111111"}, {"MERCHANT", "wrong"}, {"TERMINAL", "88888888"}, {"AMOUNT", "4990.01"}, {"AMOUNT", "4991.00"}, {"CURRENCY", "KZT"}, {"CURRENCY", "840"}, {"TRTYPE", "14"}, {"TRTYPE", "90"}, {"ACTION", ""}, {"ACTION", "123"}, {"ACTION", "x"}, {"RC", "0"}, {"RC", ""}} {
 		t.Run(tc.key+tc.value, func(t *testing.T) {
 			v := callbackValues(o)
 			v.Set(tc.key, tc.value)
@@ -356,6 +360,15 @@ func TestBCCNotificationRejectsForgedAndAmbiguousResults(t *testing.T) {
 			t.Fatal("bad HTTP callback accepted")
 		}
 	}
+	// Authenticated non-approvals are definitive results, not forgeries.
+	for _, tc := range []struct{ action, rc string }{{"1", "00"}, {"2", "05"}, {"4", "00"}, {"0", "10"}, {"0", "05"}} {
+		v := callbackValues(o)
+		v.Set("ACTION", tc.action)
+		v.Set("RC", tc.rc)
+		if n, err := p.ParseCallback(callbackRequest(v)); err != nil || n.Status != "FAILED" {
+			t.Fatalf("%s/%s: %+v %v", tc.action, tc.rc, n, err)
+		}
+	}
 	if repo.grants != 0 {
 		t.Fatal("parser settled an order")
 	}
@@ -368,7 +381,7 @@ func TestBCCClientIPTrustBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct{ peer, xff, want string }{{"203.0.113.1:99", "1.2.3.4", "203.0.113.1"}, {"192.168.1.1:99", "1.2.3.4", "192.168.1.1"}, {"10.10.0.2:99", "1.2.3.4, 203.0.113.7", "203.0.113.7"}, {"10.10.0.2:99", "1.2.3.4, 10.10.0.3", "1.2.3.4"}, {"10.10.0.2:99", "bad", ""}, {"10.10.0.2:99", "", ""}} {
+	for _, tc := range []struct{ peer, xff, want string }{{"203.0.113.1:99", "1.2.3.4", "203.0.113.1"}, {"192.168.1.1:99", "1.2.3.4", "192.168.1.1"}, {"10.10.0.2:99", "1.2.3.4, 203.0.113.7", "203.0.113.7"}, {"10.10.0.2:99", "1.2.3.4, 10.10.0.3", "1.2.3.4"}, {"10.10.0.2:99", "bad", ""}, {"10.10.0.2:99", "", "10.10.0.2"}} {
 		r := httptest.NewRequest("GET", "/", nil)
 		r.RemoteAddr = tc.peer
 		r.Header.Set("X-Forwarded-For", tc.xff)
@@ -400,7 +413,7 @@ func TestBCCPurchaseHTTPContract(t *testing.T) {
 	u, _ := url.Parse(result.Redirect)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, httptest.NewRequest("GET", u.RequestURI(), nil))
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "window.screen.height") || !strings.Contains(w.Body.String(), "window.screen.width") || !strings.Contains(w.Header().Get("Cache-Control"), "no-store") || w.Header().Get("Referrer-Policy") != "no-referrer" || !strings.Contains(w.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "window.screen.height") || !strings.Contains(w.Body.String(), "window.screen.width") || !strings.Contains(w.Header().Get("Cache-Control"), "no-store") || w.Header().Get("Referrer-Policy") != "same-origin" || !strings.Contains(w.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
 		t.Fatalf("prepare: %d %s", w.Code, w.Body)
 	}
 	form := url.Values{"token": {u.Query().Get("token")}, "height": {"1080"}, "width": {"1920"}, "cc": {"7"}, "subscriber": {"7475558888"}, "address": {`Алматы <script>alert(1)</script>`}}

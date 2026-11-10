@@ -26,6 +26,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// bccClockSkew tolerates a small database/app clock difference. Order.CreatedAt
+// is written by the database clock, so a just-created row can appear "future".
+const bccClockSkew = 2 * time.Minute
+
 type bccRepository interface {
 	Order(context.Context, uuid.UUID) (Order, error)
 	OrderByProvider(context.Context, string, string) (Order, error)
@@ -141,7 +145,8 @@ func (p *BCCProvider) bridgeOrder(ctx context.Context, token string) (Order, err
 	if err != nil {
 		return Order{}, err
 	}
-	if o.Provider != "bcc" || o.Status != "PENDING" || o.ProviderOrderID == nil || !bccBankOrder.MatchString(*o.ProviderOrderID) || !p.now().Before(o.CreatedAt.Add(p.cfg.BridgeTTL)) || o.CreatedAt.After(p.now()) {
+	now := p.now()
+	if o.Provider != "bcc" || o.Status != "PENDING" || o.ProviderOrderID == nil || !bccBankOrder.MatchString(*o.ProviderOrderID) || !now.Before(o.CreatedAt.Add(p.cfg.BridgeTTL)) || o.CreatedAt.After(now.Add(bccClockSkew)) {
 		return Order{}, ErrValidation
 	}
 	if !hmac.Equal([]byte(token), []byte(p.capability(o, *o.ProviderOrderID))) {
@@ -177,6 +182,25 @@ func constantCredential(a, b string) bool {
 	y := sha256.Sum256([]byte(b))
 	return subtle.ConstantTimeCompare(x[:], y[:]) == 1
 }
+
+// bccCallbackStatus maps the authenticated result fields to a local order
+// status. Only the documented full approval (ACTION=0, RC=00) is PAID; any
+// other definitive bank result is a non-success. Missing or malformed result
+// fields are not a valid notification, so they never settle an order.
+func bccCallbackStatus(action, rc string) (string, error) {
+	if len(action) < 1 || len(action) > 2 || !bccDigits.MatchString(action) || len(rc) != 2 {
+		return "", ErrInvalidCallback
+	}
+	for _, c := range rc {
+		if !('0' <= c && c <= '9') && !('A' <= c && c <= 'Z') && !('a' <= c && c <= 'z') {
+			return "", ErrInvalidCallback
+		}
+	}
+	if action == "0" && rc == "00" {
+		return "PAID", nil
+	}
+	return "FAILED", nil
+}
 func (p *BCCProvider) ParseCallback(r *http.Request) (Notification, error) {
 	user, pass, ok := r.BasicAuth()
 	userOK := constantCredential(user, p.cfg.NotifyUser)
@@ -190,8 +214,13 @@ func (p *BCCProvider) ParseCallback(r *http.Request) (Notification, error) {
 	}
 	// The request P_SIGN does NOT authenticate ACTION/RC. Only bank-configured
 	// HTTPS Basic Auth authenticates this result. Never treat browser data as it.
-	if v.Get("MERCHANT") != p.cfg.Merchant || v.Get("TERMINAL") != p.cfg.Terminal || v.Get("CURRENCY") != "398" || v.Get("TRTYPE") != "1" || v.Get("ACTION") != "0" || v.Get("RC") != "00" || !bccBankOrder.MatchString(v.Get("ORDER")) || v.Get("MERCH_RN_ID") != v.Get("ORDER") {
+	if v.Get("MERCHANT") != p.cfg.Merchant || v.Get("TERMINAL") != p.cfg.Terminal || v.Get("CURRENCY") != "398" || v.Get("TRTYPE") != "1" || !bccBankOrder.MatchString(v.Get("ORDER")) || v.Get("MERCH_RN_ID") != v.Get("ORDER") {
 		return Notification{}, ErrInvalidCallback
+	}
+	action, rc := v.Get("ACTION"), v.Get("RC")
+	status, err := bccCallbackStatus(action, rc)
+	if err != nil {
+		return Notification{}, err
 	}
 	amount, err := bccParseAmount(v.Get("AMOUNT"))
 	if err != nil {
@@ -204,11 +233,13 @@ func (p *BCCProvider) ParseCallback(r *http.Request) (Notification, error) {
 		}
 		return Notification{}, fmt.Errorf("lookup BCC order: %w", err)
 	}
-	if o.Provider != "bcc" || o.ProviderOrderID == nil || *o.ProviderOrderID != v.Get("ORDER") || o.Amount != amount || o.Currency != "KZT" {
+	// OrderByProvider already filters by provider and provider ORDER; the
+	// remaining integrity check is the immutable amount/currency.
+	if o.Amount != amount || o.Currency != "KZT" {
 		return Notification{}, ErrInvalidCallback
 	}
 	// Whitelist persisted metadata: no card/token/phone/address/full callback body.
-	return Notification{OrderID: o.ID, ProviderOrderID: v.Get("ORDER"), Amount: amount, Currency: "KZT", Status: "PAID", Payload: map[string]any{"ACTION": "0", "RC": "00", "TRTYPE": "1"}}, nil
+	return Notification{OrderID: o.ID, ProviderOrderID: v.Get("ORDER"), Amount: amount, Currency: "KZT", Status: status, Payload: map[string]any{"ACTION": action, "RC": rc, "TRTYPE": "1"}}, nil
 }
 
 type bccInfo struct {
@@ -287,7 +318,14 @@ func (p *BCCProvider) clientIP(r *http.Request) string {
 	if !trusted(peer) {
 		return peer
 	}
-	hops := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+	// Header.Get reads only the first line. A trusted edge proxy that appends
+	// the real client as a separate header line must not lose to a forged first
+	// line, so join every line in wire order before walking right-to-left.
+	xff := strings.Join(r.Header.Values("X-Forwarded-For"), ",")
+	if strings.TrimSpace(xff) == "" {
+		return peer
+	}
+	hops := strings.Split(xff, ",")
 	if len(hops) > 20 {
 		return ""
 	}
@@ -295,7 +333,12 @@ func (p *BCCProvider) clientIP(r *http.Request) string {
 		if !trusted(peer) {
 			break
 		}
-		peer = strings.TrimSpace(hops[i])
+		hop := strings.TrimSpace(hops[i])
+		if hop == "" {
+			// Empty list entries (e.g. a trailing comma) are not addresses.
+			continue
+		}
+		peer = hop
 		if net.ParseIP(peer) == nil {
 			return ""
 		}
