@@ -3,7 +3,6 @@ package billing
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -27,7 +26,7 @@ func NewFakeProvider(environment string, notify func(context.Context, string, No
 }
 func (p *fakeProvider) Name() string { return "fake" }
 func (p *fakeProvider) CreatePayment(ctx context.Context, o Order, returnURL string) (string, string, error) {
-	u, err := url.Parse(returnURL)
+	target, err := returnTarget(returnURL, o.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -35,10 +34,7 @@ func (p *fakeProvider) CreatePayment(ctx context.Context, o Order, returnURL str
 	if err = p.notify(ctx, p.Name(), Notification{OrderID: o.ID, ProviderOrderID: providerID, Status: "PAID", Amount: o.Amount, Currency: "KZT"}); err != nil {
 		return "", "", err
 	}
-	q := u.Query()
-	q.Set("orderId", o.ID.String())
-	u.RawQuery = q.Encode()
-	return u.String(), providerID, nil
+	return target, providerID, nil
 }
 
 // Fake payments settle internally. There is intentionally no unsigned public

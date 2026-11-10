@@ -343,8 +343,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/billing/plans", billingHandler.Plans)
-		api.Post("/billing/callbacks/{provider}", billingHandler.Callback)
-		billingHandler.RegisterBCCRoutes(api)
+		billingHandler.RegisterProviderRoutes(api)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-send")).Post("/phone-verifications", phoneHandler.Send)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
@@ -783,24 +782,14 @@ func (a *speakingSTTAdapter) Transcribe(ctx context.Context, filename string, au
 	return res.Text, nil
 }
 
-// Provider authentication protects callbacks; BCC's bridge validates its own
-// same-origin POST and capability. BACKREF is navigation only. These routes
-// must not be rejected by the frontend-origin CORS allowlist first.
+// Payment-provider routes authenticate themselves (see
+// billing.SelfAuthenticatingRoute) and are reached without a frontend Origin,
+// so they must not be rejected by the frontend-origin CORS allowlist first.
 func billingCallbackCORS(cors func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		browser := cors(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost && r.URL.Path == "/api/v1/billing/bcc/bridge" {
-				next.ServeHTTP(w, r)
-				return
-			}
-			backref := strings.TrimPrefix(r.URL.Path, "/api/v1/billing/bcc/return/")
-			if (r.Method == http.MethodPost || r.Method == http.MethodGet) && backref != r.URL.Path && backref != "" && !strings.Contains(backref, "/") {
-				next.ServeHTTP(w, r)
-				return
-			}
-			path := strings.TrimPrefix(r.URL.Path, "/api/v1/billing/callbacks/")
-			if r.Method == http.MethodPost && path != r.URL.Path && path != "" && !strings.Contains(path, "/") {
+			if billing.SelfAuthenticatingRoute(r, "/api/v1") {
 				next.ServeHTTP(w, r)
 				return
 			}

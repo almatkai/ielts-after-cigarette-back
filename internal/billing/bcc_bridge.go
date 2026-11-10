@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/go-chi/chi/v5"
 )
 
 var bccPreparePage = template.Must(template.New("prepare").Parse(`<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Оплата BCC</title><h1>Подготовка оплаты BCC</h1><p>Укажите телефон и адрес держателя карты. Реквизиты карты вводятся только на странице банка.</p><form method="post" action="{{.Action}}" id="prepare"><input type="hidden" name="token" value="{{.Token}}"><input type="hidden" name="height" id="height"><input type="hidden" name="width" id="width"><p><label>Код страны <input name="cc" inputmode="numeric" pattern="[1-9][0-9]{0,2}" maxlength="3" required autocomplete="tel-country-code"></label></p><p><label>Номер без кода страны <input name="subscriber" inputmode="numeric" pattern="[0-9]{1,15}" maxlength="15" required autocomplete="tel-national"></label></p><p><label>Адрес держателя карты (до 50 символов) <input name="address" maxlength="50" required autocomplete="billing address-line1"></label></p><button id="pay" disabled>Перейти в банк</button><noscript>Для безопасной оплаты включите JavaScript.</noscript></form><script nonce="{{.Nonce}}">document.getElementById('height').value=String(window.screen.height);document.getElementById('width').value=String(window.screen.width);document.getElementById('pay').disabled=false;</script></html>`))
@@ -60,7 +58,7 @@ func (h *Handler) BCCBridge(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	action := strings.TrimRight(p.cfg.PublicBaseURL, "/") + "/api/v1/billing/bcc/bridge"
+	action := strings.TrimRight(p.cfg.PublicBaseURL, "/") + "/api/v1" + bccBridgePath
 	if r.Method == http.MethodGet {
 		// No profile phone is assumed to be the cardholder's phone. Collect it
 		// explicitly; do not expose stored profile PII through a bearer capability.
@@ -126,18 +124,10 @@ func (h *Handler) BCCBackref(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	target, _ := url.Parse(p.returnURL)
-	q := target.Query()
-	q.Set("orderId", id.String())
-	target.RawQuery = q.Encode()
-	http.Redirect(w, r, target.String(), http.StatusSeeOther)
-}
-
-// RegisterBCCRoutes keeps the public bridge/return contract shared by app and
-// httptest. Authentication for the bridge is the short-lived order capability.
-func (h *Handler) RegisterBCCRoutes(r chi.Router) {
-	r.Get("/billing/bcc/bridge", h.BCCBridge)
-	r.Post("/billing/bcc/bridge", h.BCCBridge)
-	r.Get("/billing/bcc/return/{orderID}", h.BCCBackref)
-	r.Post("/billing/bcc/return/{orderID}", h.BCCBackref)
+	target, err := returnTarget(p.returnURL, id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
