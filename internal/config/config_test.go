@@ -153,8 +153,8 @@ func TestBillingConfigurationDefaultsAndProductionFakeGuard(t *testing.T) {
 	}
 	cfg.Environment = "development"
 	cfg.PaymentProvider = "bcc"
-	if err = cfg.Validate(); err == nil || !strings.Contains(err.Error(), "PAYMENT_PROVIDER must") {
-		t.Fatalf("undocumented bank provider: %v", err)
+	if err = cfg.Validate(); err == nil || !strings.Contains(err.Error(), "BCC_GATEWAY") {
+		t.Fatalf("unconfigured bank provider: %v", err)
 	}
 	cfg.PaymentProvider = "none"
 	cfg.PaymentReturnURL = "javascript:alert(1)"

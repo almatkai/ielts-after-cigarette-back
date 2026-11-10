@@ -3,13 +3,12 @@ package billing
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
-// BCC should implement this boundary once the bank supplies its signed API
-// contract. ParseCallback must authenticate the signature and return the
-// provider's amount and currency; never trust a browser payment result.
+// ParseCallback must authenticate the provider's server notification and return
+// its amount and currency. Browser payment results are never authoritative.
+// Invalid input returns ErrInvalidCallback; operational errors remain retryable.
 type Provider interface {
 	Name() string
 	CreatePayment(context.Context, Order, string) (string, string, error)
@@ -27,7 +26,7 @@ func NewFakeProvider(environment string, notify func(context.Context, string, No
 }
 func (p *fakeProvider) Name() string { return "fake" }
 func (p *fakeProvider) CreatePayment(ctx context.Context, o Order, returnURL string) (string, string, error) {
-	u, err := url.Parse(returnURL)
+	target, err := returnTarget(returnURL, o.ID)
 	if err != nil {
 		return "", "", err
 	}
@@ -35,10 +34,7 @@ func (p *fakeProvider) CreatePayment(ctx context.Context, o Order, returnURL str
 	if err = p.notify(ctx, p.Name(), Notification{OrderID: o.ID, ProviderOrderID: providerID, Status: "PAID", Amount: o.Amount, Currency: "KZT"}); err != nil {
 		return "", "", err
 	}
-	q := u.Query()
-	q.Set("orderId", o.ID.String())
-	u.RawQuery = q.Encode()
-	return u.String(), providerID, nil
+	return target, providerID, nil
 }
 
 // Fake payments settle internally. There is intentionally no unsigned public

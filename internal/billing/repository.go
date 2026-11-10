@@ -183,6 +183,59 @@ func (r *PostgresRepository) SetProviderOrder(ctx context.Context, id uuid.UUID,
 func (r *PostgresRepository) Order(ctx context.Context, id uuid.UUID) (Order, error) {
 	return scanOrder(r.pool.QueryRow(ctx, `SELECT `+orderColumns+orderFrom+`WHERE o.id=$1`, id))
 }
+
+// Resolve the bank's numeric ORDER through the saved, unique provider mapping;
+// the internal UUID is never sent as BCC ORDER.
+func (r *PostgresRepository) OrderByProvider(ctx context.Context, provider, bankOrder string) (Order, error) {
+	return scanOrder(r.pool.QueryRow(ctx, `SELECT `+orderColumns+orderFrom+`WHERE o.provider=$1 AND o.provider_order_id=$2`, provider, bankOrder))
+}
+
+// ReserveBCCOrder serializes allocation across API instances. The BCC FAQ
+// recommends distinct last-six-digit values for at least a day. Retain each
+// suffix for 48 hours plus the maximum bridge lifetime (30m), including when
+// an order is deleted. Exhaustion fails closed instead of risking a duplicate.
+func (r *PostgresRepository) ReserveBCCOrder(ctx context.Context, id uuid.UUID) (string, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+	o, err := scanOrder(tx.QueryRow(ctx, `SELECT `+orderColumns+orderFrom+`WHERE o.id=$1 FOR UPDATE OF o`, id))
+	if err != nil {
+		return "", err
+	}
+	if o.Provider != "bcc" || o.Status != "PENDING" {
+		return "", ErrValidation
+	}
+	if o.ProviderOrderID != nil {
+		return *o.ProviderOrderID, tx.Commit(ctx)
+	}
+	for range 64 {
+		var sequence int64
+		if err := tx.QueryRow(ctx, `SELECT nextval('billing_bcc_order_sequence')`).Scan(&sequence); err != nil {
+			return "", err
+		}
+		var suffix int64
+		err := tx.QueryRow(ctx, `INSERT INTO billing_bcc_order_suffixes(suffix,reserved_until)
+		 VALUES ($1,clock_timestamp()+INTERVAL '48 hours 30 minutes')
+		 ON CONFLICT(suffix) DO UPDATE SET reserved_until=EXCLUDED.reserved_until
+		 WHERE billing_bcc_order_suffixes.reserved_until <= clock_timestamp()
+		 RETURNING suffix`, sequence%1000000).Scan(&suffix)
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		bankID := fmt.Sprintf("%016d", 1000000000000000+sequence)
+		if _, err := tx.Exec(ctx, `UPDATE billing_orders SET provider_order_id=$2 WHERE id=$1`, id, bankID); err != nil {
+			return "", err
+		}
+		return bankID, tx.Commit(ctx)
+	}
+	return "", ErrProviderUnavailable
+}
+
 func (r *PostgresRepository) Orders(ctx context.Context, user *uuid.UUID, status string, limit, offset int) ([]Order, error) {
 	rows, err := r.pool.Query(ctx, `SELECT `+orderColumns+orderFrom+`WHERE ($1::uuid IS NULL OR o.user_id=$1) AND ($2='' OR o.status=$2) ORDER BY o.created_at DESC,o.id DESC LIMIT NULLIF($3,0) OFFSET $4`, user, status, limit, offset)
 	if err != nil {
@@ -257,6 +310,33 @@ func (r *PostgresRepository) Grant(ctx context.Context, user, actor uuid.UUID, i
 	}
 	return e, tx.Commit(ctx)
 }
+
+// notifyTransition decides how an authenticated provider notification moves an
+// order. apply=false with a nil error is an idempotent acknowledgement: the
+// provider gets 2xx (no retry storm) and the order is left as is.
+//   - A captured payment always wins: PAID is accepted from PENDING and also
+//     from FAILED/CANCELLED (a retry on the bank page or out-of-order delivery).
+//   - A late decline/cancel never revokes a PAID order; only REFUNDED does.
+//   - Repeated or conflicting non-success results after a terminal failure are
+//     acknowledged without change.
+func notifyTransition(from, to string) (apply bool, err error) {
+	failed := func(s string) bool { return s == "FAILED" || s == "CANCELLED" }
+	switch {
+	case from == to:
+		return false, nil
+	case from == "PENDING" && (to == "PAID" || failed(to)):
+		return true, nil
+	case failed(from) && to == "PAID":
+		return true, nil
+	case failed(from) && failed(to):
+		return false, nil
+	case from == "PAID" && to == "REFUNDED":
+		return true, nil
+	case from == "PAID" && failed(to):
+		return false, nil
+	}
+	return false, ErrInvalidCallback
+}
 func (r *PostgresRepository) Notify(ctx context.Context, provider string, n Notification) (Order, bool, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -273,12 +353,12 @@ func (r *PostgresRepository) Notify(ctx context.Context, provider string, n Noti
 	if err := lockUser(ctx, tx, o.UserID); err != nil {
 		return o, false, err
 	}
-	if n.Status == o.Status {
-		return o, false, tx.Commit(ctx)
+	apply, err := notifyTransition(o.Status, n.Status)
+	if err != nil {
+		return o, false, err
 	}
-	valid := o.Status == "PENDING" && (n.Status == "PAID" || n.Status == "FAILED" || n.Status == "CANCELLED") || o.Status == "PAID" && n.Status == "REFUNDED"
-	if !valid {
-		return o, false, ErrInvalidCallback
+	if !apply {
+		return o, false, tx.Commit(ctx)
 	}
 	payload, err := json.Marshal(n.Payload)
 	if err != nil {

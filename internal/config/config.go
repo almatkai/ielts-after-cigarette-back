@@ -9,12 +9,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/almatkai/ielts-after-cigarette-back/internal/billing"
 )
 
 type Config struct {
 	PaywallEnabled           bool
 	PaymentProvider          string
 	PaymentReturnURL         string
+	BCC                      billing.BCCConfig
 	Environment              string
 	HTTPAddr                 string
 	MetricsAddr              string
@@ -98,8 +101,17 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		PaymentProvider:         strings.ToLower(strings.TrimSpace(env("PAYMENT_PROVIDER", "none"))),
-		PaymentReturnURL:        os.Getenv("PAYMENT_RETURN_URL"),
+		PaymentProvider:  strings.ToLower(strings.TrimSpace(env("PAYMENT_PROVIDER", "none"))),
+		PaymentReturnURL: os.Getenv("PAYMENT_RETURN_URL"),
+		BCC: billing.BCCConfig{
+			Gateway: os.Getenv("BCC_GATEWAY"), Terminal: os.Getenv("BCC_TERMINAL"),
+			Merchant: os.Getenv("BCC_MERCHANT"), MerchantName: os.Getenv("BCC_MERCHANT_NAME"),
+			MACKey: os.Getenv("BCC_MAC_KEY"), NotifyURL: os.Getenv("BCC_NOTIFY_URL"),
+			NotifyUser: os.Getenv("BCC_NOTIFY_USER"), NotifyPassword: os.Getenv("BCC_NOTIFY_PASSWORD"),
+			PublicBaseURL: os.Getenv("BCC_PUBLIC_BASE_URL"), BridgeKey: os.Getenv("BCC_BRIDGE_KEY"),
+			Language: env("BCC_LANGUAGE", "ru"), BridgeTTL: 15 * time.Minute,
+			TrustedProxyCIDRs: splitCSV(os.Getenv("BCC_TRUSTED_PROXY_CIDRS")),
+		},
 		Environment:             env("APP_ENV", "development"),
 		HTTPAddr:                env("HTTP_ADDR", ":8080"),
 		MetricsAddr:             os.Getenv("METRICS_ADDR"),
@@ -254,6 +266,13 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	if cfg.PaymentProvider == "bcc" {
+		var err error
+		cfg.BCC.BridgeTTL, err = durationEnv("BCC_BRIDGE_TTL", 15*time.Minute)
+		if err != nil {
+			return Config{}, err
+		}
+	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -268,8 +287,16 @@ func (c Config) Validate() error {
 		if strings.EqualFold(strings.TrimSpace(c.Environment), "production") {
 			problems = append(problems, "PAYMENT_PROVIDER=fake is forbidden in production")
 		}
+	case "bcc":
+		if err := c.BCC.Validate(c.Environment); err != nil {
+			problems = append(problems, err.Error())
+		}
+		u, err := url.Parse(c.PaymentReturnURL)
+		if err != nil || u.Scheme != "https" || u.Hostname() == "" {
+			problems = append(problems, "BCC requires an HTTPS PAYMENT_RETURN_URL")
+		}
 	default:
-		problems = append(problems, "PAYMENT_PROVIDER must be none or fake")
+		problems = append(problems, "PAYMENT_PROVIDER must be none, fake or bcc")
 	}
 	if c.PaymentReturnURL != "" {
 		u, err := url.Parse(c.PaymentReturnURL)
