@@ -136,7 +136,16 @@ func TestBCCConfigurationReachesComposeAndDeployment(t *testing.T) {
 			t.Errorf("%s is not sourced from secrets", key)
 		}
 	}
-	if !strings.Contains(workflow, "PAYMENT_PROVIDER: ${{ vars.PAYMENT_PROVIDER || 'none' }}") {
+	// Acquiring must never switch on by itself: either the workflow defaults
+	// PAYMENT_PROVIDER to none, or (as on dev) it does not pass it and the
+	// production manifest's own default of none applies.
+	compose, err := os.ReadFile(filepath.Join(root, "docker-compose.production.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	explicitNone := strings.Contains(workflow, "PAYMENT_PROVIDER: ${{ vars.PAYMENT_PROVIDER || 'none' }}")
+	composeDefault := !strings.Contains(workflow, "PAYMENT_PROVIDER") && strings.Contains(string(compose), "PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-none}")
+	if !explicitNone && !composeDefault {
 		t.Fatal("production automatically enables acquiring")
 	}
 	for _, key := range keys {
