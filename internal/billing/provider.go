@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// BCC should implement this boundary once the bank supplies its signed API
-// contract. ParseCallback must authenticate the signature and return the
-// provider's amount and currency; never trust a browser payment result.
+// ParseCallback must authenticate the provider's server notification and return
+// its amount and currency. Browser payment results are never authoritative.
+// Invalid input returns ErrInvalidCallback; operational errors remain retryable.
 type Provider interface {
 	Name() string
 	CreatePayment(context.Context, Order, string) (string, string, error)

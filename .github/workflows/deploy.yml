@@ -122,6 +122,19 @@ jobs:
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
       BACKEND_IMAGE: ${{ needs.build.outputs.image }}
+      BCC_GATEWAY: ${{ vars.BCC_GATEWAY }}
+      BCC_TERMINAL: ${{ vars.BCC_TERMINAL }}
+      BCC_MERCHANT: ${{ vars.BCC_MERCHANT }}
+      BCC_MERCHANT_NAME: ${{ vars.BCC_MERCHANT_NAME }}
+      BCC_MAC_KEY: ${{ secrets.BCC_MAC_KEY }}
+      BCC_NOTIFY_URL: ${{ vars.BCC_NOTIFY_URL }}
+      BCC_NOTIFY_USER: ${{ secrets.BCC_NOTIFY_USER }}
+      BCC_NOTIFY_PASSWORD: ${{ secrets.BCC_NOTIFY_PASSWORD }}
+      BCC_PUBLIC_BASE_URL: ${{ vars.BCC_PUBLIC_BASE_URL }}
+      BCC_BRIDGE_KEY: ${{ secrets.BCC_BRIDGE_KEY }}
+      BCC_BRIDGE_TTL: ${{ vars.BCC_BRIDGE_TTL || '15m' }}
+      BCC_LANGUAGE: ${{ vars.BCC_LANGUAGE || 'ru' }}
+      BCC_TRUSTED_PROXY_CIDRS: ${{ vars.BCC_TRUSTED_PROXY_CIDRS }}
       BACKEND_PORT: ${{ vars.BACKEND_PORT }}
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -188,6 +201,20 @@ jobs:
           umask 077
           {
             printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE"
+            # Literal dotenv values: Basic credentials may contain $ or #.
+            python3 - <<'PY'
+          import json
+          import os
+          keys = ('BCC_GATEWAY', 'BCC_TERMINAL', 'BCC_MERCHANT', 'BCC_MERCHANT_NAME',
+                  'BCC_MAC_KEY', 'BCC_NOTIFY_URL', 'BCC_NOTIFY_USER', 'BCC_NOTIFY_PASSWORD',
+                  'BCC_PUBLIC_BASE_URL', 'BCC_BRIDGE_KEY', 'BCC_BRIDGE_TTL', 'BCC_LANGUAGE',
+                  'BCC_TRUSTED_PROXY_CIDRS')
+          for key in keys:
+              value = os.environ.get(key, '')
+              if '\n' in value or '\r' in value:
+                  raise SystemExit('BCC configuration must be single-line')
+              print(key + '=' + json.dumps(value, ensure_ascii=False).replace('$', '$$'))
+          PY
             printf 'BACKEND_PORT=%s\n' "$BACKEND_PORT"
             printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER"
             printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"

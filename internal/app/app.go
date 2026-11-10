@@ -177,7 +177,21 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 		SpeakingLimit:       cfg.DailyLimitSpeaking,
 	})
 	aiLimitsHandler := ailimits.NewHandler(aiLimitsService, logger)
-	billingService := billing.NewService(billing.NewPostgresRepository(pool), cfg.PaywallEnabled, nil, cfg.PaymentReturnURL, dailyLimiter, aiLimitsService)
+	billingRepo := billing.NewPostgresRepository(pool)
+	var paymentProvider billing.Provider
+	if cfg.PaymentProvider == "bcc" {
+		provider, err := billing.NewBCCProvider(cfg.BCC, billingRepo, cfg.PaymentReturnURL, cfg.Environment)
+		if err != nil {
+			// Configuration is normally validated before app construction. Fail
+			// closed here too; never silently enable an invalid provider.
+			logger.Error("BCC configuration rejected", "error", err)
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "invalid payment configuration", http.StatusServiceUnavailable)
+			})
+		}
+		paymentProvider = provider
+	}
+	billingService := billing.NewService(billingRepo, cfg.PaywallEnabled, paymentProvider, cfg.PaymentReturnURL, dailyLimiter, aiLimitsService)
 	if cfg.PaymentProvider == "fake" {
 		if err := billingService.WithFakeProvider(cfg.Environment); err != nil {
 			logger.Error("fake payment provider rejected", "error", err)
@@ -330,6 +344,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/billing/plans", billingHandler.Plans)
 		api.Post("/billing/callbacks/{provider}", billingHandler.Callback)
+		billingHandler.RegisterBCCRoutes(api)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-send")).Post("/phone-verifications", phoneHandler.Send)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
 		api.With(rateLimit(rateLimiter, logger, cfg, "waitlist")).Post("/waitlist", waitlistHandler.Join)
@@ -768,12 +783,22 @@ func (a *speakingSTTAdapter) Transcribe(ctx context.Context, filename string, au
 	return res.Text, nil
 }
 
-// Provider signatures authenticate callbacks. Browser origin rules must not
-// reject a bank's POST before its provider gets a chance to verify it.
+// Provider authentication protects callbacks; BCC's bridge validates its own
+// same-origin POST and capability. BACKREF is navigation only. These routes
+// must not be rejected by the frontend-origin CORS allowlist first.
 func billingCallbackCORS(cors func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		browser := cors(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost && r.URL.Path == "/api/v1/billing/bcc/bridge" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			backref := strings.TrimPrefix(r.URL.Path, "/api/v1/billing/bcc/return/")
+			if (r.Method == http.MethodPost || r.Method == http.MethodGet) && backref != r.URL.Path && backref != "" && !strings.Contains(backref, "/") {
+				next.ServeHTTP(w, r)
+				return
+			}
 			path := strings.TrimPrefix(r.URL.Path, "/api/v1/billing/callbacks/")
 			if r.Method == http.MethodPost && path != r.URL.Path && path != "" && !strings.Contains(path, "/") {
 				next.ServeHTTP(w, r)

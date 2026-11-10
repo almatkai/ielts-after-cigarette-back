@@ -1,0 +1,3 @@
+ALTER TABLE billing_orders DROP CONSTRAINT billing_orders_bcc_numeric_order;
+DROP TABLE billing_bcc_order_suffixes;
+DROP SEQUENCE billing_bcc_order_sequence;

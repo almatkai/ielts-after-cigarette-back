@@ -183,6 +183,59 @@ func (r *PostgresRepository) SetProviderOrder(ctx context.Context, id uuid.UUID,
 func (r *PostgresRepository) Order(ctx context.Context, id uuid.UUID) (Order, error) {
 	return scanOrder(r.pool.QueryRow(ctx, `SELECT `+orderColumns+orderFrom+`WHERE o.id=$1`, id))
 }
+
+// Resolve the bank's numeric ORDER through the saved, unique provider mapping;
+// the internal UUID is never sent as BCC ORDER.
+func (r *PostgresRepository) OrderByProvider(ctx context.Context, provider, bankOrder string) (Order, error) {
+	return scanOrder(r.pool.QueryRow(ctx, `SELECT `+orderColumns+orderFrom+`WHERE o.provider=$1 AND o.provider_order_id=$2`, provider, bankOrder))
+}
+
+// ReserveBCCOrder serializes allocation across API instances. The BCC FAQ
+// recommends distinct last-six-digit values for at least a day. Retain each
+// suffix for 48 hours plus the maximum bridge lifetime (30m), including when
+// an order is deleted. Exhaustion fails closed instead of risking a duplicate.
+func (r *PostgresRepository) ReserveBCCOrder(ctx context.Context, id uuid.UUID) (string, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+	o, err := scanOrder(tx.QueryRow(ctx, `SELECT `+orderColumns+orderFrom+`WHERE o.id=$1 FOR UPDATE OF o`, id))
+	if err != nil {
+		return "", err
+	}
+	if o.Provider != "bcc" || o.Status != "PENDING" {
+		return "", ErrValidation
+	}
+	if o.ProviderOrderID != nil {
+		return *o.ProviderOrderID, tx.Commit(ctx)
+	}
+	for range 64 {
+		var sequence int64
+		if err := tx.QueryRow(ctx, `SELECT nextval('billing_bcc_order_sequence')`).Scan(&sequence); err != nil {
+			return "", err
+		}
+		var suffix int64
+		err := tx.QueryRow(ctx, `INSERT INTO billing_bcc_order_suffixes(suffix,reserved_until)
+		 VALUES ($1,clock_timestamp()+INTERVAL '48 hours 30 minutes')
+		 ON CONFLICT(suffix) DO UPDATE SET reserved_until=EXCLUDED.reserved_until
+		 WHERE billing_bcc_order_suffixes.reserved_until <= clock_timestamp()
+		 RETURNING suffix`, sequence%1000000).Scan(&suffix)
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		bankID := fmt.Sprintf("%016d", 1000000000000000+sequence)
+		if _, err := tx.Exec(ctx, `UPDATE billing_orders SET provider_order_id=$2 WHERE id=$1`, id, bankID); err != nil {
+			return "", err
+		}
+		return bankID, tx.Commit(ctx)
+	}
+	return "", ErrProviderUnavailable
+}
+
 func (r *PostgresRepository) Orders(ctx context.Context, user *uuid.UUID, status string, limit, offset int) ([]Order, error) {
 	rows, err := r.pool.Query(ctx, `SELECT `+orderColumns+orderFrom+`WHERE ($1::uuid IS NULL OR o.user_id=$1) AND ($2='' OR o.status=$2) ORDER BY o.created_at DESC,o.id DESC LIMIT NULLIF($3,0) OFFSET $4`, user, status, limit, offset)
 	if err != nil {
