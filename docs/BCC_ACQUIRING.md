@@ -66,7 +66,9 @@ acceptance checklist below is required before enabling acquiring externally.
 8. Only the authenticated server notification can atomically settle the order
    and grant one entitlement. Frontend order polling/return behavior is unchanged.
 
-HTML is no-store, no-referrer, unframeable, with nonce-based CSP, no external
+HTML is no-store, `Referrer-Policy: same-origin` (the cardholder form must POST
+back with a real Origin; `no-referrer` would make browsers send `Origin: null`),
+unframeable, with nonce-based CSP, no external
 assets and restricted form-action. MAC/Basic credentials/bridge signing key
 never appear in HTML or redirect URLs. Phone/address/IP are neither persisted
 in notification payload nor written by the payment code to logs. The bridge
@@ -102,11 +104,12 @@ by the bank. Agree and demonstrate this exact mandatory subset:
 | AMOUNT | Exact saved whole-KZT amount; integer, `.0` or `.00` accepted |
 | CURRENCY | `398` only (normalized internally to `KZT`) |
 | TRTYPE | `1` only |
-| ACTION | `0` (documented transaction successfully completed) |
-| RC | `00` (full approval; confirm literal representation with BCC in acceptance) |
+| ACTION | 1–2 digits; `0` = documented transaction successfully completed |
+| RC | exactly 2 alphanumerics; `00` = full approval (confirm literal representation with BCC in acceptance) |
 
-Partial approval `RC=10` is not accepted. Neither `RC=0` nor an empty result is
-accepted. Authentication compares hashes in constant time. Duplicate parameters
+Only `ACTION=0` with `RC=00` is PAID. Any other well-formed result (including
+partial approval `RC=10`) is recorded as FAILED. Malformed results such as
+`RC=0`, an empty ACTION/RC or a 3-digit ACTION are rejected. Authentication compares hashes in constant time. Duplicate parameters
 (including unknown ones), query parameters, invalid URL encoding, non-form
 content type and bodies above 32 KiB are rejected. Extra *single-valued* bank
 fields may be received, but are not stored. Only ACTION, RC and TRTYPE metadata
@@ -122,18 +125,26 @@ the bank-configured Basic Auth notification**. Use dedicated, long, random
 notification credentials; do not reuse MAC or app credentials. Any additional
 bank result-signature contract requires a documented parser/test before use.
 
-Valid/repeated paid notifications return `200 {"ok":true}`. Invalid ones return
-`400 INVALID_PAYMENT_CALLBACK`; database failures return 500 so the bank can
-retry. Confirm retry policy and acknowledgement expectations with BCC.
+Authenticated, well-formed notifications return `200 {"ok":true}`, including
+repeats. Status transitions:
 
-**Non-success limitations:** this adapter only acknowledges the verified full
-purchase approval above. Declines, cancellations, intermediate 3DS messages,
-refunds and other TRTYPEs are not interpreted as PAID or automatically finalized;
-the order remains PENDING unless another supported local workflow changes it.
-Agree success-only delivery or operational handling of rejected non-success
-notifications with the bank. Do not label PENDING as a successful payment.
-Missing notifications, definitive declines, timeouts and ambiguous bank results
-require bank-portal/support reconciliation. **TRTYPE=90 reconciliation is not
+- PENDING → PAID / FAILED.
+- FAILED → PAID: a captured payment always wins (cardholder retry on the bank
+  page or out-of-order delivery) and grants premium once.
+- PAID + later decline: acknowledged with 200, order stays PAID, premium kept.
+- FAILED + another decline: acknowledged with 200, no change.
+
+Forged or malformed notifications return `400 INVALID_PAYMENT_CALLBACK`;
+database failures return 500 so the bank can retry. Confirm retry policy and
+acknowledgement expectations with BCC.
+
+**Non-success limitations:** the collection documents no cancel-specific ACTION,
+so every non-approval is FAILED, never CANCELLED. Confirm with BCC whether
+intermediate (non-final, e.g. 3DS) results are ever notified; they would mark
+the order FAILED until the final approval arrives. Refunds and other TRTYPEs are
+not interpreted. Do not label PENDING as a successful payment. Missing
+notifications, timeouts and ambiguous bank results require bank-portal/support
+reconciliation. **TRTYPE=90 reconciliation is not
 implemented.** Neither are refunds, cancellation commands, recurring payments,
 card storage or token creation. A local REFUNDED status/revocation is not a bank
 refund. Do not manually grant on the basis of a browser return.
@@ -188,8 +199,10 @@ created/read for unit or isolated integration tests.
 The legacy app rate-limit IP resolver trusts private peers and leftmost XFF.
 BCC deliberately **does not reuse that weaker policy**: it parses RemoteAddr and
 walks X-Forwarded-For right-to-left **only through explicitly allowlisted proxy
-CIDRs**. Untrusted direct callers cannot spoof their IP. No fallback fake client
-IP is sent. Configure only narrow, controlled proxy addresses; restrict direct
+CIDRs**, joining every X-Forwarded-For header line so a forged first line cannot
+hide the hop the edge appended. Untrusted direct callers cannot spoof their IP.
+A trusted proxy that sends no XFF yields its own peer IP. No fake client IP is
+invented. Configure only narrow, controlled proxy addresses; restrict direct
 backend access, and have the edge sanitize/append actual client XFF. With multiple
 proxies, allowlist each controlled hop, never arbitrary client networks or `/0`.
 A missing configuration behind a proxy would send its actual peer IP rather than

@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"errors"
 	"html/template"
 	"io"
 	"net/http"
@@ -15,7 +16,7 @@ var bccSubmitPage = template.Must(template.New("submit").Parse(`<!doctype html><
 
 func bccHeaders(w http.ResponseWriter, nonce, formOrigin string) {
 	w.Header().Set("Cache-Control", "private, no-store")
-	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Referrer-Policy", "same-origin")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'nonce-"+nonce+"'; form-action "+formOrigin+"; base-uri 'none'; frame-ancestors 'none'")
@@ -52,22 +53,26 @@ func (h *Handler) BCCBridge(w http.ResponseWriter, r *http.Request) {
 	}
 	o, err := p.bridgeOrder(r.Context(), token)
 	if err != nil {
-		h.writeError(w, r, ErrValidation)
+		if errors.Is(err, ErrValidation) || errors.Is(err, ErrNotFound) {
+			h.writeError(w, r, ErrValidation)
+		} else {
+			h.writeError(w, r, err)
+		}
 		return
 	}
 	action := strings.TrimRight(p.cfg.PublicBaseURL, "/") + "/api/v1/billing/bcc/bridge"
 	if r.Method == http.MethodGet {
 		// No profile phone is assumed to be the cardholder's phone. Collect it
 		// explicitly; do not expose stored profile PII through a bearer capability.
-		if err := bccPreparePage.Execute(w, struct{ Action, Token, Nonce string }{action, token, nonce}); err != nil {
-			return
-		}
+		_ = bccPreparePage.Execute(w, struct{ Action, Token, Nonce string }{action, token, nonce})
 		return
 	}
-	// Capability protects order ownership; Origin additionally blocks cross-site
-	// form submission, including attempts to force someone else's phone/address.
-	origin := strings.TrimRight(p.cfg.PublicBaseURL, "/")
-	if r.Header.Get("Origin") != origin {
+	// Capability protects order ownership; Origin/Sec-Fetch-Site additionally
+	// blocks cross-site form submission, including attempts to force someone else's phone/address.
+	sfs := r.Header.Get("Sec-Fetch-Site")
+	origin := r.Header.Get("Origin")
+	expectedOrigin := strings.TrimRight(p.cfg.PublicBaseURL, "/")
+	if (sfs == "" && origin == "") || (sfs != "" && sfs != "same-origin") || (origin != expectedOrigin && sfs != "same-origin") {
 		h.writeError(w, r, ErrValidation)
 		return
 	}
@@ -102,7 +107,15 @@ func (h *Handler) BCCBackref(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o, err := p.repo.Order(r.Context(), id)
-	if err != nil || o.Provider != "bcc" {
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			h.writeError(w, r, ErrNotFound)
+			return
+		}
+		if h.logger != nil {
+			h.logger.ErrorContext(r.Context(), "bcc backref order lookup failed", "order_id", id, "error", err)
+		}
+	} else if o.Provider != "bcc" {
 		h.writeError(w, r, ErrNotFound)
 		return
 	}
@@ -115,7 +128,7 @@ func (h *Handler) BCCBackref(w http.ResponseWriter, r *http.Request) {
 	}
 	target, _ := url.Parse(p.returnURL)
 	q := target.Query()
-	q.Set("orderId", o.ID.String())
+	q.Set("orderId", id.String())
 	target.RawQuery = q.Encode()
 	http.Redirect(w, r, target.String(), http.StatusSeeOther)
 }
