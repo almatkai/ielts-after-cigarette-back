@@ -207,7 +207,7 @@ func (s *Service) Callback(r *http.Request, provider string) error {
 	}
 	n, err := s.provider.ParseCallback(r)
 	if err != nil {
-		return ErrInvalidCallback
+		return err
 	}
 	return s.Notify(r.Context(), provider, n)
 }
