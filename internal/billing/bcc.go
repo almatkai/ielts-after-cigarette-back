@@ -201,8 +201,27 @@ func bccCallbackStatus(action, rc string) (string, error) {
 	}
 	return "FAILED", nil
 }
+
+// bccNotifyCredentials reads the notification credentials. The standard form is
+// "Basic <base64(user:password)>", but BCC's notification documentation shows
+// the header as the bare base64 value without the scheme, so both are accepted.
+// Either way the same configured user and password must match.
+func bccNotifyCredentials(r *http.Request) (string, string, bool) {
+	if user, pass, ok := r.BasicAuth(); ok {
+		return user, pass, true
+	}
+	raw := strings.TrimSpace(r.Header.Get("Authorization"))
+	if raw == "" || strings.ContainsAny(raw, " \t") {
+		return "", "", false
+	}
+	decoded, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		return "", "", false
+	}
+	return strings.Cut(string(decoded), ":")
+}
 func (p *BCCProvider) ParseCallback(r *http.Request) (Notification, error) {
-	user, pass, ok := r.BasicAuth()
+	user, pass, ok := bccNotifyCredentials(r)
 	userOK := constantCredential(user, p.cfg.NotifyUser)
 	passOK := constantCredential(pass, p.cfg.NotifyPassword)
 	if !ok || p.cfg.NotifyUser == "" || p.cfg.NotifyPassword == "" || !userOK || !passOK || len(r.Header.Values("Authorization")) != 1 {
