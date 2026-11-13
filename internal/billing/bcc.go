@@ -214,7 +214,7 @@ func (p *BCCProvider) ParseCallback(r *http.Request) (Notification, error) {
 	}
 	// The request P_SIGN does NOT authenticate ACTION/RC. Only bank-configured
 	// HTTPS Basic Auth authenticates this result. Never treat browser data as it.
-	if v.Get("MERCHANT") != p.cfg.Merchant || v.Get("TERMINAL") != p.cfg.Terminal || v.Get("CURRENCY") != "398" || v.Get("TRTYPE") != "1" || !bccBankOrder.MatchString(v.Get("ORDER")) || v.Get("MERCH_RN_ID") != v.Get("ORDER") {
+	if v.Get("MERCHANT") != p.cfg.Merchant || v.Get("TERMINAL") != p.cfg.Terminal || v.Get("CURRENCY") != "398" || v.Get("TRTYPE") != "1" || !bccBankOrder.MatchString(v.Get("ORDER")) || v.Get("MERCH_RN_ID") != bccMerchRNID(p.cfg.Terminal, v.Get("ORDER")) {
 		return Notification{}, ErrInvalidCallback
 	}
 	action, rc := v.Get("ACTION"), v.Get("RC")
@@ -271,6 +271,15 @@ func (info bccInfo) validate() error {
 	}
 	return nil
 }
+
+// bccMerchRNID is BCC field 129: a merchant-generated, unique, 16-character
+// alphanumeric reference, distinct from ORDER (the bank's sample uses random
+// uppercase hex). Deriving it from TERMINAL+ORDER keeps it unique per order
+// without a schema change and lets the notification be checked against it.
+func bccMerchRNID(terminal, order string) string {
+	sum := sha256.Sum256([]byte("bcc-merch-rn-id\x00" + terminal + "\x00" + order))
+	return strings.ToUpper(hex.EncodeToString(sum[:8]))
+}
 func (p *BCCProvider) fields(o Order, info bccInfo, ip string) (map[string]string, error) {
 	if err := info.validate(); err != nil {
 		return nil, err
@@ -294,7 +303,7 @@ func (p *BCCProvider) fields(o Order, info bccInfo, ip string) (map[string]strin
 	if err != nil {
 		return nil, err
 	}
-	f := map[string]string{"AMOUNT": amount, "CURRENCY": "398", "ORDER": *o.ProviderOrderID, "MERCH_RN_ID": *o.ProviderOrderID, "DESC": "IELTS study access", "MERCHANT": p.cfg.Merchant, "MERCH_NAME": p.cfg.MerchantName, "TERMINAL": p.cfg.Terminal, "TIMESTAMP": p.now().UTC().Format("20060102150405"), "MERCH_GMT": "0", "TRTYPE": "1", "LANG": p.cfg.Language, "NONCE": nonce, "NOTIFY_URL": p.cfg.NotifyURL, "CLIENT_IP": client.String(), "M_INFO": base64.StdEncoding.EncodeToString(data), "BACKREF": strings.TrimRight(p.cfg.PublicBaseURL, "/") + "/api/v1/billing/bcc/return/" + o.ID.String()}
+	f := map[string]string{"AMOUNT": amount, "CURRENCY": "398", "ORDER": *o.ProviderOrderID, "MERCH_RN_ID": bccMerchRNID(p.cfg.Terminal, *o.ProviderOrderID), "DESC": "IELTS study access", "MERCHANT": p.cfg.Merchant, "MERCH_NAME": p.cfg.MerchantName, "TERMINAL": p.cfg.Terminal, "TIMESTAMP": p.now().UTC().Format("20060102150405"), "MERCH_GMT": "0", "TRTYPE": "1", "LANG": p.cfg.Language, "NONCE": nonce, "NOTIFY_URL": p.cfg.NotifyURL, "CLIENT_IP": client.String(), "M_INFO": base64.StdEncoding.EncodeToString(data), "BACKREF": strings.TrimRight(p.cfg.PublicBaseURL, "/") + "/api/v1/billing/bcc/return/" + o.ID.String()}
 	f["P_SIGN"] = bccMAC(p.macKey, f["AMOUNT"], f["CURRENCY"], f["ORDER"], f["MERCHANT"], f["TERMINAL"], f["MERCH_GMT"], f["TIMESTAMP"], f["TRTYPE"], f["NONCE"])
 	return f, nil
 }

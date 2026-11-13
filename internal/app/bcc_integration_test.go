@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -51,6 +52,10 @@ func TestBCCAppRoutingCORSAndBankNotification(t *testing.T) {
 	if w.Code != 200 || !strings.Contains(w.Body.String(), billing.BCCTestGateway) {
 		t.Fatalf("backend same-origin bridge blocked: %d %s", w.Code, w.Body)
 	}
+	rn := regexp.MustCompile(`name="MERCH_RN_ID" value="([0-9A-F]{16})"`).FindStringSubmatch(w.Body.String())
+	if rn == nil {
+		t.Fatalf("bank form lacks a 16-char alphanumeric MERCH_RN_ID: %s", w.Body)
+	}
 	r = httptest.NewRequest("POST", "/api/v1/billing/bcc/return/"+checkout.ID.String(), strings.NewReader("ACTION=0&RC=00"))
 	r.Header.Set("Origin", "null")
 	w = httptest.NewRecorder()
@@ -63,7 +68,7 @@ func TestBCCAppRoutingCORSAndBankNotification(t *testing.T) {
 	if err != nil || o.Status != "PENDING" {
 		t.Fatalf("forged BACKREF changed status: %+v %v", o, err)
 	}
-	bank := url.Values{"ORDER": {*o.ProviderOrderID}, "MERCH_RN_ID": {*o.ProviderOrderID}, "MERCHANT": {cfg.BCC.Merchant}, "TERMINAL": {cfg.BCC.Terminal}, "AMOUNT": {strconv.FormatInt(o.Amount, 10) + ".00"}, "CURRENCY": {"398"}, "TRTYPE": {"1"}, "ACTION": {"0"}, "RC": {"00"}}
+	bank := url.Values{"ORDER": {*o.ProviderOrderID}, "MERCH_RN_ID": {rn[1]}, "MERCHANT": {cfg.BCC.Merchant}, "TERMINAL": {cfg.BCC.Terminal}, "AMOUNT": {strconv.FormatInt(o.Amount, 10) + ".00"}, "CURRENCY": {"398"}, "TRTYPE": {"1"}, "ACTION": {"0"}, "RC": {"00"}}
 	r = httptest.NewRequest("POST", "/api/v1/billing/callbacks/bcc", strings.NewReader(bank.Encode()))
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	r.Header.Set("Origin", "https://test3ds.bcc.kz:5445")
