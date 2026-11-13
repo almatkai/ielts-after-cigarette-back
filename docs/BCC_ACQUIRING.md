@@ -93,7 +93,8 @@ Tell the bank: port **443**, TLS 1.2 or newer, your real virtual-host name,
 `Content-Type: application/x-www-form-urlencoded`, and agreed Basic Auth
 username/password. Configure the same URL in BCC_NOTIFY_URL. Keep the explicit
 `:443` even though it is HTTPS's default port. Proxy must preserve Authorization.
-The bank must send standard `Authorization: Basic <base64(username:password)>`
+The bank must send `Authorization: Basic <base64(username:password)>` or, as the
+BCC notification docs show it, the bare `<base64(username:password)>` value,
 preemptively; a missing/wrong credential returns 400, not a Basic challenge.
 
 The collection's notification section says the payload contains the original
