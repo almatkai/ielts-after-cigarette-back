@@ -36,7 +36,11 @@ acceptance checklist below is required before enabling acquiring externally.
    including any other systems sharing the terminal. Existing
    `UNIQUE(provider,provider_order_id)` also prevents full-ID reuse. Additive
    migration **000049** creates the allocator and enforces numeric mappings.
-   `MERCH_RN_ID` equals this same unique, stable 16-character number.
+   `MERCH_RN_ID` (field 129, "Alphanumeric (16)") is a separate value: the
+   first 8 bytes of SHA-256(`bcc-merch-rn-id`, TERMINAL, ORDER) as 16 uppercase
+   hex characters, like the bank's sample generator. It is stable per order
+   (no extra column) and is not a copy of ORDER; BCC rejected the copy in
+   acceptance review.
 3. `redirectUrl` is `/api/v1/billing/bcc/bridge?token=...` on the configured
    backend public origin. Its HMAC-SHA256 bearer capability binds the UUID,
    owner, bank ORDER, amount and expiry. It expires from order creation (15m
@@ -100,7 +104,7 @@ by the bank. Agree and demonstrate this exact mandatory subset:
 | --- | --- |
 | TERMINAL / MERCHANT | Exact configured identifiers, including leading zeros |
 | ORDER | Saved numeric bank ORDER, not our UUID |
-| MERCH_RN_ID | Same 16-character value as ORDER |
+| MERCH_RN_ID | Exactly the value derived from TERMINAL+ORDER (16 uppercase hex) |
 | AMOUNT | Exact saved whole-KZT amount; integer, `.0` or `.00` accepted |
 | CURRENCY | `398` only (normalized internally to `KZT`) |
 | TRTYPE | `1` only |

@@ -203,7 +203,7 @@ func TestBCCRequiredFieldsUTF8AndValidation(t *testing.T) {
 			t.Fatalf("missing %s", key)
 		}
 	}
-	if f["AMOUNT"] != "4990.00" || f["CURRENCY"] != "398" || f["TRTYPE"] != "1" || f["MERCH_GMT"] != "0" || f["ORDER"] == o.ID.String() || f["ORDER"] != f["MERCH_RN_ID"] || len(f["MERCH_RN_ID"]) != 16 || f["MK_TOKEN"] != "" {
+	if f["AMOUNT"] != "4990.00" || f["CURRENCY"] != "398" || f["TRTYPE"] != "1" || f["MERCH_GMT"] != "0" || f["ORDER"] == o.ID.String() || f["ORDER"] == f["MERCH_RN_ID"] || !regexp.MustCompile(`^[0-9A-F]{16}$`).MatchString(f["MERCH_RN_ID"]) || f["MERCH_RN_ID"] != bccMerchRNID("88888881", f["ORDER"]) || f["MK_TOKEN"] != "" {
 		t.Fatalf("wrong purchase fields: %+v", f)
 	}
 	if _, err := time.Parse("20060102150405", f["TIMESTAMP"]); err != nil {
@@ -271,7 +271,7 @@ func TestBCCBridgeCapabilityBinding(t *testing.T) {
 	}
 }
 func callbackValues(o Order) url.Values {
-	return url.Values{"ORDER": {*o.ProviderOrderID}, "MERCH_RN_ID": {*o.ProviderOrderID}, "MERCHANT": {"00000001"}, "TERMINAL": {"88888881"}, "AMOUNT": {strconv.FormatInt(o.Amount, 10) + ".00"}, "CURRENCY": {"398"}, "TRTYPE": {"1"}, "ACTION": {"0"}, "RC": {"00"}}
+	return url.Values{"ORDER": {*o.ProviderOrderID}, "MERCH_RN_ID": {bccMerchRNID("88888881", *o.ProviderOrderID)}, "MERCHANT": {"00000001"}, "TERMINAL": {"88888881"}, "AMOUNT": {strconv.FormatInt(o.Amount, 10) + ".00"}, "CURRENCY": {"398"}, "TRTYPE": {"1"}, "ACTION": {"0"}, "RC": {"00"}}
 }
 func callbackRequest(v url.Values) *http.Request {
 	r := httptest.NewRequest("POST", "/api/v1/billing/callbacks/bcc", strings.NewReader(v.Encode()))
@@ -326,7 +326,7 @@ func TestBCCNotificationRejectsForgedAndAmbiguousResults(t *testing.T) {
 	if err != nil || n.OrderID != o.ID || n.Status != "PAID" {
 		t.Fatalf("valid: %+v %v", n, err)
 	}
-	for _, tc := range []struct{ key, value string }{{"ORDER", uuid.NewString()}, {"ORDER", "1234567890123456"}, {"MERCH_RN_ID", "1111111111111111"}, {"MERCHANT", "wrong"}, {"TERMINAL", "88888888"}, {"AMOUNT", "4990.01"}, {"AMOUNT", "4991.00"}, {"CURRENCY", "KZT"}, {"CURRENCY", "840"}, {"TRTYPE", "14"}, {"TRTYPE", "90"}, {"ACTION", ""}, {"ACTION", "123"}, {"ACTION", "x"}, {"RC", "0"}, {"RC", ""}} {
+	for _, tc := range []struct{ key, value string }{{"ORDER", uuid.NewString()}, {"ORDER", "1234567890123456"}, {"MERCH_RN_ID", "1111111111111111"}, {"MERCH_RN_ID", ""}, {"MERCH_RN_ID", *o.ProviderOrderID}, {"MERCHANT", "wrong"}, {"TERMINAL", "88888888"}, {"AMOUNT", "4990.01"}, {"AMOUNT", "4991.00"}, {"CURRENCY", "KZT"}, {"CURRENCY", "840"}, {"TRTYPE", "14"}, {"TRTYPE", "90"}, {"ACTION", ""}, {"ACTION", "123"}, {"ACTION", "x"}, {"RC", "0"}, {"RC", ""}} {
 		t.Run(tc.key+tc.value, func(t *testing.T) {
 			v := callbackValues(o)
 			v.Set(tc.key, tc.value)
