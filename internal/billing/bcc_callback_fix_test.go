@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -318,5 +319,40 @@ func TestBCCApprovalAfterDeclineGrantsAndLateDeclineKeepsPaid(t *testing.T) {
 	}
 	if got, _ := repo.Order(context.Background(), o.ID); got.Status != "PAID" {
 		t.Fatalf("late decline changed status to %s", got.Status)
+	}
+}
+
+func TestBCCNotificationAcceptsBareBase64Authorization(t *testing.T) {
+	p, repo, s, _ := bccCallbackFixFixture(t)
+	o, _, err := s.Checkout(context.Background(), uuid.New(), "self", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, _ = repo.Order(context.Background(), o.ID)
+	cfg := testBCCConfig()
+	bare := func(user, pass string) string { return base64.StdEncoding.EncodeToString([]byte(user + ":" + pass)) }
+	// BCC's documented header form: base64 without the "Basic " scheme.
+	r := callbackRequest(callbackValues(o))
+	r.Header.Set("Authorization", bare(cfg.NotifyUser, cfg.NotifyPassword))
+	if n, err := p.ParseCallback(r); err != nil || n.Status != "PAID" {
+		t.Fatalf("bare base64: %+v %v", n, err)
+	}
+	for _, header := range []string{
+		bare(cfg.NotifyUser, "wrong"),
+		bare("wrong", cfg.NotifyPassword),
+		bare("", ""),
+		base64.StdEncoding.EncodeToString([]byte(cfg.NotifyUser + cfg.NotifyPassword)),
+		"not base64!",
+		"Bearer " + bare(cfg.NotifyUser, cfg.NotifyPassword),
+		bare(cfg.NotifyUser, cfg.NotifyPassword) + " extra",
+	} {
+		r := callbackRequest(callbackValues(o))
+		r.Header.Set("Authorization", header)
+		if _, err := p.ParseCallback(r); err == nil {
+			t.Fatalf("accepted Authorization %q", header)
+		}
+	}
+	if repo.grants != 0 {
+		t.Fatal("parser settled an order")
 	}
 }
