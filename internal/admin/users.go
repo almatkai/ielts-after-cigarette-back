@@ -224,7 +224,8 @@ func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
-	// Allowlist admins must be managed through the dedicated administrators page.
+	// Env-protected admins cannot be changed through this endpoint. DB allowlist
+	// entries are removed here so the user page can manage the account directly.
 	if role != input.Role || email != input.Email {
 		var allowed bool
 		err = tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM super_admins WHERE email=$1)`, email).Scan(&allowed)
@@ -233,9 +234,15 @@ func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, protected := h.protectedEmails[email]
-		if allowed || protected {
-			httpx.WriteError(w, r, 409, "ADMIN_ALLOWLIST", "Сначала измените доступ в разделе «Администраторы»", nil)
+		if protected {
+			httpx.WriteError(w, r, 409, "ADMIN_ALLOWLIST", "Этот аккаунт защищён SUPER_ADMIN_EMAILS. Измените конфигурацию окружения.", nil)
 			return
+		}
+		if allowed {
+			if _, err = tx.Exec(r.Context(), `DELETE FROM super_admins WHERE email=$1`, email); err != nil {
+				h.fail(w, r, err)
+				return
+			}
 		}
 	}
 	sort.Strings(permissions)
@@ -408,7 +415,11 @@ func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
-	if strings.ToLower(strings.TrimSpace(input.Email)) != email {
+	if _, protected := h.protectedEmails[email]; protected {
+		httpx.WriteError(w, r, 409, "ADMIN_ALLOWLIST", "Этот аккаунт защищён SUPER_ADMIN_EMAILS. Измените конфигурацию окружения.", nil)
+		return
+	}
+	if strings.ToLower(strings.TrimSpace(input.Email)) != strings.ToLower(strings.TrimSpace(email)) {
 		httpx.WriteError(w, r, 422, "VALIDATION_ERROR", "Email не совпадает", nil)
 		return
 	}
@@ -416,9 +427,11 @@ func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		`INSERT INTO account_object_deletions SELECT 'speaking',storage_key FROM speaking_recordings WHERE attempt_id IN (SELECT id FROM attempts WHERE user_id=$1) ON CONFLICT DO NOTHING`,
 		`INSERT INTO account_object_deletions SELECT 'blog',certificate_storage_key FROM writer_applications WHERE user_id=$1 ON CONFLICT DO NOTHING`,
 		`INSERT INTO account_object_deletions SELECT 'blog',storage_key FROM blog_media WHERE uploaded_by=$1 ON CONFLICT DO NOTHING`,
+		// Guest trial claims must clear both columns together to satisfy guest_trial_claim_complete.
+		`UPDATE guest_trials SET claimed_by=NULL, claimed_session_id=NULL WHERE claimed_by=$1 OR claimed_session_id IN (SELECT id FROM full_mock_sessions WHERE user_id=$1)`,
 		`DELETE FROM blog_posts WHERE author_id=$1`,
 		`DELETE FROM blog_media WHERE uploaded_by=$1`,
-		// Remove sections first: their attempt FK intentionally uses RESTRICT.
+		// Remove sessions before users: section attempt FKs are RESTRICT and sessions may be claimed by guest trials.
 		`DELETE FROM full_mock_sessions WHERE user_id=$1`,
 		`DELETE FROM users WHERE id=$1`,
 	}

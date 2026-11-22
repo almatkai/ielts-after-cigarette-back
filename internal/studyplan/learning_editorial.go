@@ -37,7 +37,7 @@ type editorialMetadata struct {
 func editorialKey(kind, id, version string) string { return kind + ":" + id + ":" + version }
 
 func loadEditorialMetadata(ctx context.Context, tx pgx.Tx) (map[string]editorialMetadata, error) {
-	rows, err := tx.Query(ctx, `SELECT kind,reference_id,version,section,family_id,status,content_hash,revision,review_notes,reviewer_id,reviewed_at FROM study_learning_content_metadata`)
+	rows, err := tx.Query(ctx, `SELECT kind,reference_id,version,section,family_id,status,content_hash,revision,review_notes,COALESCE(reviewer_id::text,''),reviewed_at FROM study_learning_content_metadata`)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func (h *EditorialHandler) History(w http.ResponseWriter, r *http.Request) {
 		editorialError(w, r, ErrValidation)
 		return
 	}
-	rows, err := h.pool.Query(r.Context(), `SELECT revision,decision,reviewer_id,created_at FROM study_learning_content_reviews WHERE kind=$1 AND reference_id=$2 AND version=$3 ORDER BY revision DESC LIMIT 100`, chi.URLParam(r, "kind"), chi.URLParam(r, "id"), version)
+	rows, err := h.pool.Query(r.Context(), `SELECT revision,decision,COALESCE(reviewer_id::text,''),created_at FROM study_learning_content_reviews WHERE kind=$1 AND reference_id=$2 AND version=$3 ORDER BY revision DESC LIMIT 100`, chi.URLParam(r, "kind"), chi.URLParam(r, "id"), version)
 	if err != nil {
 		editorialError(w, r, err)
 		return
