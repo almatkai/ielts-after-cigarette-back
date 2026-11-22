@@ -227,10 +227,28 @@ func TestCheckoutWithPromocodes(t *testing.T) {
 		promos: map[string]Promocode{
 			"FREE100":    freePromo,
 			"DISCOUNT20": discountPromo,
+			"PERCENT20_5": {
+				ID: uuid.New(), Code: "PERCENT20_5", DiscountType: "PERCENT", DiscountValue: 20.5,
+				IsActive: true, StartsAt: past, AllowOnSale: true,
+			},
 		},
 	}
 
 	s := NewService(repo, true, &fakeProvider{notify: func(context.Context, string, Notification) error { return nil }}, "https://example.com/return", nil, nil)
+
+	t.Run("Decimal percentage promocode calculates correctly", func(t *testing.T) {
+		val, promo, err := s.ValidatePromocode(ctx, "PERCENT20_5", "self", user)
+		if err != nil {
+			t.Fatalf("validation failed: %v", err)
+		}
+		// 7990 * 0.205 = 1637.95 -> 1638 discount -> final price 6352
+		if val.DiscountAmount != 1638 || val.FinalPrice != 6352 {
+			t.Fatalf("expected DiscountAmount=1638, FinalPrice=6352, got %d, %d", val.DiscountAmount, val.FinalPrice)
+		}
+		if promo.DiscountValue != 20.5 {
+			t.Fatalf("expected DiscountValue=20.5, got %f", promo.DiscountValue)
+		}
+	})
 
 	t.Run("Free promocode checkout grants instant access", func(t *testing.T) {
 		order, redirect, err := s.Checkout(ctx, user, "self", true, "FREE100")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -322,11 +323,11 @@ func (s *Service) ValidatePromocode(ctx context.Context, code, planCode string, 
 		finalPrice = 0
 		isFree = true
 	case "PERCENT":
-		discountAmount = (basePrice * int64(promo.DiscountValue)) / 100
+		discountAmount = int64(math.Round(float64(basePrice) * promo.DiscountValue / 100.0))
 		finalPrice = basePrice - discountAmount
 		isFree = finalPrice <= 0
 	case "FIXED":
-		discountAmount = int64(promo.DiscountValue)
+		discountAmount = int64(math.Round(promo.DiscountValue))
 		if discountAmount > basePrice {
 			discountAmount = basePrice
 		}

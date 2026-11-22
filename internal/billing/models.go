@@ -142,7 +142,7 @@ type Promocode struct {
 	ID             uuid.UUID  `json:"id"`
 	Code           string     `json:"code"`
 	DiscountType   string     `json:"discountType"` // 'PERCENT', 'FIXED', 'FREE'
-	DiscountValue  int        `json:"discountValue"`
+	DiscountValue  float64    `json:"discountValue"`
 	PlanCode       *string    `json:"planCode"`
 	MinPriceKZT    *int64     `json:"minPriceKzt"`
 	AllowOnSale    bool       `json:"allowOnSale"`
@@ -161,10 +161,10 @@ type Promocode struct {
 }
 
 type PromocodeValidation struct {
-	Valid          bool   `json:"valid"`
-	Code           string `json:"code"`
-	DiscountType   string `json:"discountType"`
-	DiscountValue  int    `json:"discountValue"`
+	Valid          bool    `json:"valid"`
+	Code           string  `json:"code"`
+	DiscountType   string  `json:"discountType"`
+	DiscountValue  float64 `json:"discountValue"`
 	DiscountAmount int64  `json:"discountAmount"`
 	OriginalPrice  int64  `json:"originalPrice"`
 	FinalPrice     int64  `json:"finalPrice"`
