@@ -1,8 +1,17 @@
-UPDATE billing_plans SET active = false WHERE code IN ('group', 'personal', 'self');
+UPDATE billing_plans SET active = false WHERE code IN ('group', 'personal');
+
+UPDATE billing_plans SET
+  title = '1 месяц',
+  list_price_kzt = 14990,
+  sale_price_kzt = 7990,
+  access_days = 30,
+  sort_order = 1,
+  active = true,
+  updated_at = CURRENT_TIMESTAMP
+WHERE code = 'self';
 
 INSERT INTO billing_plans (code, title, list_price_kzt, sale_price_kzt, access_days, meetings_count, meetings_kind, sort_order, active)
 VALUES
-  ('month_1', '1 месяц', 14990, 7990, 30, 0, NULL, 1, true),
   ('month_2', '2 месяца', 23990, 11990, 60, 0, NULL, 2, true),
   ('month_6', '6 месяцев', 59990, 31990, 180, 0, NULL, 3, true),
   ('year_1', '1 год', 99990, 53990, 365, 0, NULL, 4, true)

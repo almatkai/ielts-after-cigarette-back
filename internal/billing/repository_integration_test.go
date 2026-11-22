@@ -292,7 +292,7 @@ func TestPlansSettingsAndFakeCheckout(t *testing.T) {
 	s := NewService(repo, true, nil, "https://example.test/billing/return", nil, nil)
 	user := testdb.User(t, pool)
 	plans, err := repo.Plans(ctx)
-	if err != nil || len(plans) != 3 || plans[0].Code != "self" || plans[2].Price != 34990 {
+	if err != nil || len(plans) != 4 || plans[0].Code != "self" || plans[3].Price != 53990 {
 		t.Fatalf("seed: %+v %v", plans, err)
 	}
 	if _, err = s.UpdatePlan(ctx, "self", PlanInput{ListPrice: ptr(int64(10000)), SalePrice: nil, Active: ptr(true)}); err != nil {
