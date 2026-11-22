@@ -53,7 +53,7 @@ func TestBillingHTTPAuthenticationOwnershipAdministrationAndFakePayment(t *testi
 		router.ServeHTTP(w, r)
 		return w
 	}
-	if w := request("GET", "/billing/plans", "", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"salePrice":4990`) {
+	if w := request("GET", "/billing/plans", "", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"salePrice":7990`) {
 		t.Fatalf("plans: %d %s", w.Code, w.Body.String())
 	}
 	if w := request("GET", "/billing/me", "", ""); w.Code != 401 {
@@ -64,6 +64,9 @@ func TestBillingHTTPAuthenticationOwnershipAdministrationAndFakePayment(t *testi
 	}
 	if w := request("POST", "/billing/checkout", `{"planCode":"unknown","acceptedTerms":true}`, studentToken); w.Code != 404 {
 		t.Fatalf("unknown plan: %d %s", w.Code, w.Body.String())
+	}
+	if _, err := pool.Exec(ctx, `UPDATE billing_plans SET active=true WHERE code='group'`); err != nil {
+		t.Fatal(err)
 	}
 	w := request("POST", "/billing/checkout", `{"planCode":"group","acceptedTerms":true}`, studentToken)
 	if w.Code != 201 {
