@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -155,22 +156,83 @@ func (r *PostgresRepository) ListAdmins(ctx context.Context) ([]string, error) {
 }
 
 func (r *PostgresRepository) AddAdmin(ctx context.Context, email string) error {
-	_, err := r.pool.Exec(ctx, `
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin add admin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	normEmail := strings.ToLower(strings.TrimSpace(email))
+
+	_, err = tx.Exec(ctx, `
 		INSERT INTO super_admins (email) VALUES ($1)
 		ON CONFLICT (email) DO NOTHING
-	`, email)
+	`, normEmail)
 	if err != nil {
 		return fmt.Errorf("add super admin: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE users
+		SET role = 'ADMIN',
+		    token_version = token_version + 1
+		WHERE lower(btrim(email)) = $1 AND role != 'ADMIN'
+	`, normEmail)
+	if err != nil {
+		return fmt.Errorf("elevate user to admin: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		DELETE FROM refresh_sessions
+		WHERE user_id IN (SELECT id FROM users WHERE lower(btrim(email)) = $1)
+	`, normEmail)
+	if err != nil {
+		return fmt.Errorf("revoke sessions for elevated admin: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit add admin: %w", err)
 	}
 	return nil
 }
 
 func (r *PostgresRepository) RemoveAdmin(ctx context.Context, email string) error {
-	_, err := r.pool.Exec(ctx, `
-		DELETE FROM super_admins WHERE email = $1
-	`, email)
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin remove admin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	normEmail := strings.ToLower(strings.TrimSpace(email))
+
+	_, err = tx.Exec(ctx, `
+		DELETE FROM super_admins WHERE lower(btrim(email)) = $1
+	`, normEmail)
 	if err != nil {
 		return fmt.Errorf("remove super admin: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE users
+		SET role = 'STUDENT',
+		    admin_permissions = '{}',
+		    token_version = token_version + 1
+		WHERE lower(btrim(email)) = $1
+	`, normEmail)
+	if err != nil {
+		return fmt.Errorf("demote admin to student: %w", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		DELETE FROM refresh_sessions
+		WHERE user_id IN (SELECT id FROM users WHERE lower(btrim(email)) = $1)
+	`, normEmail)
+	if err != nil {
+		return fmt.Errorf("revoke demoted admin sessions: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit remove admin: %w", err)
 	}
 	return nil
 }
