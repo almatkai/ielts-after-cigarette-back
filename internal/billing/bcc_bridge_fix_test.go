@@ -256,4 +256,43 @@ func TestBCCBridgeFixes(t *testing.T) {
 			t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
 		}
 	})
+
+	t.Run("BCCBackref with explicit bank failure marks order failed and redirects with status=failed", func(t *testing.T) {
+		o, _, err := s.Checkout(context.Background(), uuid.New(), "self", true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stored, err := repo.Order(context.Background(), o.ID)
+		if err != nil || stored.Status != "PENDING" {
+			t.Fatalf("initial order: %v status=%s", err, stored.Status)
+		}
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/api/v1/billing/bcc/return/"+o.ID.String(), strings.NewReader("ACTION=2&RC=05"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("expected 303, got %d: %s", rec.Code, rec.Body.String())
+		}
+		loc := rec.Header().Get("Location")
+		target, err := url.Parse(loc)
+		if err != nil {
+			t.Fatalf("invalid redirect: %v", err)
+		}
+		if got := target.Query().Get("status"); got != "failed" {
+			t.Fatalf("expected status=failed in query, got %q (location: %s)", got, loc)
+		}
+		if got := target.Query().Get("orderId"); got != o.ID.String() {
+			t.Fatalf("expected orderId=%s, got %q", o.ID.String(), got)
+		}
+
+		updated, err := repo.Order(context.Background(), o.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if updated.Status != "FAILED" {
+			t.Fatalf("expected order status FAILED, got %s", updated.Status)
+		}
+	})
 }
