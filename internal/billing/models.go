@@ -8,10 +8,17 @@ import (
 )
 
 var (
-	ErrNotFound            = errors.New("billing resource not found")
-	ErrValidation          = errors.New("invalid billing input")
-	ErrProviderUnavailable = errors.New("payment provider unavailable")
-	ErrInvalidCallback     = errors.New("invalid payment callback")
+	ErrNotFound              = errors.New("billing resource not found")
+	ErrValidation            = errors.New("invalid billing input")
+	ErrProviderUnavailable   = errors.New("payment provider unavailable")
+	ErrInvalidCallback       = errors.New("invalid payment callback")
+	ErrPromocodeNotFound     = errors.New("promocode not found")
+	ErrPromocodeExpired      = errors.New("promocode expired")
+	ErrPromocodeLimitReached = errors.New("promocode limit reached")
+	ErrPromocodeMinPrice     = errors.New("order amount below promocode minimum")
+	ErrPromocodeNotOnSale    = errors.New("promocode cannot be applied to promotional sale")
+	ErrPromocodePlanMismatch = errors.New("promocode cannot be applied to this plan")
+	ErrPromocodeUserLimit    = errors.New("promocode already redeemed by user")
 )
 var Skills = []string{"listening", "reading", "writing", "speaking"}
 
@@ -74,6 +81,8 @@ type Order struct {
 	PlanCode        string     `json:"planCode"`
 	Amount          int64      `json:"amount"`
 	ListPrice       int64      `json:"listPrice"`
+	DiscountAmount  int64      `json:"discountAmount"`
+	PromocodeID     *uuid.UUID `json:"promocodeId,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	PaidAt          *time.Time `json:"paidAt"`
 	Currency        string     `json:"-"`
@@ -127,4 +136,65 @@ func (e *PaymentRequired) Error() string {
 		return "Бесплатные сообщения ассистента на сегодня закончились."
 	}
 	return "Бесплатные тесты по этому навыку закончились. Выберите тариф, чтобы продолжить."
+}
+
+type Promocode struct {
+	ID             uuid.UUID  `json:"id"`
+	Code           string     `json:"code"`
+	DiscountType   string     `json:"discountType"` // 'PERCENT', 'FIXED', 'FREE'
+	DiscountValue  int        `json:"discountValue"`
+	PlanCode       *string    `json:"planCode"`
+	MinPriceKZT    *int64     `json:"minPriceKzt"`
+	AllowOnSale    bool       `json:"allowOnSale"`
+	MaxUses        *int       `json:"maxUses"`
+	UsedCount      int        `json:"usedCount"`
+	MaxUsesPerUser int        `json:"maxUsesPerUser"`
+	StartsAt       time.Time  `json:"startsAt"`
+	ExpiresAt      *time.Time `json:"expiresAt"`
+	IsActive       bool       `json:"isActive"`
+	PartnerUserID  *uuid.UUID `json:"partnerUserId"`
+	PartnerName    *string    `json:"partnerName,omitempty"`
+	CreatedBy      *uuid.UUID `json:"createdBy"`
+	Note           string     `json:"note"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
+}
+
+type PromocodeValidation struct {
+	Valid          bool   `json:"valid"`
+	Code           string `json:"code"`
+	DiscountType   string `json:"discountType"`
+	DiscountValue  int    `json:"discountValue"`
+	DiscountAmount int64  `json:"discountAmount"`
+	OriginalPrice  int64  `json:"originalPrice"`
+	FinalPrice     int64  `json:"finalPrice"`
+	IsFree         bool   `json:"isFree"`
+	Message        string `json:"message,omitempty"`
+}
+
+type CreatePromocodeInput struct {
+	Code           string     `json:"code"`
+	DiscountType   string     `json:"discountType"`
+	DiscountValue  int        `json:"discountValue"`
+	PlanCode       *string    `json:"planCode"`
+	MinPriceKZT    *int64     `json:"minPriceKzt"`
+	AllowOnSale    *bool      `json:"allowOnSale"`
+	MaxUses        *int       `json:"maxUses"`
+	MaxUsesPerUser *int       `json:"maxUsesPerUser"`
+	StartsAt       *time.Time `json:"startsAt"`
+	ExpiresAt      *time.Time `json:"expiresAt"`
+	PartnerUserID  *uuid.UUID `json:"partnerUserId"`
+	Note           string     `json:"note"`
+}
+
+type PromocodeRedemption struct {
+	ID             uuid.UUID  `json:"id"`
+	PromocodeID    uuid.UUID  `json:"promocodeId"`
+	UserID         uuid.UUID  `json:"userId"`
+	UserEmail      string     `json:"userEmail,omitempty"`
+	UserName       string     `json:"userName,omitempty"`
+	OrderID        *uuid.UUID `json:"orderId"`
+	DiscountAmount int64      `json:"discountAmount"`
+	FinalPrice     int64      `json:"finalPrice"`
+	CreatedAt      time.Time  `json:"createdAt"`
 }
