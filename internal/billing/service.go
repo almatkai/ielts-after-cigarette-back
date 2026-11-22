@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/almatkai/ielts-after-cigarette-back/internal/ailimits"
@@ -163,12 +164,19 @@ func entitlementWindow(now time.Time, last *time.Time, days int) (time.Time, tim
 	loc, _ := time.LoadLocation(cache.TimeZone)
 	return start, start.In(loc).AddDate(0, 0, days).UTC()
 }
-func (s *Service) Checkout(ctx context.Context, user uuid.UUID, code string, accepted bool) (Order, string, error) {
+func (s *Service) Checkout(ctx context.Context, user uuid.UUID, code string, accepted bool, promocodes ...string) (Order, string, error) {
 	if !accepted {
 		return Order{}, "", ErrValidation
 	}
-	if s.provider == nil {
+	var promocode string
+	if len(promocodes) > 0 {
+		promocode = strings.TrimSpace(promocodes[0])
+	}
+	if s.provider == nil && promocode == "" {
 		return Order{}, "", ErrProviderUnavailable
+	}
+	if s.repo == nil {
+		return Order{}, "", ErrNotFound
 	}
 	p, err := s.repo.Plan(ctx, code)
 	if err != nil {
@@ -184,7 +192,61 @@ func (s *Service) Checkout(ctx context.Context, user uuid.UUID, code string, acc
 	if a.Guest {
 		return Order{}, "", ErrValidation
 	}
-	o, err := s.repo.CreateOrder(ctx, Order{ID: uuid.New(), UserID: user, PlanCode: p.Code, ListPrice: p.ListPrice, Amount: p.Price, Provider: s.provider.Name(), AccessDays: p.AccessDays, MeetingsCount: p.MeetingsCount})
+
+	finalPrice := p.Price
+	var discountAmount int64
+	var promoID *uuid.UUID
+
+	if promocode != "" {
+		validation, promo, err := s.ValidatePromocode(ctx, promocode, p.Code, user)
+		if err != nil {
+			return Order{}, "", err
+		}
+		discountAmount = validation.DiscountAmount
+		finalPrice = validation.FinalPrice
+		promoID = &promo.ID
+	}
+
+	if finalPrice == 0 {
+		o := Order{
+			ID:             uuid.New(),
+			UserID:         user,
+			PlanCode:       p.Code,
+			ListPrice:      p.ListPrice,
+			Amount:         0,
+			DiscountAmount: discountAmount,
+			PromocodeID:    promoID,
+			Provider:       "promocode",
+			AccessDays:     p.AccessDays,
+			MeetingsCount:  p.MeetingsCount,
+		}
+		o, err := s.repo.CreateFreeOrder(ctx, o)
+		if err != nil {
+			return o, "", err
+		}
+		target, err := returnTarget(s.returnURL, o.ID)
+		if err != nil {
+			target = s.returnURL
+		}
+		return o, target, nil
+	}
+
+	if s.provider == nil {
+		return Order{}, "", ErrProviderUnavailable
+	}
+
+	o, err := s.repo.CreateOrder(ctx, Order{
+		ID:             uuid.New(),
+		UserID:         user,
+		PlanCode:       p.Code,
+		ListPrice:      p.ListPrice,
+		Amount:         finalPrice,
+		DiscountAmount: discountAmount,
+		PromocodeID:    promoID,
+		Provider:       s.provider.Name(),
+		AccessDays:     p.AccessDays,
+		MeetingsCount:  p.MeetingsCount,
+	})
 	if err != nil {
 		return o, "", err
 	}
@@ -196,6 +258,114 @@ func (s *Service) Checkout(ctx context.Context, user uuid.UUID, code string, acc
 		return o, "", err
 	}
 	return o, redirect, nil
+}
+
+func (s *Service) ValidatePromocode(ctx context.Context, code, planCode string, user uuid.UUID) (PromocodeValidation, *Promocode, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return PromocodeValidation{}, nil, ErrPromocodeNotFound
+	}
+	promo, err := s.repo.PromocodeByCode(ctx, code)
+	if err != nil {
+		return PromocodeValidation{}, nil, err
+	}
+	now := time.Now().UTC()
+	if !promo.IsActive || now.Before(promo.StartsAt) {
+		return PromocodeValidation{}, nil, ErrPromocodeNotFound
+	}
+	if promo.ExpiresAt != nil && now.After(*promo.ExpiresAt) {
+		return PromocodeValidation{}, nil, ErrPromocodeExpired
+	}
+	if promo.MaxUses != nil && promo.UsedCount >= *promo.MaxUses {
+		return PromocodeValidation{}, nil, ErrPromocodeLimitReached
+	}
+
+	p, err := s.repo.Plan(ctx, planCode)
+	if err != nil {
+		return PromocodeValidation{}, nil, err
+	}
+	if !p.Active {
+		return PromocodeValidation{}, nil, ErrNotFound
+	}
+	if promo.PlanCode != nil && *promo.PlanCode != p.Code {
+		return PromocodeValidation{}, nil, ErrPromocodePlanMismatch
+	}
+	if promo.MinPriceKZT != nil && p.Price < *promo.MinPriceKZT {
+		return PromocodeValidation{}, nil, ErrPromocodeMinPrice
+	}
+	if !promo.AllowOnSale && p.SalePrice != nil {
+		return PromocodeValidation{}, nil, ErrPromocodeNotOnSale
+	}
+
+	maxPerUser := promo.MaxUsesPerUser
+	if maxPerUser <= 0 {
+		maxPerUser = 1
+	}
+	if user != uuid.Nil {
+		redemptions, err := s.repo.UserPromocodeRedemptionsCount(ctx, promo.ID, user)
+		if err != nil {
+			return PromocodeValidation{}, nil, err
+		}
+		if redemptions >= maxPerUser {
+			return PromocodeValidation{}, nil, ErrPromocodeUserLimit
+		}
+	}
+
+	basePrice := p.Price
+	var discountAmount int64
+	var finalPrice int64
+	var isFree bool
+
+	switch promo.DiscountType {
+	case "FREE":
+		discountAmount = basePrice
+		finalPrice = 0
+		isFree = true
+	case "PERCENT":
+		discountAmount = (basePrice * int64(promo.DiscountValue)) / 100
+		finalPrice = basePrice - discountAmount
+		isFree = finalPrice <= 0
+	case "FIXED":
+		discountAmount = int64(promo.DiscountValue)
+		if discountAmount > basePrice {
+			discountAmount = basePrice
+		}
+		finalPrice = basePrice - discountAmount
+		isFree = finalPrice <= 0
+	default:
+		return PromocodeValidation{}, nil, ErrValidation
+	}
+
+	if finalPrice < 0 {
+		finalPrice = 0
+	}
+
+	return PromocodeValidation{
+		Valid:          true,
+		Code:           promo.Code,
+		DiscountType:   promo.DiscountType,
+		DiscountValue:  promo.DiscountValue,
+		DiscountAmount: discountAmount,
+		OriginalPrice:  basePrice,
+		FinalPrice:     finalPrice,
+		IsFree:         isFree,
+	}, &promo, nil
+}
+
+func (s *Service) ListPromocodes(ctx context.Context, partnerUserID *uuid.UUID, activeOnly *bool) ([]Promocode, error) {
+	return s.repo.ListPromocodes(ctx, partnerUserID, activeOnly)
+}
+func (s *Service) CreatePromocode(ctx context.Context, input CreatePromocodeInput, actor uuid.UUID) (Promocode, error) {
+	return s.repo.CreatePromocode(ctx, input, actor)
+}
+func (s *Service) TogglePromocodeStatus(ctx context.Context, id uuid.UUID, isActive bool) (Promocode, error) {
+	return s.repo.UpdatePromocodeStatus(ctx, id, isActive)
+}
+func (s *Service) DeletePromocode(ctx context.Context, id uuid.UUID) error {
+	return s.repo.DeletePromocode(ctx, id)
+}
+func (s *Service) PromocodeRedemptions(ctx context.Context, id uuid.UUID) ([]PromocodeRedemption, error) {
+	return s.repo.PromocodeRedemptions(ctx, id)
 }
 func (s *Service) Notify(ctx context.Context, provider string, n Notification) error {
 	_, _, err := s.repo.Notify(ctx, provider, n)

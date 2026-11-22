@@ -34,6 +34,15 @@ type Repository interface {
 	Meetings(context.Context, uuid.UUID, int) error
 	UpdateSettings(context.Context, Settings) (Settings, error)
 	UpdatePlan(context.Context, string, PlanInput) (Plan, error)
+	CreateFreeOrder(context.Context, Order) (Order, error)
+	PromocodeByCode(context.Context, string) (Promocode, error)
+	PromocodeByID(context.Context, uuid.UUID) (Promocode, error)
+	ListPromocodes(context.Context, *uuid.UUID, *bool) ([]Promocode, error)
+	CreatePromocode(context.Context, CreatePromocodeInput, uuid.UUID) (Promocode, error)
+	UpdatePromocodeStatus(context.Context, uuid.UUID, bool) (Promocode, error)
+	DeletePromocode(context.Context, uuid.UUID) error
+	PromocodeRedemptions(context.Context, uuid.UUID) ([]PromocodeRedemption, error)
+	UserPromocodeRedemptionsCount(context.Context, uuid.UUID, uuid.UUID) (int, error)
 }
 type PostgresRepository struct{ pool *pgxpool.Pool }
 
@@ -153,11 +162,11 @@ func (r *PostgresRepository) Snapshot(ctx context.Context, user uuid.UUID) (Acce
 }
 
 const orderColumns = `o.id,o.user_id,u.email,o.status,o.plan_code,o.amount_kzt,o.list_price_kzt,o.created_at,o.paid_at,o.currency,o.provider,o.provider_order_id,
- COALESCE((o.payload->>'accessDays')::integer,p.access_days),COALESCE((o.payload->>'meetingsCount')::integer,p.meetings_count)`
+ COALESCE((o.payload->>'accessDays')::integer,p.access_days),COALESCE((o.payload->>'meetingsCount')::integer,p.meetings_count),COALESCE(o.discount_amount,0),o.promocode_id`
 const orderFrom = ` FROM billing_orders o JOIN users u ON u.id=o.user_id JOIN billing_plans p ON p.code=o.plan_code `
 
 func scanOrder(row scanner) (o Order, err error) {
-	err = row.Scan(&o.ID, &o.UserID, &o.Email, &o.Status, &o.PlanCode, &o.Amount, &o.ListPrice, &o.CreatedAt, &o.PaidAt, &o.Currency, &o.Provider, &o.ProviderOrderID, &o.AccessDays, &o.MeetingsCount)
+	err = row.Scan(&o.ID, &o.UserID, &o.Email, &o.Status, &o.PlanCode, &o.Amount, &o.ListPrice, &o.CreatedAt, &o.PaidAt, &o.Currency, &o.Provider, &o.ProviderOrderID, &o.AccessDays, &o.MeetingsCount, &o.DiscountAmount, &o.PromocodeID)
 	return o, notFound(err)
 }
 func (r *PostgresRepository) CreateOrder(ctx context.Context, o Order) (Order, error) {
@@ -165,10 +174,58 @@ func (r *PostgresRepository) CreateOrder(ctx context.Context, o Order) (Order, e
 	if err != nil {
 		return o, err
 	}
-	err = r.pool.QueryRow(ctx, `INSERT INTO billing_orders(id,user_id,plan_code,list_price_kzt,amount_kzt,provider,payload) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING created_at`, o.ID, o.UserID, o.PlanCode, o.ListPrice, o.Amount, o.Provider, payload).Scan(&o.CreatedAt)
+	err = r.pool.QueryRow(ctx, `INSERT INTO billing_orders(id,user_id,plan_code,list_price_kzt,amount_kzt,provider,payload,discount_amount,promocode_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING created_at`, o.ID, o.UserID, o.PlanCode, o.ListPrice, o.Amount, o.Provider, payload, o.DiscountAmount, o.PromocodeID).Scan(&o.CreatedAt)
 	o.Status = "PENDING"
 	o.Currency = "KZT"
 	return o, err
+}
+func (r *PostgresRepository) CreateFreeOrder(ctx context.Context, o Order) (Order, error) {
+	payload, err := json.Marshal(map[string]any{"accessDays": o.AccessDays, "meetingsCount": o.MeetingsCount})
+	if err != nil {
+		return o, err
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return o, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := lockUser(ctx, tx, o.UserID); err != nil {
+		return o, err
+	}
+
+	err = tx.QueryRow(ctx, `INSERT INTO billing_orders(id,user_id,plan_code,list_price_kzt,amount_kzt,provider,payload,status,paid_at,discount_amount,promocode_id)
+		VALUES ($1,$2,$3,$4,0,'promocode',$5,'PAID',clock_timestamp(),$6,$7) RETURNING created_at,paid_at`,
+		o.ID, o.UserID, o.PlanCode, o.ListPrice, payload, o.DiscountAmount, o.PromocodeID).Scan(&o.CreatedAt, &o.PaidAt)
+	if err != nil {
+		return o, err
+	}
+	o.Status = "PAID"
+	o.Currency = "KZT"
+	o.Amount = 0
+	o.Provider = "promocode"
+
+	if _, err = insertEntitlement(ctx, tx, Entitlement{
+		ID:            uuid.New(),
+		UserID:        o.UserID,
+		PlanCode:      o.PlanCode,
+		OrderID:       &o.ID,
+		Source:        "PROMOCODE",
+		MeetingsTotal: o.MeetingsCount,
+	}, o.AccessDays); err != nil {
+		return o, err
+	}
+
+	if o.PromocodeID != nil {
+		if _, err = tx.Exec(ctx, `UPDATE promocodes SET used_count=used_count+1, updated_at=clock_timestamp() WHERE id=$1`, *o.PromocodeID); err != nil {
+			return o, err
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO promocode_redemptions(promocode_id,user_id,order_id,discount_amount,final_price) VALUES ($1,$2,$3,$4,0)`, *o.PromocodeID, o.UserID, o.ID, o.DiscountAmount); err != nil {
+			return o, err
+		}
+	}
+
+	return o, tx.Commit(ctx)
 }
 func (r *PostgresRepository) SetProviderOrder(ctx context.Context, id uuid.UUID, providerID string) error {
 	if providerID == "" {
@@ -371,6 +428,14 @@ func (r *PostgresRepository) Notify(ctx context.Context, provider string, n Noti
 	if paid {
 		if _, err = insertEntitlement(ctx, tx, Entitlement{ID: uuid.New(), UserID: o.UserID, PlanCode: o.PlanCode, OrderID: &o.ID, Source: "PAYMENT", MeetingsTotal: o.MeetingsCount}, o.AccessDays); err != nil {
 			return o, false, err
+		}
+		if o.PromocodeID != nil {
+			if _, err = tx.Exec(ctx, `UPDATE promocodes SET used_count=used_count+1, updated_at=clock_timestamp() WHERE id=$1`, *o.PromocodeID); err != nil {
+				return o, false, err
+			}
+			if _, err = tx.Exec(ctx, `INSERT INTO promocode_redemptions(promocode_id,user_id,order_id,discount_amount,final_price) VALUES ($1,$2,$3,$4,$5)`, *o.PromocodeID, o.UserID, o.ID, o.DiscountAmount, o.Amount); err != nil {
+				return o, false, err
+			}
 		}
 	}
 	if n.Status == "REFUNDED" {

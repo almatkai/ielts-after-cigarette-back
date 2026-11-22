@@ -343,6 +343,7 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 
 	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/billing/plans", billingHandler.Plans)
+		api.With(rateLimit(rateLimiter, logger, cfg, "auth")).Post("/billing/promocodes/validate", billingHandler.ValidatePromocode)
 		billingHandler.RegisterProviderRoutes(api)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-send")).Post("/phone-verifications", phoneHandler.Send)
 		api.With(rateLimit(rateLimiter, logger, cfg, "phone-confirm")).Post("/phone-verifications/{verificationID}/confirm", phoneHandler.Confirm)
@@ -446,6 +447,11 @@ func NewWithOptions(cfg config.Config, pool *pgxpool.Pool, redisClient *redis.Cl
 					b.Get("/billing/settings", billingHandler.Settings)
 					b.Put("/billing/settings", billingHandler.UpdateSettings)
 					b.Put("/billing/plans/{code}", billingHandler.UpdatePlan)
+					b.Get("/billing/promocodes", billingHandler.ListPromocodes)
+					b.Post("/billing/promocodes", billingHandler.CreatePromocode)
+					b.Patch("/billing/promocodes/{id}/status", billingHandler.TogglePromocodeStatus)
+					b.Delete("/billing/promocodes/{id}", billingHandler.DeletePromocode)
+					b.Get("/billing/promocodes/{id}/redemptions", billingHandler.PromocodeRedemptions)
 				})
 				studyplan.NewEditorialHandler(pool, cfg.MaxRequestBody).Routes(adminRouter)
 				adminRouter.Get("/access", adminHandler.Access)

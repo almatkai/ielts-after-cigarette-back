@@ -42,6 +42,20 @@ func (h *Handler) writeError(w http.ResponseWriter, r *http.Request, err error) 
 		httpx.WriteError(w, r, 503, "PAYMENT_PROVIDER_UNAVAILABLE", "Payment provider is not configured or unavailable", nil)
 	case errors.Is(err, ErrInvalidCallback):
 		httpx.WriteError(w, r, 400, "INVALID_PAYMENT_CALLBACK", "Payment callback is invalid", nil)
+	case errors.Is(err, ErrPromocodeNotFound):
+		httpx.WriteError(w, r, 404, "PROMOCODE_NOT_FOUND", "Промокод не найден или неактивен", nil)
+	case errors.Is(err, ErrPromocodeExpired):
+		httpx.WriteError(w, r, 400, "PROMOCODE_EXPIRED", "Срок действия промокода истёк", nil)
+	case errors.Is(err, ErrPromocodeLimitReached):
+		httpx.WriteError(w, r, 400, "PROMOCODE_LIMIT_REACHED", "Лимит использований промокода исчерпан", nil)
+	case errors.Is(err, ErrPromocodeMinPrice):
+		httpx.WriteError(w, r, 400, "PROMOCODE_MIN_PRICE", "Сумма заказа меньше минимальной суммы для этого промокода", nil)
+	case errors.Is(err, ErrPromocodeNotOnSale):
+		httpx.WriteError(w, r, 400, "PROMOCODE_NOT_ON_SALE", "Промокод нельзя применить к акционному тарифу", nil)
+	case errors.Is(err, ErrPromocodePlanMismatch):
+		httpx.WriteError(w, r, 400, "PROMOCODE_PLAN_MISMATCH", "Промокод не действует на этот тариф", nil)
+	case errors.Is(err, ErrPromocodeUserLimit):
+		httpx.WriteError(w, r, 400, "PROMOCODE_ALREADY_USED", "Вы уже использовали этот промокод", nil)
 	default:
 		httpx.InternalError(w, r, h.logger, err)
 	}
@@ -92,17 +106,35 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		PlanCode      string `json:"planCode"`
 		AcceptedTerms bool   `json:"acceptedTerms"`
+		Promocode     string `json:"promocode"`
 	}
 	if !h.decode(w, r, &input) {
 		return
 	}
 	user, _ := auth.UserID(r.Context())
-	o, redirect, err := h.service.Checkout(r.Context(), user, input.PlanCode, input.AcceptedTerms)
+	o, redirect, err := h.service.Checkout(r.Context(), user, input.PlanCode, input.AcceptedTerms, input.Promocode)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, 201, map[string]any{"orderId": o.ID, "redirectUrl": redirect})
+	httpx.WriteJSON(w, 201, map[string]any{"orderId": o.ID, "redirectUrl": redirect, "free": o.Amount == 0})
+}
+func (h *Handler) ValidatePromocode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	var input struct {
+		Code     string `json:"code"`
+		PlanCode string `json:"planCode"`
+	}
+	if !h.decode(w, r, &input) {
+		return
+	}
+	user, _ := auth.UserID(r.Context())
+	res, _, err := h.service.ValidatePromocode(r.Context(), input.Code, input.PlanCode, user)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 200, res)
 }
 func (h *Handler) Order(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -305,4 +337,87 @@ func (h *Handler) AssistantLimit(legacy func(http.Handler) http.Handler) func(ht
 			paid.ServeHTTP(w, r)
 		})
 	}
+}
+
+func (h *Handler) ListPromocodes(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	var partnerID *uuid.UUID
+	if raw := r.URL.Query().Get("partnerUserId"); raw != "" {
+		if id, err := uuid.Parse(raw); err == nil {
+			partnerID = &id
+		}
+	}
+	var activeOnly *bool
+	if raw := r.URL.Query().Get("active"); raw != "" {
+		b := raw == "true" || raw == "1"
+		activeOnly = &b
+	}
+	list, err := h.service.ListPromocodes(r.Context(), partnerID, activeOnly)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"promocodes": list})
+}
+
+func (h *Handler) CreatePromocode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	var input CreatePromocodeInput
+	if !h.decode(w, r, &input) {
+		return
+	}
+	actor, _ := auth.UserID(r.Context())
+	promo, err := h.service.CreatePromocode(r.Context(), input, actor)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 201, promo)
+}
+
+func (h *Handler) TogglePromocodeStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	id, ok := h.id(w, r, "id")
+	if !ok {
+		return
+	}
+	var input struct {
+		IsActive bool `json:"isActive"`
+	}
+	if !h.decode(w, r, &input) {
+		return
+	}
+	promo, err := h.service.TogglePromocodeStatus(r.Context(), id, input.IsActive)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 200, promo)
+}
+
+func (h *Handler) DeletePromocode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	id, ok := h.id(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := h.service.DeletePromocode(r.Context(), id); err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) PromocodeRedemptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	id, ok := h.id(w, r, "id")
+	if !ok {
+		return
+	}
+	list, err := h.service.PromocodeRedemptions(r.Context(), id)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"redemptions": list})
 }
