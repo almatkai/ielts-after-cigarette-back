@@ -3,7 +3,7 @@ CREATE TABLE promocodes (
   code TEXT NOT NULL,
   discount_type TEXT NOT NULL CHECK (discount_type IN ('PERCENT', 'FIXED', 'FREE')),
   discount_value INTEGER NOT NULL DEFAULT 0 CHECK (discount_value >= 0),
-  plan_code TEXT REFERENCES billing_plans(code) ON DELETE SET NULL,
+  plan_code TEXT,
   min_price_kzt BIGINT CHECK (min_price_kzt IS NULL OR min_price_kzt >= 0),
   allow_on_sale BOOLEAN NOT NULL DEFAULT true,
   max_uses INTEGER CHECK (max_uses IS NULL OR max_uses > 0),
@@ -27,7 +27,7 @@ CREATE TABLE promocode_redemptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   promocode_id UUID NOT NULL REFERENCES promocodes(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  order_id UUID REFERENCES billing_orders(id) ON DELETE SET NULL,
+  order_id UUID,
   discount_amount BIGINT NOT NULL CHECK (discount_amount >= 0),
   final_price BIGINT NOT NULL CHECK (final_price >= 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
