@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"time"
 
@@ -75,16 +76,22 @@ func (r *PostgresRepository) CreatePromocode(ctx context.Context, input CreatePr
 	}
 
 	dval := input.DiscountValue
+	var intVal int
 	if dtype == "PERCENT" {
-		if dval < 1 || dval > 100 {
+		if dval > 0 && dval < 1 {
+			dval = dval * 100
+		}
+		intVal = int(math.Round(dval))
+		if intVal < 1 || intVal > 100 {
 			return Promocode{}, ErrValidation
 		}
 	} else if dtype == "FIXED" {
-		if dval <= 0 {
+		intVal = int(math.Round(dval))
+		if intVal <= 0 {
 			return Promocode{}, ErrValidation
 		}
 	} else if dtype == "FREE" {
-		dval = 0
+		intVal = 0
 	}
 
 	if input.MaxUses != nil && *input.MaxUses <= 0 {
@@ -128,7 +135,7 @@ func (r *PostgresRepository) CreatePromocode(ctx context.Context, input CreatePr
 	)`
 
 	_, err := r.pool.Exec(ctx, query,
-		id, code, dtype, dval, input.PlanCode, input.MinPriceKZT, allowOnSale,
+		id, code, dtype, intVal, input.PlanCode, input.MinPriceKZT, allowOnSale,
 		input.MaxUses, maxPerUser, startsAt, expiresAt,
 		input.PartnerUserID, actor, strings.TrimSpace(input.Note),
 	)

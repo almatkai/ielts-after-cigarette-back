@@ -175,7 +175,7 @@ type PromocodeValidation struct {
 type CreatePromocodeInput struct {
 	Code           string     `json:"code"`
 	DiscountType   string     `json:"discountType"`
-	DiscountValue  int        `json:"discountValue"`
+	DiscountValue  float64    `json:"discountValue"`
 	PlanCode       *string    `json:"planCode"`
 	MinPriceKZT    *int64     `json:"minPriceKzt"`
 	AllowOnSale    *bool      `json:"allowOnSale"`
