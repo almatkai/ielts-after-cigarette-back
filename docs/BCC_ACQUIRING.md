@@ -64,9 +64,11 @@ acceptance checklist below is required before enabling acquiring externally.
    16-byte HEX key, with decimal-length-prefixed values in documented order:
    AMOUNT, CURRENCY, ORDER, MERCHANT, TERMINAL, MERCH_GMT, TIMESTAMP, TRTYPE, NONCE.
 7. Bank/browser GET or POST to `/api/v1/billing/bcc/return/{internalUUID}`
-   ignores all result claims and returns **303** to configured PAYMENT_RETURN_URL,
-   preserving its existing query and adding `orderId`. It never grants premium
-   or changes payment status, even if ACTION/RC/P_SIGN claim success.
+   ignores success claims (only the authenticated server notification can
+   settle orders and grant premium). If the bank explicitly reports failure
+   (ACTION != 0 or RC != 00), the order is marked FAILED and redirected with
+   status=failed so the student is not left waiting indefinitely on an unpaid
+   order.
 8. Only the authenticated server notification can atomically settle the order
    and grant one entitlement. Frontend order polling/return behavior is unchanged.
 

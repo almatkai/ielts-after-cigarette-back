@@ -90,8 +90,11 @@ func (h *Handler) BCCBridge(w http.ResponseWriter, r *http.Request) {
 	}{p.cfg.Gateway, nonce, fields})
 }
 
-// BCCBackref is navigation only. Ignore ALL bank/browser claims, including
-// ACTION, RC and P_SIGN. Only the authenticated notification can settle orders.
+// BCCBackref is navigation. Success claims are ignored because only the
+// authenticated server notification can settle orders and grant access.
+// Explicit bank decline/failure reports (ACTION != 0 or RC != 00) are noted
+// immediately to mark the order failed and redirect with status=failed so the
+// student is not left waiting indefinitely on an unpaid order.
 func (h *Handler) BCCBackref(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
@@ -117,17 +120,52 @@ func (h *Handler) BCCBackref(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, ErrNotFound)
 		return
 	}
+
+	var bankFailed bool
 	if r.Method == http.MethodPost {
-		b, err := io.Copy(io.Discard, io.LimitReader(r.Body, 32769))
-		if err != nil || b > 32768 {
+		b, err := io.ReadAll(io.LimitReader(r.Body, 32769))
+		if err != nil || len(b) > 32768 {
 			h.writeError(w, r, ErrValidation)
 			return
 		}
+		if v, err := url.ParseQuery(string(b)); err == nil {
+			action := v.Get("ACTION")
+			rc := v.Get("RC")
+			if (action != "" && action != "0") || (rc != "" && rc != "00") {
+				bankFailed = true
+			}
+		}
+	} else if r.Method == http.MethodGet {
+		action := r.URL.Query().Get("ACTION")
+		rc := r.URL.Query().Get("RC")
+		if (action != "" && action != "0") || (rc != "" && rc != "00") {
+			bankFailed = true
+		}
 	}
+
+	if bankFailed && o.Status == "PENDING" && o.ProviderOrderID != nil && *o.ProviderOrderID != "" {
+		_, _, _ = h.service.repo.Notify(r.Context(), "bcc", Notification{
+			OrderID:         o.ID,
+			ProviderOrderID: *o.ProviderOrderID,
+			Amount:          o.Amount,
+			Currency:        o.Currency,
+			Status:          "FAILED",
+			Payload:         map[string]any{"source": "backref"},
+		})
+	}
+
 	target, err := returnTarget(p.returnURL, id)
 	if err != nil {
 		h.writeError(w, r, err)
 		return
+	}
+	if bankFailed {
+		if u, err := url.Parse(target); err == nil {
+			q := u.Query()
+			q.Set("status", "failed")
+			u.RawQuery = q.Encode()
+			target = u.String()
+		}
 	}
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
