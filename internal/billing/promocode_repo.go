@@ -75,23 +75,17 @@ func (r *PostgresRepository) CreatePromocode(ctx context.Context, input CreatePr
 		return Promocode{}, ErrValidation
 	}
 
-	dval := input.DiscountValue
-	var intVal int
+	dval := math.Round(input.DiscountValue*100) / 100
 	if dtype == "PERCENT" {
-		if dval > 0 && dval < 1 {
-			dval = dval * 100
-		}
-		intVal = int(math.Round(dval))
-		if intVal < 1 || intVal > 100 {
+		if dval <= 0 || dval > 100 {
 			return Promocode{}, ErrValidation
 		}
 	} else if dtype == "FIXED" {
-		intVal = int(math.Round(dval))
-		if intVal <= 0 {
+		if dval <= 0 {
 			return Promocode{}, ErrValidation
 		}
 	} else if dtype == "FREE" {
-		intVal = 0
+		dval = 0
 	}
 
 	if input.MaxUses != nil && *input.MaxUses <= 0 {
@@ -135,7 +129,7 @@ func (r *PostgresRepository) CreatePromocode(ctx context.Context, input CreatePr
 	)`
 
 	_, err := r.pool.Exec(ctx, query,
-		id, code, dtype, intVal, input.PlanCode, input.MinPriceKZT, allowOnSale,
+		id, code, dtype, dval, input.PlanCode, input.MinPriceKZT, allowOnSale,
 		input.MaxUses, maxPerUser, startsAt, expiresAt,
 		input.PartnerUserID, actor, strings.TrimSpace(input.Note),
 	)
