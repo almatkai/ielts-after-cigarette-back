@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net"
 	"net/http"
@@ -224,38 +225,60 @@ func (p *BCCProvider) ParseCallback(r *http.Request) (Notification, error) {
 	user, pass, ok := bccNotifyCredentials(r)
 	userOK := constantCredential(user, p.cfg.NotifyUser)
 	passOK := constantCredential(pass, p.cfg.NotifyPassword)
-	if !ok || p.cfg.NotifyUser == "" || p.cfg.NotifyPassword == "" || !userOK || !passOK || len(r.Header.Values("Authorization")) != 1 {
-		return Notification{}, ErrInvalidCallback
+	switch {
+	case p.cfg.NotifyUser == "" || p.cfg.NotifyPassword == "":
+		return Notification{}, bccRejectRequest(r, "notify_credentials_not_configured")
+	case len(r.Header.Values("Authorization")) != 1:
+		return Notification{}, bccRejectRequest(r, "auth_header_count")
+	case !ok:
+		return Notification{}, bccRejectRequest(r, "auth_unparseable")
+	case !userOK || !passOK:
+		return Notification{}, bccRejectRequest(r, "auth_mismatch", slog.Bool("user_ok", userOK), slog.Bool("password_ok", passOK))
 	}
 	v, err := readBCCForm(r)
 	if err != nil {
-		return Notification{}, err
+		return Notification{}, bccRejectRequest(r, "form_unreadable", slog.String("method", r.Method))
+	}
+	form := bccFormAttrs(v)
+	reject := func(reason string, extra ...slog.Attr) error {
+		return bccRejectRequest(r, reason, append(form, extra...)...)
 	}
 	// The request P_SIGN does NOT authenticate ACTION/RC. Only bank-configured
 	// HTTPS Basic Auth authenticates this result. Never treat browser data as it.
-	if v.Get("MERCHANT") != p.cfg.Merchant || v.Get("TERMINAL") != p.cfg.Terminal || v.Get("CURRENCY") != "398" || v.Get("TRTYPE") != "1" || !bccBankOrder.MatchString(v.Get("ORDER")) || v.Get("MERCH_RN_ID") != bccMerchRNID(p.cfg.Terminal, v.Get("ORDER")) {
-		return Notification{}, ErrInvalidCallback
+	switch {
+	case v.Get("MERCHANT") != p.cfg.Merchant:
+		return Notification{}, reject("field_mismatch:MERCHANT")
+	case v.Get("TERMINAL") != p.cfg.Terminal:
+		return Notification{}, reject("field_mismatch:TERMINAL")
+	case v.Get("CURRENCY") != "398":
+		return Notification{}, reject("field_mismatch:CURRENCY")
+	case v.Get("TRTYPE") != "1":
+		return Notification{}, reject("field_mismatch:TRTYPE")
+	case !bccBankOrder.MatchString(v.Get("ORDER")):
+		return Notification{}, reject("field_mismatch:ORDER")
+	case v.Get("MERCH_RN_ID") != bccMerchRNID(p.cfg.Terminal, v.Get("ORDER")):
+		return Notification{}, reject("field_mismatch:MERCH_RN_ID", slog.String("expected_merch_rn_id", bccMerchRNID(p.cfg.Terminal, v.Get("ORDER"))))
 	}
 	action, rc := v.Get("ACTION"), v.Get("RC")
 	status, err := bccCallbackStatus(action, rc)
 	if err != nil {
-		return Notification{}, err
+		return Notification{}, reject("field_invalid:ACTION_RC")
 	}
 	amount, err := bccParseAmount(v.Get("AMOUNT"))
 	if err != nil {
-		return Notification{}, err
+		return Notification{}, reject("field_invalid:AMOUNT")
 	}
 	o, err := p.repo.OrderByProvider(r.Context(), "bcc", v.Get("ORDER"))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			return Notification{}, ErrInvalidCallback
+			return Notification{}, reject("order_not_found")
 		}
 		return Notification{}, fmt.Errorf("lookup BCC order: %w", err)
 	}
 	// OrderByProvider already filters by provider and provider ORDER; the
 	// remaining integrity check is the immutable amount/currency.
 	if o.Amount != amount || o.Currency != "KZT" {
-		return Notification{}, ErrInvalidCallback
+		return Notification{}, reject("amount_mismatch", slog.Int64("expected_amount", o.Amount))
 	}
 	// Whitelist persisted metadata: no card/token/phone/address/full callback body.
 	return Notification{OrderID: o.ID, ProviderOrderID: v.Get("ORDER"), Amount: amount, Currency: "KZT", Status: status, Payload: map[string]any{"ACTION": action, "RC": rc, "TRTYPE": "1"}}, nil

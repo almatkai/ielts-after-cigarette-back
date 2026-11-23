@@ -155,7 +155,11 @@ func (h *Handler) Order(w http.ResponseWriter, r *http.Request) {
 }
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, h.maxBody)
-	if err := h.service.Callback(r, chi.URLParam(r, "provider")); err != nil {
+	provider := chi.URLParam(r, "provider")
+	if err := h.service.Callback(r, provider); err != nil {
+		if errors.Is(err, ErrInvalidCallback) {
+			h.logCallbackRejection(r, provider, err)
+		}
 		h.writeError(w, r, err)
 		return
 	}
