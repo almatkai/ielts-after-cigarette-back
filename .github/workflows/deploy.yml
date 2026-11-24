@@ -78,6 +78,8 @@ jobs:
           go vet ./... & vet_pid=$!
           go test -race ./...
           wait "$vet_pid"
+      - name: Check production upload staging
+        run: python3 -m unittest discover -s scripts -p "test_install_production_bundle.py" -v
       - name: Alerting regressions
         run: |
           python3 -B -m unittest discover -s ops/alertbridge -p 'test_*.py'
@@ -295,9 +297,9 @@ jobs:
       # (install -d, scp, deploy) which cost more than the payload transfer.
       - name: Upload deployment files
         run: |
-          tar -czf - docker-compose.production.yml docker-compose.observability.yml docker-compose.pgstats.yml docker-compose.server.yml ops migrations scripts/deploy-production.sh production.env \
+          tar -czf - docker-compose.production.yml docker-compose.observability.yml docker-compose.pgstats.yml docker-compose.server.yml ops migrations scripts/deploy-production.sh scripts/install-production-bundle.py production.env \
             | ssh -p "$DEPLOY_PORT" -i ~/.ssh/ielts_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
-                'install -d -m 700 ~/ielts-api && tar -xzf - -C ~/ielts-api'
+                'set -eu; umask 077; stage=$(mktemp -d "$HOME/.ielts-upload.XXXXXX"); trap "rm -rf -- \"$stage\"" EXIT; tar -xzf - -C "$stage"; python3 "$stage/scripts/install-production-bundle.py" "$stage"'
       - name: Deploy
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}

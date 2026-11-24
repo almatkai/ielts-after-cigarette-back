@@ -43,6 +43,11 @@ if [[ $full_operational == true ]]; then
 	compose+=("${profiles[@]}")
 fi
 
+if [[ -f "$HOME/drone-league/monitoring/require-ielts-integration" ]]; then
+    [[ -f "$HOME/drone-league/monitoring/redeploy_guard.py" ]] || { echo 'Required Drone monitoring guard is missing' >&2; exit 1; }
+    [[ $full_operational == true ]] || { echo 'Drone monitoring requires operational overlays' >&2; exit 1; }
+fi
+
 pull_targets=(backend)
 if [[ $full_operational == true ]]; then
 	pull_targets+=(worker)
@@ -82,6 +87,23 @@ for _ in $(seq 1 30); do
 			# notification code and alert rules become active together.
 			"${compose[@]}" up -d --no-deps --build --force-recreate prometheus alertbridge
 		fi
+        monitoring="$HOME/drone-league/monitoring"
+        if [[ -f "$monitoring/require-ielts-integration" ]]; then
+            [[ $full_operational == true ]] || { echo 'Drone monitoring requires the operational overlays' >&2; exit 1; }
+            # Uploaded configuration is prepared before live replacement. Reload
+            # Alloy in place; no new containers or networks are needed for it.
+            docker exec ielts-api-production-alloy-1 alloy validate /etc/alloy/config.alloy
+            docker kill --signal=HUP ielts-api-production-alloy-1 >/dev/null
+            monitoring_ok=false
+            for attempt in $(seq 1 6); do
+                if timeout 40s python3 "$monitoring/redeploy_guard.py" verify --ielts-root "$deploy_dir"; then
+                    monitoring_ok=true
+                    break
+                fi
+                sleep 5
+            done
+            [[ $monitoring_ok == true ]] || { echo 'Drone monitoring verification failed' >&2; exit 1; }
+        fi
 		exit 0
 	fi
 	sleep 2
